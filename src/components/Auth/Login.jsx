@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { KeyRound, User, Lock, Search, ShieldCheck } from 'lucide-react';
+import { APP_CONFIG } from '../../config/appConfig';
 
-const Login = ({ onLogin, initialMasterKey, binId }) => {
+const Login = ({ onLogin, initialMasterKey, binId, planerType }) => {
   const [masterKey, setMasterKey] = useState(initialMasterKey || '');
   const [employees, setEmployees] = useState([]);
   const [search, setSearch] = useState('');
@@ -16,21 +17,46 @@ const Login = ({ onLogin, initialMasterKey, binId }) => {
     if (masterKey.length >= 20) {
       validateMasterKey();
     }
-  }, [masterKey, binId]);
+  }, [masterKey, binId, planerType]);
 
   const validateMasterKey = async () => {
     if (!binId) return;
     setIsLoading(true);
     setError('');
     try {
-      // Load the specific bin (OA or ASS) to validate key and get employees
-      const response = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
+      // 1. Fetch main bin (ASS or OA)
+      const response = await fetch(`${APP_CONFIG.API_URL}/${binId}/latest`, {
         headers: { 'X-Master-Key': masterKey }
       });
       
       if (response.ok) {
         const data = await response.json();
-        setEmployees(data.record.employees || []);
+        let emps = data.record.employees || [];
+        
+        // 2. If it's the assistant planer, also fetch FOAs from OA bin
+        if (planerType === 'ass' && binId === APP_CONFIG.ASS_BIN_ID) {
+          try {
+            const oaResponse = await fetch(`${APP_CONFIG.API_URL}/${APP_CONFIG.OA_BIN_ID}/latest`, {
+              headers: { 'X-Master-Key': masterKey }
+            });
+            if (oaResponse.ok) {
+              const oaData = await oaResponse.json();
+              const foas = (oaData.record.employees || []).filter(emp => {
+                const grps = Array.isArray(emp.groups) ? emp.groups : (emp.group ? [emp.group] : []);
+                return grps.some(g => g && String(g).toLowerCase().includes('funktionsoberarzt'));
+              }).map(f => ({ ...f, _isCrossProfile: true }));
+
+              // Merge FOAs (only if not already in list)
+              foas.forEach(f => {
+                if (!emps.find(e => e.id === f.id)) emps.push(f);
+              });
+            }
+          } catch (e) {
+            console.warn("FOA fetch failed during login", e);
+          }
+        }
+        
+        setEmployees(emps);
         setIsMasterKeyValid(true);
         localStorage.setItem('jsonbin_key', masterKey);
       } else {

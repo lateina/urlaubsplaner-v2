@@ -37,7 +37,7 @@ const CalendarView = ({
   const [dragVertreter, setDragVertreter] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartVal, setDragStartVal] = useState(null); // 'set' or 'clear'
-  const [sortMode, setSortMode] = useState(planerType === 'oa' ? 'skill' : 'standard'); 
+  const [sortMode, setSortMode] = useState('skill'); 
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
