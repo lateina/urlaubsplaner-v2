@@ -48,10 +48,14 @@ const LEGACY_PALETTE = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '
 
 const App = () => {
   const [activeTab, setActiveTab] = useState('calendar');
-  const [auth, setAuth] = useState({ 
-    user: null, 
-    masterKey: localStorage.getItem('jsonbin_key') || '', 
-    isAuthenticated: false 
+  const [auth, setAuth] = useState(() => {
+    const savedKey = localStorage.getItem('jsonbin_key') || '';
+    const savedUser = localStorage.getItem('logged_user');
+    return { 
+      user: savedUser ? JSON.parse(savedUser) : null, 
+      masterKey: savedKey, 
+      isAuthenticated: !!(savedKey && savedUser) 
+    };
   });
   const [appData, setAppData] = useState({ 
     employees: [], 
@@ -222,21 +226,23 @@ const App = () => {
       url.searchParams.set('p', 'ass');
       window.history.pushState({}, '', url);
     }
+const handleLogin = (loginData) => {
+  localStorage.setItem('logged_user', JSON.stringify(loginData.user));
+  setAuth({
+    user: loginData.user,
+    masterKey: loginData.masterKey,
+    isAuthenticated: true
+  });
+  // Load data will happen automatically via useEffect
+};
 
-    setAuth({
-      user: loginData.user,
-      masterKey: loginData.masterKey,
-      isAuthenticated: true
-    });
-    // Load data will happen automatically via useEffect
-  };
-
-  const handleLogout = () => {
-    if (!confirm('Abmelden?')) return;
-    setAuth(prev => ({ ...prev, user: null, isAuthenticated: false }));
-    // Do NOT remove from localStorage to pre-fill masterKey on next login
-    window.location.reload();
-  };
+const handleLogout = () => {
+  if (!confirm('Abmelden?')) return;
+  localStorage.removeItem('logged_user');
+  setAuth(prev => ({ ...prev, user: null, isAuthenticated: false }));
+  // Do NOT remove jsonbin_key from localStorage to pre-fill masterKey on next login
+  window.location.reload();
+};
 
   const calculateVacationUsed = (empId, absences, year = 2026) => {
     let count = 0;
