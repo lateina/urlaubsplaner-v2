@@ -1,0 +1,6 @@
+{
+  "appId": "com.planertools.urlaubsplaner",
+  "appName": "Urlaubsplaner V2",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}
