@@ -71,17 +71,29 @@ const App = () => {
   const [isICalModalOpen, setIsICalModalOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
-  // Detect planer type from URL (?p=oa or ?p=ass)
+  // Detect planer type from URL (?p=oa or ?p=ass) or localStorage
   const [planerType, setPlanerType] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     const p = params.get('p');
-    return PLANER_PROFILES[p] ? p : DEFAULT_PROFILE;
+    if (PLANER_PROFILES[p]) {
+      localStorage.setItem('planer_type', p);
+      return p;
+    }
+    const saved = localStorage.getItem('planer_type');
+    return PLANER_PROFILES[saved] ? saved : DEFAULT_PROFILE;
   });
 
   const binId = planerType === 'oa' ? APP_CONFIG.OA_BIN_ID : APP_CONFIG.ASS_BIN_ID;
 
-  // Apply planer-specific background class to body
+  // Sync planerType to localStorage and URL
   useEffect(() => {
+    localStorage.setItem('planer_type', planerType);
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('p') !== planerType) {
+      url.searchParams.set('p', planerType);
+      window.history.replaceState({}, '', url.toString());
+    }
+    
     document.body.classList.remove('planer-ass', 'planer-oa');
     document.body.classList.add(`planer-${planerType}`);
   }, [planerType]);
