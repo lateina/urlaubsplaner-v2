@@ -430,7 +430,7 @@ const App = () => {
   const profile = PLANER_PROFILES[planerType];
 
   if (!auth.isAuthenticated) {
-    return <Login onLogin={handleLogin} initialMasterKey={auth.masterKey} />;
+    return <Login onLogin={handleLogin} initialMasterKey={auth.masterKey} binId={binId} />;
   }
 
   const renderContent = () => {

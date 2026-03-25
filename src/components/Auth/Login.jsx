@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { KeyRound, User, Lock, Search, ShieldCheck } from 'lucide-react';
 
-const Login = ({ onLogin, initialMasterKey }) => {
+const Login = ({ onLogin, initialMasterKey, binId }) => {
   const [masterKey, setMasterKey] = useState(initialMasterKey || '');
   const [employees, setEmployees] = useState([]);
   const [search, setSearch] = useState('');
@@ -16,15 +16,15 @@ const Login = ({ onLogin, initialMasterKey }) => {
     if (masterKey.length >= 20) {
       validateMasterKey();
     }
-  }, [masterKey]);
+  }, [masterKey, binId]);
 
   const validateMasterKey = async () => {
+    if (!binId) return;
     setIsLoading(true);
     setError('');
     try {
-      // Try to load any bin to validate key
-      // We'll use the ASS_BIN_ID as a probe
-      const response = await fetch(`https://api.jsonbin.io/v3/b/699ffb53ae596e708f4b3de5/latest`, {
+      // Load the specific bin (OA or ASS) to validate key and get employees
+      const response = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
         headers: { 'X-Master-Key': masterKey }
       });
       
