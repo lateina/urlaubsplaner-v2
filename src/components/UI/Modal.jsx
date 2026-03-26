@@ -22,13 +22,15 @@ const Modal = ({ isOpen, onClose, title, children }) => {
 
         width: '95%',
         maxWidth: 520,
+        maxHeight: 'calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 40px)',
         borderRadius: '28px',
         boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
         backdropFilter: 'blur(30px)', // High blur ONLY inside the modal
-        border: '1px solid rgba(255, 255, 255, 0.4)'
+        border: '1px solid rgba(255, 255, 255, 0.4)',
+        position: 'relative'
       }}>
         <div style={{
           padding: '24px 28px',
