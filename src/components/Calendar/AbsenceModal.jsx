@@ -12,7 +12,23 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
     employeeId: currentUser?.id || ''
   });
 
+  // Ensure employeeId is initialized to someone other than admin if we're an admin
+  React.useEffect(() => {
+    if (isAdmin && formData.employeeId === 'admin') {
+      const firstEmp = employees.find(e => 
+        e.id !== 'admin' && 
+        e.id !== 'sekretariat' && 
+        e.id !== 'assistentensprecher' &&
+        !e.name?.toLowerCase().includes('administrator')
+      );
+      if (firstEmp) {
+        setFormData(prev => ({ ...prev, employeeId: firstEmp.id }));
+      }
+    }
+  }, [isOpen, isAdmin, employees]);
+
   const [vertreterSearch, setVertreterSearch] = useState('');
+
   const [showVertreterResults, setShowVertreterResults] = useState(false);
 
   // Filter employees for representative search (exclude self and special roles)
