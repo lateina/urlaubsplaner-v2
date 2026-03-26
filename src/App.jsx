@@ -228,18 +228,6 @@ const App = () => {
   }, [binId, planerType]);
 
   const handleLogin = (loginData) => {
-    const user = loginData.user;
-    const isSpecial = user.id === 'admin' || user.id === 'sekretariat';
-    
-    // Force non-admin users to Assistentenplaner if they are in the wrong view
-    if (!isSpecial && planerType !== 'ass') {
-      setPlanerType('ass');
-      localStorage.setItem('planer_type', 'ass');
-      const url = new URL(window.location);
-      url.searchParams.set('p', 'ass');
-      window.history.pushState({}, '', url);
-    }
-
     localStorage.setItem('logged_user', JSON.stringify(loginData.user));
     setAuth({
       user: loginData.user,
