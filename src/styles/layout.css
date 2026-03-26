@@ -8,15 +8,17 @@
   --text-main: #1e293b;
   --text-secondary: #64748b;
   --border: #e2e8f0;
-  --header-h: 168px;
+  --header-h: 252px;
   --header-align: flex-end;
-  --header-pb: 12px;
-  --white: #ffffff;
+  --header-pb: 32px;
+  --sidebar-radius: 0;
+  --sidebar-margin: 0;
+  --sidebar-h: 100vh;
 }
 
 @media (orientation: landscape) {
   :root {
-    --header-h: 32px;
+    --header-h: 22px;
     --header-align: center;
     --header-pb: 0;
   }
