@@ -126,9 +126,13 @@ const CalendarView = ({
 
   const virtualCols = colVirtualizer.getVirtualItems();
 
+  const [forcedMonthIndex, setForcedMonthIndex] = useState(-1);
+
   // Determine active month for rotation sorting
-  // Use a slight offset (e.g. 10 columns in) to detect which month the user is primarily looking at
-  const activeMonthIndex = virtualCols.length > 5 ? virtualCols[5].index : (virtualCols.length > 0 ? virtualCols[0].index : -1);
+  // Use forced index if available (e.g. after clicking a month button) to avoid sorting lag
+  const activeMonthIndex = forcedMonthIndex !== -1 
+    ? forcedMonthIndex 
+    : (virtualCols.length > 5 ? virtualCols[5].index : (virtualCols.length > 0 ? virtualCols[0].index : -1));
   
   const activeMonthStr = useMemo(() => {
     if (activeMonthIndex === -1) return '';
@@ -137,6 +141,14 @@ const CalendarView = ({
     const date = new Date(activeDay.dateStr);
     return `month_${date.getFullYear()}_${String(date.getMonth() + 1).padStart(2, '0')}`;
   }, [activeMonthIndex, days]);
+
+  // Reset forced month after some time to allow natural scrolling to take over again
+  useEffect(() => {
+    if (forcedMonthIndex !== -1) {
+      const timer = setTimeout(() => setForcedMonthIndex(-1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [forcedMonthIndex]);
 
   // Pre-calculate assignments for the active month for performance
   const empAreaMap = useMemo(() => {
@@ -322,6 +334,7 @@ const CalendarView = ({
   }, []);
 
   const scrollToCol = (index) => {
+    setForcedMonthIndex(index);
     const offset = colVirtualizer.getOffsetForIndex(index, 'start')[0];
     if (parentRef.current) {
       parentRef.current.scrollTo({
@@ -335,6 +348,7 @@ const CalendarView = ({
     const todayStr = new Date().toISOString().split('T')[0];
     const index = days.findIndex(d => d.dateStr === todayStr);
     if (index !== -1 && parentRef.current) {
+      setForcedMonthIndex(index);
       const offset = colVirtualizer.getOffsetForIndex(index, 'start')[0];
       parentRef.current.scrollTo({
         left: Math.max(0, offset - (1 * CELL_W)),
