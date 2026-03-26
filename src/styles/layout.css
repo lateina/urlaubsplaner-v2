@@ -142,17 +142,22 @@ input[type="date"] {
 
 @media (max-width: 768px) {
   :root {
-    --header-h: 52px;
+    --header-h: 48px;
   }
   .sidebar {
     display: none; /* Hide sidebar on mobile */
   }
   .header {
     padding: 0 12px;
+    height: calc(var(--header-h) + env(safe-area-inset-top, 0px)) !important;
+    padding-top: env(safe-area-inset-top, 0px) !important;
+    display: flex;
+    align-items: center;
   }
   .header-user-icon, .header-user-status, .logout-text {
     display: none !important;
   }
+
   .time-nav-actions {
     order: -1;
     margin-left: 0 !important;
