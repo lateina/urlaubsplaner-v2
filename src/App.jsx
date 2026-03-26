@@ -370,9 +370,34 @@ const App = () => {
 
 
   const handleSubmitRequest = async (request) => {
+    let updatedAbsences = appData.absences;
+    
+    // If request is pre-approved (direct Admin entry), also update absences
+    if (request.status === 'approved') {
+      updatedAbsences = { ...appData.absences };
+      if (!updatedAbsences[request.empId]) updatedAbsences[request.empId] = {};
+      request.dates.forEach(date => {
+        updatedAbsences[request.empId][date] = {
+          type: request.type,
+          text: request.text,
+          vertreter: request.vertreter,
+          vertreterId: request.vertreterId,
+          status: 'confirmed'
+        };
+      });
+    }
+
     const updatedRequests = [...appData.requests, request];
-    await saveAllData({ ...appData, requests: updatedRequests });
+    const updatedStats = updateVacationStats(updatedAbsences);
+    
+    await saveAllData({ 
+      ...appData, 
+      requests: updatedRequests, 
+      absences: updatedAbsences,
+      vacationStats: updatedStats
+    });
   };
+
 
   const handleApproveRequest = async (reqId, byType) => {
     const reqIndex = appData.requests.findIndex(r => r.id === reqId);
@@ -654,28 +679,9 @@ const App = () => {
           </div>
         )
       default:
-        return (
-          <CalendarView 
-            planerType={planerType}
-            employees={appData.employees} 
-            absences={appData.absences} 
-            requests={appData.requests}
-            onSaveAbsences={handleSaveAbsence}
-            onSubmitRequest={handleSubmitRequest}
-            isAdmin={isAdmin} 
-            currentUser={auth.user} 
-            groupColors={appData.groupColors} 
-            rotationData={appData.rotationData} 
-            skills={appData.skills} 
-            areaOrder={appData.areaOrder}
-            actionRequiredCount={actionRequiredCount}
-            vacationStats={appData.vacationStats}
-            onUpdateAdminData={handleUpdateAdminData}
-            perms={perms}
-          />
-
-        );
+        return null;
     }
+
   };
 
   return (

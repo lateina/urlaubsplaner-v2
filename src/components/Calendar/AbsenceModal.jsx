@@ -168,31 +168,43 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
     }
 
 
+    // Always create a request object
+    const request = {
+      id: 'req_' + Date.now(),
+      empId: formData.employeeId,
+      type: formData.type,
+      text: formData.remarks,
+      vertreter: formData.vertreter,
+      vertreterId: formData.vertreterId,
+      dates: dates,
+      status: isDirect ? 'approved' : (formData.vertreterId ? 'pending_vertreter' : 'pending_admin'),
+      createdAt: new Date().toISOString().split('T')[0],
+      stamps: {
+        submitted: {
+          at: new Date().toISOString(),
+          uid: currentUser.id,
+          name: currentUser.name
+        }
+      }
+    };
 
     if (isDirect) {
-      onSave(formData);
-    } else {
-      const request = {
-        id: 'req_' + Date.now(),
-        empId: formData.employeeId,
-        type: formData.type,
-        text: formData.remarks,
-        vertreter: formData.vertreter,
-        vertreterId: formData.vertreterId,
-        dates: dates,
-        status: formData.vertreterId ? 'pending_vertreter' : 'pending_admin',
-        createdAt: new Date().toISOString().split('T')[0],
-        stamps: {
-          submitted: {
-            at: new Date().toISOString(),
-            uid: currentUser.id,
-            name: currentUser.name
-          }
-        }
+      // Add auto-approval stamps for direct entry
+      request.stamps.vertreter = {
+        at: new Date().toISOString(),
+        uid: currentUser.id,
+        name: currentUser.name,
+        isAuto: true
       };
-      
-      if (onSubmitRequest) onSubmitRequest(request);
+      request.stamps.admin = {
+        at: new Date().toISOString(),
+        uid: currentUser.id,
+        name: currentUser.name,
+        isAuto: true
+      };
     }
+    
+    if (onSubmitRequest) onSubmitRequest(request);
     
     onClose();
     // Reset form
@@ -207,6 +219,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
     });
     setVertreterSearch('');
   };
+
 
 
   return (
