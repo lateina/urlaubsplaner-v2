@@ -11,7 +11,8 @@ const Sidebar = ({ activeTab, onTabChange, planerType, onPlanerSwitch, isAdmin, 
     ...(perms.canSeeSummary ? [{ id: 'summary', label: 'Zusammenfassung', icon: ClipboardList }] : []),
     ...(perms.canAdminEmployees ? [{ id: 'employees', label: 'Mitarbeiter', icon: Users }] : []),
     ...(perms.canAdminSkills ? [{ id: 'skills', label: 'Skills', icon: ShieldCheck }] : []),
-    ...(isAdmin && planerType !== 'oa' ? [{ id: 'areas', label: 'Bereiche', icon: ChevronsLeftRight }] : []),
+    ...(perms.canAdminAreas && planerType !== 'oa' ? [{ id: 'areas', label: 'Bereiche', icon: ChevronsLeftRight }] : []),
+
     ...(perms.canICalExport ? [{ id: 'ical', label: 'iCal Export', icon: Download }] : []),
     { id: 'settings', label: 'Einstellungen', icon: Settings },
   ];

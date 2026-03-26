@@ -432,6 +432,7 @@ const App = () => {
   const perms = {
     canAdminEmployees: isFullAdmin || isSpokesperson,
     canAdminSkills: isFullAdmin || isSpokesperson,
+    canAdminAreas: isFullAdmin || isSpokesperson,
     canSeeSummary: isFullAdmin || isSekretariat || isSpokesperson,
     canBulkImport: isFullAdmin,
     canRequestAbsence: true,
@@ -442,6 +443,7 @@ const App = () => {
     forcePlanerAss: isSpokesperson,
     canSeePOKarte: isFullAdmin || isSekretariat
   };
+
 
   // Force Assistentenplaner for spokesperson
   useEffect(() => {
@@ -460,10 +462,13 @@ const App = () => {
     }
   }, [auth.isAuthenticated, auth.authProfile, planerType, perms.canSwitchPlaner]);
 
+  const poPendingCount = appData.requests.filter(r => r.status === 'approved' && !r.stamps?.po).length;
+
   const actionRequiredCount = appData.requests.filter(r => {
     if (isAdmin) return r.status === 'pending_admin';
     return r.status === 'pending_vertreter' && r.vertreterId === auth.user?.id;
-  }).length;
+  }).length + (perms.canSeePOKarte ? poPendingCount : 0);
+
 
   const togglePlaner = () => {
     if (!isAdmin) return;
@@ -559,7 +564,8 @@ const App = () => {
           </div>
         );
       case 'areas':
-        if (planerType === 'oa') return null;
+        if (planerType === 'oa' || !perms.canAdminAreas) return null;
+
         return (
           <div style={{ flex: 1, overflow: 'auto', padding: '24px', background: 'transparent' }}>
             <CategoryAdmin 
