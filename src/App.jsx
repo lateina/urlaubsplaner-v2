@@ -231,30 +231,31 @@ const App = () => {
     const user = loginData.user;
     const isSpecial = user.id === 'admin' || user.id === 'sekretariat';
     
-    // Force non-admin users to Assistentenplaner
+    // Force non-admin users to Assistentenplaner if they are in the wrong view
     if (!isSpecial && planerType !== 'ass') {
       setPlanerType('ass');
+      localStorage.setItem('planer_type', 'ass');
       const url = new URL(window.location);
       url.searchParams.set('p', 'ass');
       window.history.pushState({}, '', url);
     }
-const handleLogin = (loginData) => {
-  localStorage.setItem('logged_user', JSON.stringify(loginData.user));
-  setAuth({
-    user: loginData.user,
-    masterKey: loginData.masterKey,
-    isAuthenticated: true
-  });
-  // Load data will happen automatically via useEffect
-};
 
-const handleLogout = () => {
-  if (!confirm('Abmelden?')) return;
-  localStorage.removeItem('logged_user');
-  setAuth(prev => ({ ...prev, user: null, isAuthenticated: false }));
-  // Do NOT remove jsonbin_key from localStorage to pre-fill masterKey on next login
-  window.location.reload();
-};
+    localStorage.setItem('logged_user', JSON.stringify(loginData.user));
+    setAuth({
+      user: loginData.user,
+      masterKey: loginData.masterKey,
+      isAuthenticated: true
+    });
+    // Load data will happen automatically via useEffect
+  };
+
+  const handleLogout = () => {
+    if (!confirm('Abmelden?')) return;
+    localStorage.removeItem('logged_user');
+    setAuth(prev => ({ ...prev, user: null, isAuthenticated: false }));
+    // Do NOT remove jsonbin_key from localStorage to pre-fill masterKey on next login
+    window.location.reload();
+  };
 
   const calculateVacationUsed = (empId, absences, year = 2026) => {
     let count = 0;

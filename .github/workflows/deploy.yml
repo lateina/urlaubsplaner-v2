@@ -24,11 +24,6 @@ jobs:
           node-version: 24
           cache: 'npm'
 
-      - name: Debug Info
-        run: |
-          echo "Current directory: $(pwd)"
-          ls -R src/components/
-
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
 
