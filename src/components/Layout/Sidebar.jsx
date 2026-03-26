@@ -23,17 +23,21 @@ const Sidebar = ({ activeTab, onTabChange, planerType, onPlanerSwitch, isAdmin, 
       onClick={onToggleCollapse}
       style={{ 
         '--primary': profile.primaryColor,
-        width: isCollapsed ? 'calc(env(safe-area-inset-left) + 80px)' : 'calc(env(safe-area-inset-left) + 260px)',
-        paddingTop: 'env(safe-area-inset-top)',
+        width: isCollapsed ? 'calc(env(safe-area-inset-left) + 64px)' : 'calc(env(safe-area-inset-left) + 200px)',
+        margin: '12px 0 12px 12px',
+        height: 'calc(100vh - 24px)',
+        borderRadius: '24px',
         paddingLeft: 'env(safe-area-inset-left)',
-        paddingRight: 'env(safe-area-inset-right)',
-        borderRight: '1px solid var(--glass-border)',
+        paddingRight: '4px',
+        border: '1px solid var(--glass-border)',
         background: 'rgba(255, 255, 255, 0.15)',
         backdropFilter: 'blur(32px)',
         zIndex: 150,
-        transition: 'width 0.3s ease-in-out',
+        transition: 'width 0.3s ease-in-out, margin 0.3s ease-in-out',
         overflow: 'hidden',
-        cursor: 'pointer'
+        cursor: 'pointer',
+        display: 'flex',
+        flexDirection: 'column'
       }}
     >
       <div 
