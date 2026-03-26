@@ -6,8 +6,9 @@
   "start_url": "./index.html?p=oa",
   "scope": ".",
   "display": "standalone",
-  "background_color": "#f8fafc",
-  "theme_color": "#8b5cf6",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+
   "icons": [
     {
       "src": "icon-192.png",
