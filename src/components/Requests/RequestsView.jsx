@@ -12,7 +12,6 @@ const RequestsView = ({
   onReject, 
   onDelete,
   onMarkPODone,
-  onMarkPODone,
   perms = {},
   planerType
 }) => {

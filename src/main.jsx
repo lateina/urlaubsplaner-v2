@@ -9,15 +9,5 @@ createRoot(document.getElementById('root')).render(
   </StrictMode>,
 )
 
-// Register service worker for PWA support
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    const swUrl = `${import.meta.env.BASE_URL}sw.js`;
-    navigator.serviceWorker.register(swUrl).then(reg => {
-      console.log('SW registered, scope:', reg.scope);
-    }).catch(err => {
-      console.log('SW registration failed: ', err);
-    });
-  });
-}
+// Service worker registration is handled automatically by vite-plugin-pwa
 
