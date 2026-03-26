@@ -141,7 +141,23 @@ input[type="date"] {
 }
 
 @media (max-width: 768px) {
+  :root {
+    --header-h: 52px;
+  }
   .sidebar {
     display: none; /* Hide sidebar on mobile */
   }
+  .header {
+    padding: 0 12px;
+  }
+  .header-user-icon, .header-user-status, .logout-text {
+    display: none !important;
+  }
+  .time-nav-actions {
+    order: -1;
+    margin-left: 0 !important;
+    margin-right: 12px;
+  }
 }
+
+

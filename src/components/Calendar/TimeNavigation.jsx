@@ -55,7 +55,8 @@ const TimeNavigation = ({ days, onScrollToCol, activeMonthKey, onNavigate, onScr
         })}
 
         {/* Navigation & Action Buttons */}
-        <div style={{ display: 'flex', gap: '8px', marginLeft: '24px', alignItems: 'center' }}>
+        <div className="time-nav-actions" style={{ display: 'flex', gap: '8px', marginLeft: '24px', alignItems: 'center' }}>
+
           <button 
             onClick={() => onNavigate(-1)}
             style={{ 
