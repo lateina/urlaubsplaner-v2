@@ -242,7 +242,6 @@ const App = () => {
   };
 
   const handleLogout = () => {
-    if (!confirm('Abmelden?')) return;
     localStorage.removeItem('logged_user');
     localStorage.removeItem('auth_profile');
     setAuth(prev => ({ ...prev, user: null, isAuthenticated: false, authProfile: null }));
