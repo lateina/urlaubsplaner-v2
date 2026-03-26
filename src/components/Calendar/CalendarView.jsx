@@ -132,7 +132,7 @@ const CalendarView = ({
   // Use forced index if available (e.g. after clicking a month button) to avoid sorting lag
   const activeMonthIndex = forcedMonthIndex !== -1 
     ? forcedMonthIndex 
-    : (virtualCols.length > 5 ? virtualCols[5].index : (virtualCols.length > 0 ? virtualCols[0].index : -1));
+    : (virtualCols.length > 0 ? virtualCols[0].index : -1);
   
   const activeMonthStr = useMemo(() => {
     if (activeMonthIndex === -1) return '';
@@ -143,9 +143,10 @@ const CalendarView = ({
   }, [activeMonthIndex, days]);
 
   // Reset forced month after some time to allow natural scrolling to take over again
+  // Increased to 2 seconds to ensure smooth scroll has reached the target
   useEffect(() => {
     if (forcedMonthIndex !== -1) {
-      const timer = setTimeout(() => setForcedMonthIndex(-1), 1000);
+      const timer = setTimeout(() => setForcedMonthIndex(-1), 2000);
       return () => clearTimeout(timer);
     }
   }, [forcedMonthIndex]);
@@ -598,8 +599,9 @@ const CalendarView = ({
           }
         }}
         activeMonthKey={(() => {
-          const visibleIndex = Math.floor((colVirtualizer.scrollOffset + (7 * CELL_W) + 5) / CELL_W);
-          const day = days[Math.min(visibleIndex, days.length - 1)];
+          // Use a smaller offset (1.5 cells) to match the new scrollToCol behavior (-1 cell)
+          const visibleIndex = Math.floor((colVirtualizer.scrollOffset + (1.5 * CELL_W)) / CELL_W);
+          const day = days[Math.min(Math.max(0, visibleIndex), days.length - 1)];
           return day ? `${day.year}-${day.month}` : null;
         })()}
         onScrollToToday={scrollToToday}
