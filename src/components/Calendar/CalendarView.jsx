@@ -130,13 +130,14 @@ const CalendarView = ({
 
   // Determine active month for rotation sorting
   // Use forced index if available (e.g. after clicking a month button) to avoid sorting lag
+  // Use scrollOffset for precise detection (bypassing virtualizer overscan)
   const activeMonthIndex = forcedMonthIndex !== -1 
     ? forcedMonthIndex 
-    : (virtualCols.length > 0 ? virtualCols[0].index : -1);
+    : Math.floor((colVirtualizer.scrollOffset + (0.5 * CELL_W)) / CELL_W);
   
   const activeMonthStr = useMemo(() => {
-    if (activeMonthIndex === -1) return '';
-    const activeDay = days[activeMonthIndex];
+    const index = Math.min(Math.max(0, activeMonthIndex), days.length - 1);
+    const activeDay = days[index];
     if (!activeDay) return '';
     const date = new Date(activeDay.dateStr);
     return `month_${date.getFullYear()}_${String(date.getMonth() + 1).padStart(2, '0')}`;
