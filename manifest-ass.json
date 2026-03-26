@@ -4,16 +4,20 @@
   "short_name": "Planer ASS",
   "description": "Urlaubsplaner für Assistenzärzte",
   "start_url": "./assistenz.html?p=ass",
-  "scope": ".",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#f8fafc",
+  "display_override": ["standalone", "window-controls-overlay"],
+  "background_color": "#ffffff",
   "theme_color": "#ffffff",
+
 
   "icons": [
     {
       "src": "icon-ass-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
+
     },
     {
       "src": "icon-ass-512.png",
