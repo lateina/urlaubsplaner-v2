@@ -115,6 +115,31 @@ const App = () => {
       const data = await apiService.load(binId, key);
       let employees = data.employees || [];
       let absences = data.state || {}; // In the bin it's called "state"
+
+      // --- Healing Logic: Detect if absences was overwritten by a single formData object ---
+      if (absences && absences.startDate && absences.employeeId) {
+        console.warn('Absences data was corrupted (overwritten by a form). Healing...');
+        const formData = absences;
+        const healed = {};
+        const dates = [];
+        let curr = new Date(formData.startDate);
+        const end = new Date(formData.endDate);
+        while (curr <= end) {
+          dates.push(curr.toISOString().split('T')[0]);
+          curr.setDate(curr.getDate() + 1);
+        }
+        healed[formData.employeeId] = {};
+        dates.forEach(d => {
+          healed[formData.employeeId][d] = {
+            type: formData.type || 'U',
+            text: formData.remarks || '',
+            status: 'confirmed'
+          };
+        });
+        absences = healed;
+      }
+      // --- End Healing Logic ---
+
       let requests = data.requests || data.__REQUESTS__ || []; // Try both names
       let skills = (data.skills && data.skills.length > 0) ? data.skills : (profile.defaultSkills || []);
       let groupColors = { 
@@ -313,9 +338,36 @@ const App = () => {
   };
 
   const handleSaveAbsence = async (newAbsences) => {
-    const updatedStats = updateVacationStats(newAbsences);
-    await saveAllData({ ...appData, absences: newAbsences, vacationStats: updatedStats });
+    let finalAbsences = newAbsences;
+    
+    // Detect if this is formData from AbsenceModal (single update) or a full object
+    // formData has startDate and employeeId, while full absences object is keyed by employeeId
+    if (newAbsences && typeof newAbsences === 'object' && newAbsences.startDate && newAbsences.employeeId) {
+      const formData = newAbsences;
+      finalAbsences = { ...appData.absences };
+      
+      const dates = [];
+      let curr = new Date(formData.startDate);
+      const end = new Date(formData.endDate);
+      while (curr <= end) {
+        dates.push(curr.toISOString().split('T')[0]);
+        curr.setDate(curr.getDate() + 1);
+      }
+
+      if (!finalAbsences[formData.employeeId]) finalAbsences[formData.employeeId] = {};
+      dates.forEach(d => {
+        finalAbsences[formData.employeeId][d] = {
+          type: formData.type,
+          text: formData.remarks || '',
+          status: 'confirmed'
+        };
+      });
+    }
+
+    const updatedStats = updateVacationStats(finalAbsences);
+    await saveAllData({ ...appData, absences: finalAbsences, vacationStats: updatedStats });
   };
+
 
   const handleSubmitRequest = async (request) => {
     const updatedRequests = [...appData.requests, request];
