@@ -441,8 +441,10 @@ const App = () => {
     canDeleteAbsences: isFullAdmin,
     canSwitchPlaner: isFullAdmin || isSekretariat,
     forcePlanerAss: isSpokesperson,
-    canSeePOKarte: isFullAdmin || isSekretariat
+    canSeePOKarte: isFullAdmin || isSekretariat,
+    canShowCalendarEntry: !isSekretariat
   };
+
 
 
   // Force Assistentenplaner for spokesperson
@@ -617,7 +619,9 @@ const App = () => {
             actionRequiredCount={actionRequiredCount}
             vacationStats={appData.vacationStats}
             onUpdateAdminData={handleUpdateAdminData}
+            perms={perms}
           />
+
         );
     }
   };

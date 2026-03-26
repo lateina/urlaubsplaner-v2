@@ -617,7 +617,9 @@ const CalendarView = ({
           else setSortMode('standard');
         }}
         onOpenEntryModal={() => setIsModalOpen(true)}
+        showEntryButton={perms.canShowCalendarEntry}
       />
+
 
       <div 
         ref={parentRef} 

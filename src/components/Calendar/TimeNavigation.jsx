@@ -1,7 +1,8 @@
 import React from 'react';
 import { ArrowDown, Plus } from 'lucide-react';
 
-const TimeNavigation = ({ days, onScrollToCol, activeMonthKey, onNavigate, onScrollToToday, sortMode, planerType, onToggleSort, onOpenEntryModal }) => {
+const TimeNavigation = ({ days, onScrollToCol, activeMonthKey, onNavigate, onScrollToToday, sortMode, planerType, onToggleSort, onOpenEntryModal, showEntryButton }) => {
+
   // Extract unique years and their first column index
   const years = [];
   const months = [];
@@ -112,27 +113,30 @@ const TimeNavigation = ({ days, onScrollToCol, activeMonthKey, onNavigate, onScr
             <span>{sortMode === 'standard' ? 'Alphabet' : (sortMode === 'skill' ? 'Skill' : (planerType === 'oa' ? 'Alphabet' : 'Rotation'))}</span>
           </button>
 
-          <button 
-            onClick={onOpenEntryModal}
-            style={{ 
-              background: 'var(--primary)', 
-              color: 'white', 
-              padding: '6px 14px', 
-              borderRadius: '8px', 
-              border: 'none',
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '6px',
-              fontSize: '0.75rem',
-              fontWeight: 800,
-              cursor: 'pointer',
-              marginLeft: '8px',
-              boxShadow: '0 4px 12px rgba(139, 92, 246, 0.2)'
-            }}
-          >
-            <Plus size={14} strokeWidth={3} />
-            <span>Eintragen</span>
-          </button>
+          {showEntryButton && (
+            <button 
+              onClick={onOpenEntryModal}
+              style={{ 
+                background: 'var(--primary)', 
+                color: 'white', 
+                padding: '6px 14px', 
+                borderRadius: '8px', 
+                border: 'none',
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '6px',
+                fontSize: '0.75rem',
+                fontWeight: 800,
+                cursor: 'pointer',
+                marginLeft: '8px',
+                boxShadow: '0 4px 12px rgba(139, 92, 246, 0.2)'
+              }}
+            >
+              <Plus size={14} strokeWidth={3} />
+              <span>Eintragen</span>
+            </button>
+          )}
+
         </div>
       </div>
       {/* Month Row */}
