@@ -115,13 +115,39 @@ const RequestsView = ({
               <span>Grund: {req.rejectionNote}</span>
             </div>
           )}
-          {req.stamps?.po && (
-              <div className="request-info-row po-stamp" style={{ color: '#10b981', fontWeight: 600, fontSize: '0.8rem' }}>
-                  <Check size={14} />
-                  <span>In PO eingetragen {req.stamps.po.at ? `am ${formatDate(req.stamps.po.at.split('T')[0])} ` : ''}{req.stamps.po.shortcut ? `(${req.stamps.po.shortcut})` : ''}</span>
+          {/* All Stamps Audit Trail */}
+          <div className="request-stamps-trail" style={{ gridColumn: 'span 2', marginTop: 12, paddingTop: 12, borderTop: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {req.stamps?.submitted && (
+              <div style={{ fontSize: '0.75rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Clock size={12} />
+                <span>Beantragt von {req.stamps.submitted.name} am {formatDate(req.stamps.submitted.at.split('T')[0])}</span>
               </div>
-
-          )}
+            )}
+            {req.stamps?.vertreter && (
+              <div style={{ fontSize: '0.75rem', color: '#0ea5e9', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Check size={12} />
+                <span>Vertretung zugestimmt von {req.stamps.vertreter.name} am {formatDate(req.stamps.vertreter.at.split('T')[0])} {req.stamps.vertreter.isAuto ? '(Autom.)' : ''}</span>
+              </div>
+            )}
+            {req.stamps?.admin && (
+              <div style={{ fontSize: '0.75rem', color: '#8b5cf6', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Check size={12} />
+                <span>Genehmigt von {req.stamps.admin.name} am {formatDate(req.stamps.admin.at.split('T')[0])} {req.stamps.admin.isAuto ? '(Autom.)' : ''}</span>
+              </div>
+            )}
+            {req.stamps?.po && (
+              <div style={{ fontSize: '0.75rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600 }}>
+                <Check size={12} />
+                <span>In PO eingetragen von {req.stamps.po.shortcut} am {formatDate(req.stamps.po.at.split('T')[0])}</span>
+              </div>
+            )}
+            {req.status === 'rejected' && req.stamps?.rejected && (
+              <div style={{ fontSize: '0.75rem', color: '#ef4444', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <X size={12} />
+                <span>Abgelehnt von {req.stamps.rejected.name} am {formatDate(req.stamps.rejected.at.split('T')[0])}</span>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="request-card-actions">
@@ -147,7 +173,7 @@ const RequestsView = ({
             </>
           )}
           
-          {req.status === 'approved' && perms.canSeePOKarte && (
+          {req.status === 'approved' && (
             <button 
               className="btn-pdf" 
               title="PO Karte PDF"
@@ -157,6 +183,7 @@ const RequestsView = ({
               <span>PDF</span>
             </button>
           )}
+
 
           {showPOCheckbox && perms.canSeePOKarte && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto', padding: '0 8px' }}>

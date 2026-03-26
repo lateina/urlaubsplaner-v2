@@ -473,12 +473,19 @@ const CalendarView = ({
         
         lines.push(`**${emp.name} (${dateFmt})**`);
 
+        const typeText = typeLabel[target.type] || target.type;
+        lines.push(`**${typeText}${target.text ? ': ' + target.text : ''}**`);
 
-        lines.push(`**${typeLabel[target.type] || target.type}${target.text ? ': ' + target.text : ''}**`);
+        // Find matching request for approval stamp
+        const req = requests.find(r => r.empId === emp.id && r.dates.includes(day.dateStr) && r.status === 'approved');
+        if (req && req.stamps?.admin) {
+          lines.push(`Genehmigt von: ${req.stamps.admin.name}`);
+        }
         
         if (pendingReq) {
           lines.push(`*(${statusLabel[pendingReq.status]})*`);
         }
+
         
         if (target.vertreter) {
           lines.push(`Vertreter: ${target.vertreter}`);

@@ -59,7 +59,8 @@ const EmployeeAdmin = ({ employees, skills, onSave }) => {
   };
 
   const visibleEmployees = editingEmployees
-    .filter(e => !e._deleted && e.id !== 'admin' && e.id !== 'sekretariat')
+    .filter(e => !e._deleted)
+
     .sort((a, b) => {
       if (sortBy === 'name') {
         const nameA = getSortName(a.name);
