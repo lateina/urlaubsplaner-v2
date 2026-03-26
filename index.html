@@ -16,14 +16,11 @@
 
     <title>Urlaubsplaner Oberärzte</title>
     <script>
-      // Force profile for this entry point if not already set via URL
-      const url = new URL(window.location.href);
-      if (!url.searchParams.has('p')) {
-        url.searchParams.set('p', 'oa');
-        window.history.replaceState({}, '', url.toString());
-      }
+      // The profile is now detected in App.jsx based on the filename or p= query param.
+      // We no longer force a URL change here to keep PWA installation stable on iOS.
     </script>
-    <script type="module" crossorigin src="./assets/main-BKUYOhv3.js"></script>
+
+    <script type="module" crossorigin src="./assets/main-CHreYp6y.js"></script>
     <link rel="stylesheet" crossorigin href="./assets/main-Dw0_zZOl.css">
   </head>
   <body>
