@@ -4,7 +4,7 @@ import { User, LogOut } from 'lucide-react';
 const Header = ({ user, onLogout }) => {
   return (
     <header className="header glass" style={{ 
-      height: 'calc(75px + env(safe-area-inset-top))',
+      height: 'calc(112px + env(safe-area-inset-top))',
       paddingTop: 'env(safe-area-inset-top)',
       paddingLeft: 'calc(env(safe-area-inset-left) + 20px)',
       paddingRight: 'calc(env(safe-area-inset-right) + 20px)',
