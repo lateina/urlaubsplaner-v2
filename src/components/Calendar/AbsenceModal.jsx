@@ -269,18 +269,19 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, width: '100%', boxSizing: 'border-box' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, width: '100%', boxSizing: 'border-box' }}>
           <div className="form-group">
             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 6, color: '#000000' }}>Von</label>
             <input type="date" name="startDate" value={formData.startDate} onChange={handleChange} required 
-                   style={{ width: '100%', padding: '12px 10px', borderRadius: 14, border: '2px solid rgba(0, 0, 0, 0.4)', background: 'white', color: '#000000', fontWeight: 500, fontSize: '1rem', boxSizing: 'border-box' }} />
+                   style={{ width: '100%', padding: '12px 8px', borderRadius: 14, border: '2px solid rgba(0, 0, 0, 0.4)', background: 'white', color: '#000000', fontWeight: 500, fontSize: '0.95rem', boxSizing: 'border-box' }} />
           </div>
           <div className="form-group">
             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 6, color: '#000000' }}>Bis</label>
             <input type="date" name="endDate" value={formData.endDate} onChange={handleChange} required 
-                   style={{ width: '100%', padding: '12px 10px', borderRadius: 14, border: '2px solid rgba(0, 0, 0, 0.4)', background: 'white', color: '#000000', fontWeight: 500, fontSize: '1rem', boxSizing: 'border-box' }} />
+                   style={{ width: '100%', padding: '12px 8px', borderRadius: 14, border: '2px solid rgba(0, 0, 0, 0.4)', background: 'white', color: '#000000', fontWeight: 500, fontSize: '0.95rem', boxSizing: 'border-box' }} />
           </div>
         </div>
+
 
         <div className="form-group" style={{ maxWidth: 320 }}>
           <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 6, color: '#000000' }}>Typ</label>
