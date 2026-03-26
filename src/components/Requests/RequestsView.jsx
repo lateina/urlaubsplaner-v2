@@ -60,12 +60,19 @@ const RequestsView = ({
 
   const getEmpName = (id) => employees.find(e => e.id === id)?.name || id;
 
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    const [y, m, d] = dateStr.split('-');
+    return `${d}.${m}.${y}`;
+  };
+
   const formatDateRange = (dates) => {
     if (!dates || dates.length === 0) return '';
-    const from = dates[0];
-    const to = dates[dates.length - 1];
+    const from = formatDate(dates[0]);
+    const to = formatDate(dates[dates.length - 1]);
     return from === to ? from : `${from} bis ${to}`;
   };
+
 
   const [poShortcut, setPoShortcut] = useState(localStorage.getItem('po_shortcut') || '');
 
@@ -111,8 +118,9 @@ const RequestsView = ({
           {req.stamps?.po && (
               <div className="request-info-row po-stamp" style={{ color: '#10b981', fontWeight: 600, fontSize: '0.8rem' }}>
                   <Check size={14} />
-                  <span>In PO eingetragen {req.stamps.po.shortcut ? `(${req.stamps.po.shortcut})` : ''}</span>
+                  <span>In PO eingetragen {req.stamps.po.at ? `am ${formatDate(req.stamps.po.at.split('T')[0])} ` : ''}{req.stamps.po.shortcut ? `(${req.stamps.po.shortcut})` : ''}</span>
               </div>
+
           )}
         </div>
 

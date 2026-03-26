@@ -9,8 +9,9 @@ const AbsenceSummary = ({ employees = [], absences = {}, status = {} }) => {
       const parts = d.split('-');
       if (parts.length < 3) return d;
       const [y, m, day] = parts; 
-      return `${day}.${m}.`; 
+      return `${day}.${m}.${y}`; 
     };
+
     
     const datePart = (start.date === end.date) ? fmt(start.date) : `${fmt(start.date)} - ${fmt(end.date)}`;
     const typeMap = { 

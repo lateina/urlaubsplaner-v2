@@ -467,7 +467,11 @@ const CalendarView = ({
           pending_admin: 'LOA-Freigabe ausstehend' 
         };
         
-        lines.push(`**${emp.name}**`);
+        const [y, m, d] = day.dateStr.split('-');
+        const dateFmt = `${d}.${m}.${y}`;
+        
+        lines.push(`**${emp.name} (${dateFmt})**`);
+
         lines.push(`**${typeLabel[target.type] || target.type}${target.text ? ': ' + target.text : ''}**`);
         
         if (pendingReq) {
