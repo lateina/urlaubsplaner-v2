@@ -38,7 +38,7 @@ const MobileNav = ({ activeTab, onTabChange, badgeCount, isAdmin, perms, onOpenI
       {isMenuOpen && (
         <div className="glass" style={{
           position: 'fixed',
-          bottom: '80px',
+          bottom: 'calc(env(safe-area-inset-bottom) + 72px)',
           right: '16px',
           width: '240px',
           borderRadius: '20px',
