@@ -526,8 +526,10 @@ const App = () => {
             onApprove={handleApproveRequest}
             onReject={handleRejectRequest}
             onDelete={handleDeleteRequest}
+            onMarkPODone={handleMarkPODone}
             perms={perms}
           />
+
         );
       case 'summary':
         return (
