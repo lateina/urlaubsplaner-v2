@@ -115,12 +115,8 @@ const EmployeeAdmin = ({ employees, skills, onSave, perms = {} }) => {
               >
                 ID {sortBy === 'id' && '↓'}
               </th>
-              <th 
-                onClick={() => setBy('name')}
-                style={{ padding: '12px 16px', fontWeight: 700, cursor: 'pointer', background: sortBy === 'name' ? '#e2e8f0' : 'transparent' }}
-              >
-                Name {sortBy === 'name' && '↓'}
-              </th>
+              <th style={{ padding: '12px 16px', fontWeight: 700 }}>Name</th>
+              <th style={{ padding: '12px 16px', fontWeight: 700 }}>Signatur (Alias)</th>
               <th style={{ padding: '12px 16px', fontWeight: 700 }}>PIN</th>
               <th style={{ padding: '12px 16px', fontWeight: 700 }}>Gruppen / Bereiche</th>
               <th style={{ padding: '12px 16px', fontWeight: 700, textAlign: 'center' }}>Aktiv</th>
@@ -135,10 +131,10 @@ const EmployeeAdmin = ({ employees, skills, onSave, perms = {} }) => {
                     type="text" 
                     value={emp.id} 
                     onChange={(e) => handleAddField(emp.id, 'id', e.target.value)}
-                    readOnly={emp.id === 'admin'}
+                    readOnly={emp.id === 'admin' || emp.id === 'sekretariat'}
                     style={{ 
                       width: '80px', padding: '6px', border: '1px solid transparent', borderRadius: '4px',
-                      background: emp.id === 'admin' ? '#f1f5f9' : 'transparent',
+                      background: (emp.id === 'admin' || emp.id === 'sekretariat') ? '#f1f5f9' : 'transparent',
                       outline: 'none'
                     }}
                   />
@@ -148,7 +144,19 @@ const EmployeeAdmin = ({ employees, skills, onSave, perms = {} }) => {
                     type="text" 
                     value={emp.name} 
                     onChange={(e) => handleAddField(emp.id, 'name', e.target.value)}
-                    placeholder="Name eingeben..."
+                    placeholder="Login-Name..."
+                    style={{ 
+                      width: '180px', padding: '6px 10px', border: '1px solid var(--glass-border)', borderRadius: '8px',
+                      fontSize: '0.85rem', background: 'rgba(255, 255, 255, 0.5)'
+                    }}
+                  />
+                </td>
+                <td style={{ padding: '8px 16px' }}>
+                  <input 
+                    type="text" 
+                    value={emp.stampAlias || ''} 
+                    onChange={(e) => handleAddField(emp.id, 'stampAlias', e.target.value)}
+                    placeholder="Stempel-Alias..."
                     style={{ 
                       width: '180px', padding: '6px 10px', border: '1px solid var(--glass-border)', borderRadius: '8px',
                       fontSize: '0.85rem', background: 'rgba(255, 255, 255, 0.5)'
@@ -166,6 +174,7 @@ const EmployeeAdmin = ({ employees, skills, onSave, perms = {} }) => {
                     }}
                   />
                 </td>
+
                 <td style={{ padding: '8px 16px' }}>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', maxWidth: '300px' }}>
                     {skills.map(skill => {

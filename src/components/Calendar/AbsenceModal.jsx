@@ -199,7 +199,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
         submitted: {
           at: new Date().toISOString(),
           uid: currentUser.id,
-          name: currentUser.name
+          name: currentUser.stampAlias || currentUser.name
         }
       }
     };
@@ -209,15 +209,16 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
       request.stamps.vertreter = {
         at: new Date().toISOString(),
         uid: currentUser.id,
-        name: currentUser.name,
+        name: currentUser.stampAlias || currentUser.name,
         isAuto: true
       };
       request.stamps.admin = {
         at: new Date().toISOString(),
         uid: currentUser.id,
-        name: currentUser.name,
+        name: currentUser.stampAlias || currentUser.name,
         isAuto: true
       };
+
     }
     
     if (onSubmitRequest) onSubmitRequest(request);

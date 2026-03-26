@@ -488,7 +488,8 @@ const App = () => {
   const makeStamp = (user) => ({
     at: new Date().toISOString(),
     uid: user?.id,
-    name: user?.name,
+    name: user?.stampAlias || user?.name,
+
     ua: navigator.userAgent
   });
 
