@@ -154,8 +154,14 @@ input[type="date"] {
     --header-h: 48px;
   }
   .sidebar {
-    display: none; /* Hide sidebar on mobile */
+    display: none; /* Hide sidebar on small portrait screens only */
   }
+  @media (orientation: landscape) {
+    .sidebar {
+      display: flex !important; /* Show sidebar in landscape */
+    }
+  }
+
   .header {
     padding: 0 12px !important;
     height: env(safe-area-inset-top, 44px) !important;

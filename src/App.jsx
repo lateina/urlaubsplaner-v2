@@ -100,7 +100,22 @@ const App = () => {
     document.body.classList.add(`planer-${planerType}`);
   }, [planerType]);
 
+  // Auto-collapse sidebar in landscape on mobile-sized screens
+  useEffect(() => {
+    const handleResize = () => {
+      const isLandscape = window.innerWidth > window.innerHeight;
+      const isMobileSize = window.innerWidth <= 950;
+      if (isLandscape && isMobileSize) {
+        setIsSidebarCollapsed(true);
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Initial load check
+
   useEffect(() => {
     if (auth.masterKey && auth.isAuthenticated) {
       loadData(auth.masterKey);
