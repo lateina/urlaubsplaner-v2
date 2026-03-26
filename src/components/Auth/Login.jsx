@@ -103,7 +103,7 @@ const Login = ({ onLogin, initialMasterKey, binId, planerType }) => {
       <div className="login-card">
         <div className="login-header">
           <ShieldCheck size={48} color={planerType === 'oa' ? '#8b5cf6' : '#3b82f6'} />
-          <h2>{planerType === 'oa' ? 'Oberarztplaner' : 'Assistenzplaner'}</h2>
+          <h2>{planerType === 'oa' ? 'Abwesenheitsplaner für Oberärzte' : 'Abwesenheitsplaner für Assistenzärzte'}</h2>
           <p>Bitte melden Sie sich an</p>
         </div>
 

@@ -4,7 +4,7 @@
 export const PLANER_PROFILES = {
   ass: {
     id: 'ass',
-    title: 'Assistenzplaner',
+    title: 'Abwesenheitsplaner für Assistenzärzte',
     primaryColor: '#3b82f6', // Client blue
     secondaryColor: '#eff6ff',
     icon: 'Users',
@@ -31,7 +31,7 @@ export const PLANER_PROFILES = {
   },
   oa: {
     id: 'oa',
-    title: 'Oberarztplaner',
+    title: 'Abwesenheitsplaner für Oberärzte',
     primaryColor: '#8b5cf6', // Soft purple
     secondaryColor: '#f5f3ff',
     icon: 'ShieldCheck',

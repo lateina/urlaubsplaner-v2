@@ -17,23 +17,33 @@ const Sidebar = ({ activeTab, onTabChange, planerType, onPlanerSwitch, isAdmin, 
   ];
 
   return (
-    <aside className="sidebar glass" style={{ 
-      '--primary': profile.primaryColor,
-      width: isCollapsed ? '80px' : '260px',
-      borderRight: '1px solid var(--glass-border)',
-      background: 'rgba(255, 255, 255, 0.15)',
-      backdropFilter: 'blur(32px)',
-      zIndex: 150,
-      transition: 'width 0.3s ease-in-out',
-      overflow: 'hidden'
-    }}>
-      <div className="sidebar-header" style={{ 
-        justifyContent: 'space-between',
-        borderBottom: '1px solid var(--glass-border)',
-        padding: isCollapsed ? '24px 0' : '24px',
-        flexDirection: isCollapsed ? 'column' : 'row',
-        gap: isCollapsed ? '16px' : '0'
-      }}>
+    <aside 
+      className="sidebar glass" 
+      onClick={onToggleCollapse}
+      style={{ 
+        '--primary': profile.primaryColor,
+        width: isCollapsed ? '80px' : '260px',
+        borderRight: '1px solid var(--glass-border)',
+        background: 'rgba(255, 255, 255, 0.15)',
+        backdropFilter: 'blur(32px)',
+        zIndex: 150,
+        transition: 'width 0.3s ease-in-out',
+        overflow: 'hidden',
+        cursor: 'pointer'
+      }}
+    >
+      <div 
+        className="sidebar-header" 
+        onClick={(e) => e.stopPropagation()}
+        style={{ 
+          justifyContent: 'space-between',
+          borderBottom: '1px solid var(--glass-border)',
+          padding: isCollapsed ? '24px 0' : '24px',
+          flexDirection: isCollapsed ? 'column' : 'row',
+          gap: isCollapsed ? '16px' : '0',
+          cursor: 'default'
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifyContent: isCollapsed ? 'center' : 'flex-start', width: '100%' }}>
           <div style={{ 
             padding: '8px', 
@@ -48,7 +58,7 @@ const Sidebar = ({ activeTab, onTabChange, planerType, onPlanerSwitch, isAdmin, 
           </div>
           {!isCollapsed && (
             <span style={{ fontSize: '1.1rem', fontWeight: 800, letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>
-              {profile.id === 'oa' ? 'OA' : 'Assistent'}
+              {profile.id === 'oa' ? 'OA' : 'AA'}
             </span>
           )}
         </div>
@@ -56,7 +66,7 @@ const Sidebar = ({ activeTab, onTabChange, planerType, onPlanerSwitch, isAdmin, 
         {/* Only Admin/Sekretariat can switch profiles */}
         {perms.canSwitchPlaner && !isCollapsed && (
           <button 
-            onClick={onPlanerSwitch}
+            onClick={(e) => { e.stopPropagation(); onPlanerSwitch(); }}
             title="Planer wechseln"
             style={{ 
               background: 'none', border: 'none', cursor: 'pointer', 
@@ -67,7 +77,7 @@ const Sidebar = ({ activeTab, onTabChange, planerType, onPlanerSwitch, isAdmin, 
           </button>
         )}
       </div>
-      <nav className="sidebar-nav">
+      <nav className="sidebar-nav" onClick={(e) => e.stopPropagation()} style={{ cursor: 'default' }}>
         {navItems.map((item) => (
           <div
             key={item.id}
@@ -77,7 +87,8 @@ const Sidebar = ({ activeTab, onTabChange, planerType, onPlanerSwitch, isAdmin, 
               justifyContent: isCollapsed ? 'center' : 'flex-start',
               padding: isCollapsed ? '12px 0' : '12px 24px'
             }}
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               if (item.id === 'ical') {
                 onOpenICal();
               } else {
@@ -87,13 +98,16 @@ const Sidebar = ({ activeTab, onTabChange, planerType, onPlanerSwitch, isAdmin, 
           >
             <item.icon size={20} />
             {!isCollapsed && <span>{item.label}</span>}
-            {item.badge && !isCollapsed && <span className="badge" style={{ marginLeft: 'auto' }}>{item.badge}</span>}
-            {item.badge && isCollapsed && <span className="badge" style={{ position: 'absolute', top: 4, right: 12, scale: '0.8' }}>{item.badge}</span>}
+            {item.badge > 0 && !isCollapsed && <span className="badge" style={{ marginLeft: 'auto' }}>{item.badge}</span>}
+            {item.badge > 0 && isCollapsed && <span className="badge" style={{ position: 'absolute', top: 4, right: 12, scale: '0.8' }}>{item.badge}</span>}
           </div>
         ))}
       </nav>
       {!isCollapsed && (
-        <div style={{ padding: '20px', borderTop: '1px solid var(--glass-border)', fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+        <div 
+          onClick={(e) => e.stopPropagation()}
+          style={{ padding: '20px', borderTop: '1px solid var(--glass-border)', fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', cursor: 'default' }}
+        >
           {profile.title} • v2.2.0
         </div>
       )}

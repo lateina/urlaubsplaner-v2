@@ -127,14 +127,16 @@ const CalendarView = ({
   const virtualCols = colVirtualizer.getVirtualItems();
 
   // Determine active month for rotation sorting
-  const firstVisibleIndex = virtualCols.length > 0 ? virtualCols[0].index : -1;
+  // Use a slight offset (e.g. 10 columns in) to detect which month the user is primarily looking at
+  const activeMonthIndex = virtualCols.length > 5 ? virtualCols[5].index : (virtualCols.length > 0 ? virtualCols[0].index : -1);
+  
   const activeMonthStr = useMemo(() => {
-    if (firstVisibleIndex === -1) return '';
-    const firstVisibleDay = days[firstVisibleIndex];
-    if (!firstVisibleDay) return '';
-    const date = new Date(firstVisibleDay.dateStr);
+    if (activeMonthIndex === -1) return '';
+    const activeDay = days[activeMonthIndex];
+    if (!activeDay) return '';
+    const date = new Date(activeDay.dateStr);
     return `month_${date.getFullYear()}_${String(date.getMonth() + 1).padStart(2, '0')}`;
-  }, [firstVisibleIndex, days]);
+  }, [activeMonthIndex, days]);
 
   // Pre-calculate assignments for the active month for performance
   const empAreaMap = useMemo(() => {
@@ -143,21 +145,30 @@ const CalendarView = ({
     // 1. Calculate Quarter Range (Current and Following Quarter)
     const now = new Date();
     const currY = now.getFullYear();
-    const currM = now.getMonth();
-    const currQ = Math.floor(currM / 3);
+    const currM = now.getMonth(); // 0-11
+    const currQ = Math.floor(currM / 3); // 0-3
     
-    // Valid months for current and next quarter (rolling 6 months from Q start)
+    // Valid months for current and next quarter (rolling up to 7 months to be safe)
     const qMonths = [];
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 7; i++) {
       const d = new Date(currY, currQ * 3 + i, 1);
-      qMonths.push(`${d.getFullYear()}_${String(d.getMonth() + 1).padStart(2, '0')}`);
+      const y = d.getFullYear();
+      const m = d.getMonth() + 1;
+      qMonths.push(`${y}_${String(m).padStart(2, '0')}`);
+      qMonths.push(`${y}_${m}`); // Also support format without leading zero
     }
 
     const monthNum = activeMonthStr.replace('month_', '');
     if (!qMonths.includes(monthNum)) return {};
 
-    const compactMonthStr = activeMonthStr.replace('month_', '');
-    const monthRecords = rotationData.filter(a => a.monat_id === activeMonthStr || a.mi === compactMonthStr);
+    const monthRecords = rotationData.filter(a => {
+      const mId = String(a.monat_id || a.mi || '');
+      // Match with prefix, without prefix, and without leading zeros
+      const mNum = activeMonthStr.replace('month_', '');
+      const mNumNoZero = mNum.replace('_0', '_');
+      
+      return mId === activeMonthStr || mId === mNum || mId === mNumNoZero;
+    });
     
     const map = {};
     monthRecords.forEach(r => {
