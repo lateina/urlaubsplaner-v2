@@ -51,10 +51,12 @@ const App = () => {
   const [auth, setAuth] = useState(() => {
     const savedKey = localStorage.getItem('jsonbin_key') || '';
     const savedUser = localStorage.getItem('logged_user');
+    const savedProfile = localStorage.getItem('auth_profile');
     return { 
       user: savedUser ? JSON.parse(savedUser) : null, 
       masterKey: savedKey, 
-      isAuthenticated: !!(savedKey && savedUser) 
+      isAuthenticated: !!(savedKey && savedUser),
+      authProfile: savedProfile 
     };
   });
   const [appData, setAppData] = useState({ 
@@ -229,10 +231,12 @@ const App = () => {
 
   const handleLogin = (loginData) => {
     localStorage.setItem('logged_user', JSON.stringify(loginData.user));
+    localStorage.setItem('auth_profile', planerType);
     setAuth({
       user: loginData.user,
       masterKey: loginData.masterKey,
-      isAuthenticated: true
+      isAuthenticated: true,
+      authProfile: planerType
     });
     // Load data will happen automatically via useEffect
   };
@@ -240,7 +244,8 @@ const App = () => {
   const handleLogout = () => {
     if (!confirm('Abmelden?')) return;
     localStorage.removeItem('logged_user');
-    setAuth(prev => ({ ...prev, user: null, isAuthenticated: false }));
+    localStorage.removeItem('auth_profile');
+    setAuth(prev => ({ ...prev, user: null, isAuthenticated: false, authProfile: null }));
     // Do NOT remove jsonbin_key from localStorage to pre-fill masterKey on next login
     window.location.reload();
   };
@@ -419,6 +424,16 @@ const App = () => {
       setPlanerType('ass');
     }
   }, [perms.forcePlanerAss, planerType]);
+
+  // Authorization check: prevent non-admins from switching planners via URL
+  useEffect(() => {
+    if (auth.isAuthenticated && !perms.canSwitchPlaner && auth.authProfile) {
+      if (planerType !== auth.authProfile) {
+        console.warn(`Unauthorized access attempt to ${planerType}. Redirecting to ${auth.authProfile}.`);
+        setPlanerType(auth.authProfile);
+      }
+    }
+  }, [auth.isAuthenticated, auth.authProfile, planerType, perms.canSwitchPlaner]);
 
   const actionRequiredCount = appData.requests.filter(r => {
     if (isAdmin) return r.status === 'pending_admin';
