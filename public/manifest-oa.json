@@ -3,7 +3,7 @@
   "name": "Urlaubsplaner Oberärzte",
   "short_name": "Planer OA",
   "description": "Urlaubsplaner für Oberärzte",
-  "start_url": "./index.html?p=oa",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "display_override": ["standalone", "window-controls-overlay"],
