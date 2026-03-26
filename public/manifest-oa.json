@@ -4,16 +4,20 @@
   "short_name": "Planer OA",
   "description": "Urlaubsplaner für Oberärzte",
   "start_url": "./index.html?p=oa",
-  "scope": ".",
+  "scope": "./",
   "display": "standalone",
+  "display_override": ["standalone", "window-controls-overlay"],
   "background_color": "#ffffff",
   "theme_color": "#ffffff",
+
 
   "icons": [
     {
       "src": "icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
+
     },
     {
       "src": "icon-512.png",
