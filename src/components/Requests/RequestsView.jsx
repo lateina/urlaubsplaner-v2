@@ -12,8 +12,11 @@ const RequestsView = ({
   onReject, 
   onDelete,
   onMarkPODone,
-  perms = {}
+  onMarkPODone,
+  perms = {},
+  planerType
 }) => {
+
   const [filter, setFilter] = useState('open'); // 'all', 'open', 'approved', 'rejected', 'po_pending'
   const [subTab, setSubTab] = useState('meine'); // 'meine', 'vertreter', 'admin_list', 'po_transfer'
 
@@ -74,7 +77,8 @@ const RequestsView = ({
   };
 
 
-  const [poShortcut, setPoShortcut] = useState(localStorage.getItem('po_shortcut') || '');
+  const [poShortcut, setPoShortcut] = useState(localStorage.getItem(`${planerType}_po_shortcut`) || '');
+
 
   const renderCard = (req) => {
     const isPendingVertreterForMe = req.vertreterId === cuId && req.status === 'pending_vertreter';
@@ -293,7 +297,8 @@ const RequestsView = ({
                     onChange={(e) => {
                         const val = e.target.value.toUpperCase();
                         setPoShortcut(val);
-                        localStorage.setItem('po_shortcut', val);
+                        localStorage.setItem(`${planerType}_po_shortcut`, val);
+
                     }}
                     placeholder="Eigener Name..."
                     style={{ flex: 1, padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)' }}

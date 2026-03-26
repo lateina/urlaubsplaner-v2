@@ -58,7 +58,8 @@ const Login = ({ onLogin, initialMasterKey, binId, planerType }) => {
         
         setEmployees(emps);
         setIsMasterKeyValid(true);
-        localStorage.setItem('jsonbin_key', masterKey);
+        localStorage.setItem(`${planerType}_jsonbin_key`, masterKey);
+
       } else {
         setIsMasterKeyValid(false);
         setError('Master Key ungültig');

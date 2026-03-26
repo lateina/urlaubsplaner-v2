@@ -49,9 +49,21 @@ const LEGACY_PALETTE = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '
 const App = () => {
   const [activeTab, setActiveTab] = useState('calendar');
   const [auth, setAuth] = useState(() => {
-    const savedKey = localStorage.getItem('jsonbin_key') || '';
-    const savedUser = localStorage.getItem('logged_user');
-    const savedProfile = localStorage.getItem('auth_profile');
+    // Detect planerType early for storage key name spacing
+    const params = new URLSearchParams(window.location.search);
+    const p = params.get('p');
+    let effectiveType = p;
+    if (!PLANER_PROFILES[effectiveType]) {
+      const path = window.location.pathname;
+      if (path.includes('assistenz.html')) effectiveType = 'ass';
+      else if (path.includes('index.html') || path.endsWith('/')) effectiveType = 'oa';
+      else effectiveType = localStorage.getItem('planer_type') || DEFAULT_PROFILE;
+    }
+
+    const savedKey = localStorage.getItem(`${effectiveType}_jsonbin_key`) || localStorage.getItem('jsonbin_key') || '';
+    const savedUser = localStorage.getItem(`${effectiveType}_logged_user`);
+    const savedProfile = localStorage.getItem(`${effectiveType}_auth_profile`);
+    
     return { 
       user: savedUser ? JSON.parse(savedUser) : null, 
       masterKey: savedKey, 
@@ -59,6 +71,7 @@ const App = () => {
       authProfile: savedProfile 
     };
   });
+
   const [appData, setAppData] = useState({ 
     employees: [], 
     absences: {}, 
@@ -271,8 +284,10 @@ const App = () => {
   }, [binId, planerType]);
 
   const handleLogin = (loginData) => {
-    localStorage.setItem('logged_user', JSON.stringify(loginData.user));
-    localStorage.setItem('auth_profile', planerType);
+    localStorage.setItem(`${planerType}_logged_user`, JSON.stringify(loginData.user));
+    localStorage.setItem(`${planerType}_auth_profile`, planerType);
+    localStorage.setItem(`${planerType}_jsonbin_key`, loginData.masterKey);
+    
     setAuth({
       user: loginData.user,
       masterKey: loginData.masterKey,
@@ -282,13 +297,15 @@ const App = () => {
     // Load data will happen automatically via useEffect
   };
 
+
   const handleLogout = () => {
-    localStorage.removeItem('logged_user');
-    localStorage.removeItem('auth_profile');
+    localStorage.removeItem(`${planerType}_logged_user`);
+    localStorage.removeItem(`${planerType}_auth_profile`);
     setAuth(prev => ({ ...prev, user: null, isAuthenticated: false, authProfile: null }));
-    // Do NOT remove jsonbin_key from localStorage to pre-fill masterKey on next login
+    // We keep jsonbin_key for convenience, but it's now namespaced too
     window.location.reload();
   };
+
 
   const calculateVacationUsed = (empId, absences, year = 2026) => {
     let count = 0;
@@ -572,10 +589,10 @@ const App = () => {
     if (!isAdmin) return;
     const next = planerType === 'ass' ? 'oa' : 'ass';
     setPlanerType(next);
-    const url = new URL(window.location);
-    url.searchParams.set('p', next);
-    window.history.pushState({}, '', url);
+    // We NO LONGER modify the URL here to keep PWAs stable.
+    // The state and localStorage change will handle the profile switch.
   };
+
 
   const profile = PLANER_PROFILES[planerType];
 
@@ -626,7 +643,9 @@ const App = () => {
             onDelete={handleDeleteRequest}
             onMarkPODone={handleMarkPODone}
             perms={perms}
+            planerType={planerType}
           />
+
 
         );
       case 'summary':
