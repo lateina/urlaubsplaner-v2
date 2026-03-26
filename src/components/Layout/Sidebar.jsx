@@ -35,9 +35,7 @@ const Sidebar = ({ activeTab, onTabChange, planerType, onPlanerSwitch, isAdmin, 
         zIndex: 150,
         transition: 'width 0.3s ease-in-out, margin 0.3s ease-in-out',
         overflow: 'hidden',
-        cursor: 'pointer',
-        display: 'flex',
-        flexDirection: 'column'
+        cursor: 'pointer'
       }}
     >
       <div 
