@@ -4,11 +4,11 @@ import { User, LogOut } from 'lucide-react';
 const Header = ({ user, onLogout }) => {
   return (
     <header className="header glass" style={{ 
-      height: 'calc(112px + env(safe-area-inset-top))',
+      height: 'calc(var(--header-h) + env(safe-area-inset-top))',
       paddingTop: 'env(safe-area-inset-top)',
       paddingLeft: 'calc(env(safe-area-inset-left) + 20px)',
       paddingRight: 'calc(env(safe-area-inset-right) + 20px)',
-      paddingBottom: '12px',
+      paddingBottom: 'min(12px, 5vh)',
       display: 'flex', 
       alignItems: 'flex-end', 
       justifyContent: 'space-between',
