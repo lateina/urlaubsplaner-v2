@@ -34,17 +34,19 @@ const Sidebar = ({ activeTab, onTabChange, planerType, onPlanerSwitch, isAdmin, 
     >
       <div 
         className="sidebar-header" 
-        onClick={(e) => e.stopPropagation()}
         style={{ 
           justifyContent: 'space-between',
           borderBottom: '1px solid var(--glass-border)',
           padding: isCollapsed ? '24px 0' : '24px',
           flexDirection: isCollapsed ? 'column' : 'row',
           gap: isCollapsed ? '16px' : '0',
-          cursor: 'default'
+          cursor: 'pointer'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifyContent: isCollapsed ? 'center' : 'flex-start', width: '100%' }}>
+        <div 
+          style={{ display: 'flex', alignItems: 'center', gap: 12, justifyContent: isCollapsed ? 'center' : 'flex-start', width: '100%' }}
+          onClick={(e) => { e.stopPropagation(); onToggleCollapse(); }}
+        >
           <div style={{ 
             padding: '8px', 
             background: 'rgba(255, 255, 255, 0.2)', 
@@ -53,7 +55,7 @@ const Sidebar = ({ activeTab, onTabChange, planerType, onPlanerSwitch, isAdmin, 
             border: '1px solid var(--glass-border)',
             display: 'flex',
             cursor: 'pointer'
-          }} onClick={onToggleCollapse}>
+          }}>
             {isCollapsed ? <Menu size={20} /> : <Calendar size={24} strokeWidth={3} />}
           </div>
           {!isCollapsed && (
@@ -77,7 +79,7 @@ const Sidebar = ({ activeTab, onTabChange, planerType, onPlanerSwitch, isAdmin, 
           </button>
         )}
       </div>
-      <nav className="sidebar-nav" onClick={(e) => e.stopPropagation()} style={{ cursor: 'default' }}>
+      <nav className="sidebar-nav" style={{ cursor: 'pointer', flex: 1 }}>
         {navItems.map((item) => (
           <div
             key={item.id}
@@ -103,14 +105,11 @@ const Sidebar = ({ activeTab, onTabChange, planerType, onPlanerSwitch, isAdmin, 
           </div>
         ))}
       </nav>
-      {!isCollapsed && (
-        <div 
-          onClick={(e) => e.stopPropagation()}
-          style={{ padding: '20px', borderTop: '1px solid var(--glass-border)', fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', cursor: 'default' }}
-        >
-          {profile.title} • v2.2.0
-        </div>
-      )}
+      <div 
+        style={{ padding: '20px', borderTop: '1px solid var(--glass-border)', fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', cursor: 'pointer' }}
+      >
+        {!isCollapsed && <span>{profile.title} • v2.2.0</span>}
+      </div>
     </aside>
   );
 };
