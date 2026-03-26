@@ -3,18 +3,22 @@
   --primary-hover: #2563eb;
   --bg-main: #f1f5f9;
   --sidebar-w: 240px;
-  --header-h: 168px;
   --radius-lg: 12px;
   --radius-md: 8px;
   --text-main: #1e293b;
   --text-secondary: #64748b;
   --border: #e2e8f0;
+  --header-h: 168px;
+  --header-align: flex-end;
+  --header-pb: 12px;
   --white: #ffffff;
 }
 
 @media (orientation: landscape) {
   :root {
-    --header-h: 48px;
+    --header-h: 32px;
+    --header-align: center;
+    --header-pb: 0;
   }
 }
 
