@@ -173,7 +173,8 @@ const RequestsView = ({
             </>
           )}
           
-          {req.status === 'approved' && (
+          {(req.status === 'approved' || req.status === 'pending_admin') && (
+
             <button 
               className="btn-pdf" 
               title="PO Karte PDF"
