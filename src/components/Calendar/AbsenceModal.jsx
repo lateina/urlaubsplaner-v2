@@ -109,6 +109,11 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
 
     // --- Validation Logic (matching V1) ---
     if (!isDirect) {
+        const formatDate = (dateStr) => {
+            const [y, m, d] = dateStr.split('-');
+            return `${d}.${m}.${y}`;
+        };
+
         // 1. Check if Representative is available
         if (formData.vertreterId) {
             const vId = formData.vertreterId;
@@ -135,15 +140,15 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
             }
 
             if (absentDates.length > 0) {
-                alert(`${vName} ist an folgenden Tagen bereits abwesend: ${absentDates.join(', ')}.\n\nBitte teile den Zeitraum auf oder wähle einen anderen Vertreter.`);
+                alert(`${vName} ist an folgenden Tagen bereits abwesend: ${absentDates.map(formatDate).join(', ')}.\n\nBitte teile den Zeitraum auf oder wähle einen anderen Vertreter.`);
                 return;
             }
             if (ownReqDates.length > 0) {
-                alert(`${vName} hat für folgende Tage bereits einen Abwesenheitsantrag gestellt: ${ownReqDates.join(', ')}.\n\nBitte teile den Antrag auf.`);
+                alert(`${vName} hat für folgende Tage bereits einen Abwesenheitsantrag gestellt: ${ownReqDates.map(formatDate).join(', ')}.\n\nBitte teile den Antrag auf.`);
                 return;
             }
             if (alreadyRepDates.length > 0) {
-                alert(`${vName} vertritt an folgenden Tagen bereits jemanden: ${alreadyRepDates.join(', ')}.\n\nBitte wähle einen anderen Vertreter.`);
+                alert(`${vName} vertritt an folgenden Tagen bereits jemanden: ${alreadyRepDates.map(formatDate).join(', ')}.\n\nBitte wähle einen anderen Vertreter.`);
                 return;
             }
         }
@@ -157,10 +162,11 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
             }
         }
         if (iAmRepDates.length > 0) {
-            alert(`Achtung: Du bist an folgenden Tagen bereits als Vertreter eingetragen/angefragt: ${iAmRepDates.join(', ')}.\n\nBitte lehne diese Vertretungen erst ab oder wähle einen anderen Zeitraum.`);
+            alert(`Achtung: Du bist an folgenden Tagen bereits als Vertreter eingetragen/angefragt: ${iAmRepDates.map(formatDate).join(', ')}.\n\nBitte lehne diese Vertretungen erst ab oder wähle einen anderen Zeitraum.`);
             return;
         }
     }
+
 
 
     if (isDirect) {
