@@ -8,6 +8,9 @@ on:
 permissions:
   contents: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -24,8 +27,7 @@ jobs:
       - name: Debug Info
         run: |
           echo "Current directory: $(pwd)"
-          ls -F
-          ls -F public/
+          ls -R src/components/
 
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
