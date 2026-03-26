@@ -409,13 +409,8 @@ const CalendarView = ({
     const dObj = days.find(d => d.dateStr === dateStr);
     if (!dObj) return;
 
-    // Block 'set' for vacation on weekends/holidays, but allow 'clear' always
-    if (action === 'set' && (dObj.isWeekend || dObj.holiday) && (mode === 'U' || mode === 'V')) {
-      return;
-    }
-
-
     if (action === 'clear') {
+
       if (newAbsences[empId][dateStr]) {
         delete newAbsences[empId][dateStr];
         if (onSaveAbsences) onSaveAbsences(newAbsences);
