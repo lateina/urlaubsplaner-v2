@@ -325,7 +325,7 @@ const CalendarView = ({
     const offset = colVirtualizer.getOffsetForIndex(index, 'start')[0];
     if (parentRef.current) {
       parentRef.current.scrollTo({
-        left: Math.max(0, offset - (7 * CELL_W)),
+        left: Math.max(0, offset - (1 * CELL_W)),
         behavior: 'smooth'
       });
     }
@@ -337,7 +337,7 @@ const CalendarView = ({
     if (index !== -1 && parentRef.current) {
       const offset = colVirtualizer.getOffsetForIndex(index, 'start')[0];
       parentRef.current.scrollTo({
-        left: Math.max(0, offset - (7 * CELL_W)),
+        left: Math.max(0, offset - (1 * CELL_W)),
         behavior: 'smooth'
       });
       setTodayIndicator(true);
