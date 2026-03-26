@@ -4,18 +4,20 @@ import { User, LogOut } from 'lucide-react';
 const Header = ({ user, onLogout }) => {
   return (
     <header className="header glass" style={{ 
-      height: '54px', 
-      margin: 'calc(env(safe-area-inset-top) + 12px) calc(env(safe-area-inset-right) + 16px) 12px calc(env(safe-area-inset-left) + 16px)',
-      padding: '0 24px', 
+      height: 'calc(50px + env(safe-area-inset-top))',
+      paddingTop: 'env(safe-area-inset-top)',
+      paddingLeft: 'calc(env(safe-area-inset-left) + 20px)',
+      paddingRight: 'calc(env(safe-area-inset-right) + 20px)',
       display: 'flex', 
       alignItems: 'center', 
       justifyContent: 'space-between',
       position: 'sticky',
-      top: 'calc(env(safe-area-inset-top) + 12px)',
+      top: 0,
       zIndex: 100,
-      borderRadius: '24px',
-      border: '1px solid var(--glass-border)',
-      boxShadow: '0 8px 32px rgba(0,0,0,0.1)'
+      borderBottom: '1px solid var(--glass-border)',
+      borderBottomLeftRadius: '24px',
+      borderBottomRightRadius: '24px',
+      boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
     }}>
       <div className="header-user" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <div className="header-user-icon" style={{ padding: '8px', background: 'rgba(255, 255, 255, 0.2)', borderRadius: '50%', color: 'var(--primary)', border: '1px solid var(--glass-border)' }}>
