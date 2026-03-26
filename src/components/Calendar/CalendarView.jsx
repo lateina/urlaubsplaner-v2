@@ -37,6 +37,8 @@ const CalendarView = ({
   const [dragVertreter, setDragVertreter] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartVal, setDragStartVal] = useState(null); // 'set' or 'clear'
+  const [draggedDates, setDraggedDates] = useState([]);
+  const [draggedEmpId, setDraggedEmpId] = useState(null);
   const [sortMode, setSortMode] = useState('skill'); 
 
   useEffect(() => {
@@ -383,10 +385,55 @@ const CalendarView = ({
   };
 
   useEffect(() => {
-    const handleMouseUp = () => setIsDragging(false);
+    const handleMouseUp = () => {
+      if (isDragging && dragStartVal === 'set' && draggedDates.length > 0 && draggedEmpId) {
+        const vName = dragVertreter;
+        const vId = employees.find(e => e.name === vName)?.id || '';
+        
+        const sorted = [...draggedDates].sort();
+        const minD = sorted[0];
+        const maxD = sorted[sorted.length - 1];
+        
+        const fmt = (d) => {
+          if (!d || !d.includes('-')) return d;
+          const [y, m, day] = d.split('-');
+          return `${day}.${m}.${y}`;
+        };
+        
+        const rangeStr = minD === maxD ? fmt(minD) : `${fmt(minD)} bis ${fmt(maxD)}`;
+        
+        if (window.confirm(`Soll für diesen Eintrag (${rangeStr}) eine Karte zur PO-Übertragung erstellt werden?`)) {
+          const stamp = { 
+            at: new Date().toISOString(), 
+            uid: currentUser.id, 
+            name: currentUser.stampAlias || currentUser.name 
+          };
+          
+          onSubmitRequest({
+            id: 'req_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+            empId: draggedEmpId,
+            type: mode,
+            text: dragArt,
+            vertreter: vName,
+            vertreterId: vId,
+            dates: sorted,
+            status: 'approved',
+            stamps: {
+              submitted: stamp,
+              vertreter: { ...stamp, isAuto: true },
+              admin: { ...stamp, isAuto: true }
+            }
+          });
+        }
+      }
+      setIsDragging(false);
+      setDraggedDates([]);
+      setDraggedEmpId(null);
+    };
     window.addEventListener('mouseup', handleMouseUp);
     return () => window.removeEventListener('mouseup', handleMouseUp);
-  }, []);
+  }, [isDragging, dragStartVal, draggedDates, draggedEmpId, dragVertreter, dragArt, mode, employees, currentUser, onSubmitRequest]);
+
 
   const handleCellDragTouch = (e, empId, dateStr) => {
     if (!isAdmin) return;
@@ -397,7 +444,10 @@ const CalendarView = ({
     
     setDragStartVal(initialAction);
     setIsDragging(true);
+    setDraggedDates([dateStr]);
+    setDraggedEmpId(empId);
     applyDraggedAbsence(empId, dateStr, initialAction);
+
   };
 
   const applyDraggedAbsence = (empId, dateStr, forcedAction = null) => {
@@ -408,6 +458,11 @@ const CalendarView = ({
     if (!newAbsences[empId]) newAbsences[empId] = {};
     const dObj = days.find(d => d.dateStr === dateStr);
     if (!dObj) return;
+
+    if (action === 'set') {
+      setDraggedDates(prev => prev.includes(dateStr) ? prev : [...prev, dateStr]);
+    }
+
 
     if (action === 'clear') {
 
