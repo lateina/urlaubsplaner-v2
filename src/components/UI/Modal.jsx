@@ -4,14 +4,22 @@ const Modal = ({ isOpen, onClose, title, children }) => {
   if (!isOpen) return null;
 
   return (
-    <div style={{
-      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-      background: 'rgba(0, 0, 0, 0.45)', // Standard dark overlay
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      zIndex: 2000, padding: 20
-    }}>
-      <div className="glass modal-card" style={{
-        background: 'rgba(255, 255, 255, 0.05)',
+    <div 
+      onClick={onClose}
+      style={{
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+        background: 'rgba(0, 0, 0, 0.45)', // Standard dark overlay
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 2000, padding: 20
+      }}
+    >
+
+      <div 
+        onClick={(e) => e.stopPropagation()}
+        className="glass modal-card" 
+        style={{
+          background: 'rgba(255, 255, 255, 0.05)',
+
         width: '95%',
         maxWidth: 520,
         borderRadius: '28px',
