@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Modal from '../UI/Modal';
 
-const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isAdmin, perms = {}, currentUser, skills = [] }) => {
+const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isAdmin, perms = {}, currentUser, skills = [], absences = {}, requests = [] }) => {
   const [formData, setFormData] = useState({
     startDate: '',
     endDate: '',
@@ -98,18 +98,58 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
       return;
     }
 
+    // Build dates array
+    const dates = [];
+    let curr = new Date(formData.startDate);
+    const end = new Date(formData.endDate);
+    while (curr <= end) {
+      dates.push(curr.toISOString().split('T')[0]);
+      curr.setDate(curr.getDate() + 1);
+    }
+
+    // --- Validation Logic (matching V1) ---
+    if (!isDirect) {
+        // 1. Check if Representative is available
+        if (formData.vertreterId) {
+            const vId = formData.vertreterId;
+            const vName = formData.vertreter;
+            
+            for (const d of dates) {
+                // Check confirmed absence
+                if (absences[vId]?.[d]) {
+                    alert(`${vName} ist am ${d} bereits abwesend. Bitte teile den Zeitraum auf oder wähle einen anderen Vertreter.`);
+                    return;
+                }
+                // Check if representative has their own pending/approved request
+                const vOwnReq = requests.find(r => r.empId === vId && r.dates.includes(d) && r.status !== 'rejected');
+                if (vOwnReq) {
+                    alert(`${vName} hat für den ${d} bereits einen Abwesenheitsantrag gestellt (oder genehmigt bekommen). Bitte teile den Antrag auf.`);
+                    return;
+                }
+                // Check if representative is already representing someone else
+                const vAlreadyRep = requests.find(r => r.vertreterId === vId && r.dates.includes(d) && r.status !== 'rejected');
+                if (vAlreadyRep) {
+                    const otherEmp = employees.find(emp => emp.id === vAlreadyRep.empId);
+                    alert(`${vName} vertritt am ${d} bereits ${otherEmp?.name || 'jemanden'}. Bitte wähle einen anderen Vertreter.`);
+                    return;
+                }
+            }
+        }
+
+        // 2. Check if Requester is currently acting as a representative
+        for (const d of dates) {
+            const iAmRep = requests.find(r => r.vertreterId === formData.employeeId && r.dates.includes(d) && r.status !== 'rejected');
+            if (iAmRep) {
+                const otherEmp = employees.find(emp => emp.id === iAmRep.empId);
+                alert(`Achtung: Du bist am ${d} bereits als Vertreter für ${otherEmp?.name || 'jemanden'} eingetragen/angefragt. Bitte lehne diese Vertretung erst ab oder wähle einen anderen Zeitraum.`);
+                return;
+            }
+        }
+    }
+
     if (isDirect) {
       onSave(formData);
     } else {
-      // Create request object (V1 style)
-      const dates = [];
-      let curr = new Date(formData.startDate);
-      const end = new Date(formData.endDate);
-      while (curr <= end) {
-        dates.push(curr.toISOString().split('T')[0]);
-        curr.setDate(curr.getDate() + 1);
-      }
-
       const request = {
         id: 'req_' + Date.now(),
         empId: formData.employeeId,
@@ -118,8 +158,6 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
         vertreter: formData.vertreter,
         vertreterId: formData.vertreterId,
         dates: dates,
-        // If mandatory representative is present, status: pending_vertreter
-        // If optional representative is not present, status: pending_admin
         status: formData.vertreterId ? 'pending_vertreter' : 'pending_admin',
         createdAt: new Date().toISOString().split('T')[0],
         stamps: {
@@ -147,6 +185,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
     });
     setVertreterSearch('');
   };
+
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={perms.canEnterDirectly ? "Abwesenheit eintragen (Direkt)" : "Abwesenheit beantragen"}>

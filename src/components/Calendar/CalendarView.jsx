@@ -518,7 +518,10 @@ const CalendarView = ({
         perms={perms}
         currentUser={currentUser}
         skills={skills}
+        absences={absences}
+        requests={requests}
       />
+
 
       {(perms.canBulkImport || perms.canDeleteAbsences) && (
         <div className="calendar-toolbar glass" style={{ 
