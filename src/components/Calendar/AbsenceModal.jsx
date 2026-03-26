@@ -113,39 +113,55 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
         if (formData.vertreterId) {
             const vId = formData.vertreterId;
             const vName = formData.vertreter;
+            const absentDates = [];
+            const ownReqDates = [];
+            const alreadyRepDates = [];
             
             for (const d of dates) {
                 // Check confirmed absence
                 if (absences[vId]?.[d]) {
-                    alert(`${vName} ist am ${d} bereits abwesend. Bitte teile den Zeitraum auf oder wähle einen anderen Vertreter.`);
-                    return;
+                    absentDates.push(d);
                 }
                 // Check if representative has their own pending/approved request
                 const vOwnReq = requests.find(r => r.empId === vId && r.dates.includes(d) && r.status !== 'rejected');
                 if (vOwnReq) {
-                    alert(`${vName} hat für den ${d} bereits einen Abwesenheitsantrag gestellt (oder genehmigt bekommen). Bitte teile den Antrag auf.`);
-                    return;
+                    ownReqDates.push(d);
                 }
                 // Check if representative is already representing someone else
                 const vAlreadyRep = requests.find(r => r.vertreterId === vId && r.dates.includes(d) && r.status !== 'rejected');
                 if (vAlreadyRep) {
-                    const otherEmp = employees.find(emp => emp.id === vAlreadyRep.empId);
-                    alert(`${vName} vertritt am ${d} bereits ${otherEmp?.name || 'jemanden'}. Bitte wähle einen anderen Vertreter.`);
-                    return;
+                    alreadyRepDates.push(d);
                 }
+            }
+
+            if (absentDates.length > 0) {
+                alert(`${vName} ist an folgenden Tagen bereits abwesend: ${absentDates.join(', ')}.\n\nBitte teile den Zeitraum auf oder wähle einen anderen Vertreter.`);
+                return;
+            }
+            if (ownReqDates.length > 0) {
+                alert(`${vName} hat für folgende Tage bereits einen Abwesenheitsantrag gestellt: ${ownReqDates.join(', ')}.\n\nBitte teile den Antrag auf.`);
+                return;
+            }
+            if (alreadyRepDates.length > 0) {
+                alert(`${vName} vertritt an folgenden Tagen bereits jemanden: ${alreadyRepDates.join(', ')}.\n\nBitte wähle einen anderen Vertreter.`);
+                return;
             }
         }
 
         // 2. Check if Requester is currently acting as a representative
+        const iAmRepDates = [];
         for (const d of dates) {
             const iAmRep = requests.find(r => r.vertreterId === formData.employeeId && r.dates.includes(d) && r.status !== 'rejected');
             if (iAmRep) {
-                const otherEmp = employees.find(emp => emp.id === iAmRep.empId);
-                alert(`Achtung: Du bist am ${d} bereits als Vertreter für ${otherEmp?.name || 'jemanden'} eingetragen/angefragt. Bitte lehne diese Vertretung erst ab oder wähle einen anderen Zeitraum.`);
-                return;
+                iAmRepDates.push(d);
             }
         }
+        if (iAmRepDates.length > 0) {
+            alert(`Achtung: Du bist an folgenden Tagen bereits als Vertreter eingetragen/angefragt: ${iAmRepDates.join(', ')}.\n\nBitte lehne diese Vertretungen erst ab oder wähle einen anderen Zeitraum.`);
+            return;
+        }
     }
+
 
     if (isDirect) {
       onSave(formData);
