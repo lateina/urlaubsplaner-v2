@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Check, X, Trash2, FileText, Clock, User, Calendar as CalendarIcon, MessageSquare } from 'lucide-react';
+import { generateAndDownloadPDF } from '../../utils/pdfGenerator';
+
 
 const RequestsView = ({ 
   requests = [], 
@@ -9,10 +11,18 @@ const RequestsView = ({
   onApprove, 
   onReject, 
   onDelete,
+  onMarkPODone,
   perms = {}
 }) => {
-  const [filter, setFilter] = useState('open'); // 'all', 'open', 'approved', 'rejected'
-  const [subTab, setSubTab] = useState('meine'); // 'meine', 'vertreter'
+  const [filter, setFilter] = useState('open'); // 'all', 'open', 'approved', 'rejected', 'po_pending'
+  const [subTab, setSubTab] = useState('meine'); // 'meine', 'vertreter', 'admin_list', 'po_transfer'
+
+  // Initialize subTab correctly for admins
+  React.useEffect(() => {
+    if (isAdmin && subTab === 'meine') {
+      setSubTab('admin_list');
+    }
+  }, [isAdmin]);
 
   const typeLabel = { U: 'Urlaub', D: 'Dienstreise', F: 'Fortbildung', S: 'Sonstiges' };
   const statusLabel = {
@@ -30,6 +40,7 @@ const RequestsView = ({
   };
 
   const filteredRequests = requests.filter(r => {
+    if (subTab === 'po_transfer') return r.status === 'approved' && !r.stamps?.po;
     if (filter === 'open') return r.status.startsWith('pending');
     if (filter === 'approved') return r.status === 'approved';
     if (filter === 'rejected') return r.status === 'rejected';
@@ -39,8 +50,9 @@ const RequestsView = ({
   const cuId = currentUser?.id;
   
   // Tab logic for non-admins
-  const vertreterReqs = filteredRequests.filter(r => r.vertreterId === cuId && r.status === 'pending_vertreter');
-  const meineReqs = filteredRequests.filter(r => r.empId === cuId);
+  const vertreterReqs = requests.filter(r => r.vertreterId === cuId && (r.status === 'pending_vertreter' || r.status === 'pending_admin' || r.status === 'approved'));
+  const meineReqs = requests.filter(r => r.empId === cuId);
+  const poPendingReqs = requests.filter(r => r.status === 'approved' && !r.stamps?.po);
 
   const displayRequests = isAdmin 
     ? filteredRequests.sort((a, b) => b.id.localeCompare(a.id))
@@ -55,10 +67,13 @@ const RequestsView = ({
     return from === to ? from : `${from} bis ${to}`;
   };
 
+  const [poShortcut, setPoShortcut] = useState(localStorage.getItem('po_shortcut') || '');
+
   const renderCard = (req) => {
     const isPendingVertreterForMe = req.vertreterId === cuId && req.status === 'pending_vertreter';
     const isPendingAdmin = isAdmin && req.status === 'pending_admin';
     const canApprove = isPendingVertreterForMe || isPendingAdmin;
+    const showPOCheckbox = subTab === 'po_transfer' || (isAdmin && req.status === 'approved');
 
     return (
       <div key={req.id} className="request-card">
@@ -93,6 +108,12 @@ const RequestsView = ({
               <span>Grund: {req.rejectionNote}</span>
             </div>
           )}
+          {req.stamps?.po && (
+              <div className="request-info-row po-stamp" style={{ color: '#10b981', fontWeight: 600, fontSize: '0.8rem' }}>
+                  <Check size={14} />
+                  <span>In PO eingetragen {req.stamps.po.shortcut ? `(${req.stamps.po.shortcut})` : ''}</span>
+              </div>
+          )}
         </div>
 
         <div className="request-card-actions">
@@ -119,10 +140,39 @@ const RequestsView = ({
           )}
           
           {req.status === 'approved' && perms.canSeePOKarte && (
-            <button className="btn-pdf" title="PO Karte PDF (In Vorbereitung)">
+            <button 
+              className="btn-pdf" 
+              title="PO Karte PDF"
+              onClick={() => generateAndDownloadPDF(req, employees)}
+            >
               <FileText size={16} />
               <span>PDF</span>
             </button>
+          )}
+
+          {showPOCheckbox && perms.canSeePOKarte && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto', padding: '0 8px' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>In PO?</label>
+                  <input 
+                    type="checkbox" 
+                    checked={!!req.stamps?.po}
+                    onChange={(e) => {
+                        let shortcut = poShortcut;
+                        if (e.target.checked && !shortcut) {
+                            shortcut = prompt('Bitte Ihr Kürzel eingeben:');
+                            if (shortcut) {
+                                shortcut = shortcut.toUpperCase();
+                                setPoShortcut(shortcut);
+                                localStorage.setItem('po_shortcut', shortcut);
+                            } else {
+                                return;
+                            }
+                        }
+                        onMarkPODone(req.id, e.target.checked, shortcut);
+                    }}
+                    style={{ width: 20, height: 20, cursor: 'pointer' }}
+                  />
+              </div>
           )}
 
           {isAdmin && (
@@ -140,37 +190,81 @@ const RequestsView = ({
       <div className="requests-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, color: '#0f172a' }}>Anträge</h2>
-          <select 
-            value={filter} 
-            onChange={(e) => setFilter(e.target.value)}
-            className="status-filter-select"
-          >
-            <option value="all">Alle</option>
-            <option value="open">Offen</option>
-            <option value="approved">Genehmigt</option>
-            <option value="rejected">Abgelehnt</option>
-          </select>
+          {subTab !== 'po_transfer' && (
+            <select 
+                value={filter} 
+                onChange={(e) => setFilter(e.target.value)}
+                className="status-filter-select"
+            >
+                <option value="all">Alle</option>
+                <option value="open">Offen</option>
+                <option value="approved">Genehmigt</option>
+                <option value="rejected">Abgelehnt</option>
+            </select>
+          )}
         </div>
 
-        {!isAdmin && (
-          <div className="requests-tabs glass" style={{ background: 'rgba(255, 255, 255, 0.2)', padding: '4px', borderRadius: '14px', border: '1px solid var(--glass-border)' }}>
-            <button 
-              className={`requests-tab ${subTab === 'meine' ? 'active' : ''}`}
-              onClick={() => setSubTab('meine')}
-              style={{ padding: '8px 16px', borderRadius: '10px' }}
-            >
-              Meine Anträge
-            </button>
-            <button 
-              className={`requests-tab ${subTab === 'vertreter' ? 'active' : ''}`}
-              onClick={() => setSubTab('vertreter')}
-              style={{ padding: '8px 16px', borderRadius: '10px' }}
-            >
-              Vertretungen {vertreterReqs.length > 0 && <span className="tab-badge">{vertreterReqs.length}</span>}
-            </button>
-          </div>
-        )}
+        <div className="requests-tabs glass" style={{ background: 'rgba(255, 255, 255, 0.2)', padding: '4px', borderRadius: '14px', border: '1px solid var(--glass-border)' }}>
+          {isAdmin ? (
+            <>
+              <button 
+                className={`requests-tab ${subTab === 'admin_list' ? 'active' : ''}`}
+                onClick={() => setSubTab('admin_list')}
+                style={{ padding: '8px 16px', borderRadius: '10px' }}
+              >
+                Antrags-Management
+              </button>
+              {perms.canSeePOKarte && (
+                <button 
+                  className={`requests-tab ${subTab === 'po_transfer' ? 'active' : ''}`}
+                  onClick={() => setSubTab('po_transfer')}
+                  style={{ padding: '8px 16px', borderRadius: '10px' }}
+                >
+                  PO-Übertragung {poPendingReqs.length > 0 && <span className="tab-badge">{poPendingReqs.length}</span>}
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              <button 
+                className={`requests-tab ${subTab === 'meine' ? 'active' : ''}`}
+                onClick={() => setSubTab('meine')}
+                style={{ padding: '8px 16px', borderRadius: '10px' }}
+              >
+                Meine Anträge
+              </button>
+              <button 
+                className={`requests-tab ${subTab === 'vertreter' ? 'active' : ''}`}
+                onClick={() => setSubTab('vertreter')}
+                style={{ padding: '8px 16px', borderRadius: '10px' }}
+              >
+                Vertretungen {vertreterReqs.filter(r => r.status === 'pending_vertreter').length > 0 && (
+                  <span className="tab-badge">{vertreterReqs.filter(r => r.status === 'pending_vertreter').length}</span>
+                )}
+              </button>
+            </>
+          )}
+        </div>
       </div>
+
+      {subTab === 'po_transfer' && (
+          <div style={{ marginBottom: 16 }}>
+              <div className="glass" style={{ padding: '12px 16px', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 12, maxWidth: 300 }}>
+                  <label style={{ fontSize: '0.9rem', fontWeight: 600 }}>Kürzel:</label>
+                  <input 
+                    type="text" 
+                    value={poShortcut} 
+                    onChange={(e) => {
+                        const val = e.target.value.toUpperCase();
+                        setPoShortcut(val);
+                        localStorage.setItem('po_shortcut', val);
+                    }}
+                    placeholder="Eigener Name..."
+                    style={{ flex: 1, padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)' }}
+                  />
+              </div>
+          </div>
+      )}
 
       <div className="requests-list">
         {displayRequests.length > 0 ? (
@@ -187,3 +281,4 @@ const RequestsView = ({
 };
 
 export default RequestsView;
+

@@ -381,6 +381,32 @@ const App = () => {
     const updatedRequests = appData.requests.filter(r => r.id !== reqId);
     await saveAllData({ ...appData, requests: updatedRequests });
   };
+  const handleMarkPODone = async (reqId, checked, shortcut) => {
+    const reqIndex = appData.requests.findIndex(r => r.id === reqId);
+    if (reqIndex === -1) return;
+
+    const request = { ...appData.requests[reqIndex] };
+    if (checked) {
+      request.stamps = { 
+        ...request.stamps, 
+        po: { 
+          at: new Date().toISOString(), 
+          by: auth.user.id, 
+          name: auth.user.name, 
+          shortcut: shortcut 
+        } 
+      };
+    } else {
+      if (request.stamps) {
+        const { po, ...otherStamps } = request.stamps;
+        request.stamps = otherStamps;
+      }
+    }
+
+    const updatedRequests = [...appData.requests];
+    updatedRequests[reqIndex] = request;
+    await saveAllData({ ...appData, requests: updatedRequests });
+  };
 
   const makeStamp = (user) => ({
     at: new Date().toISOString(),
