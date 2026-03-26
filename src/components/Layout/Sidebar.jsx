@@ -106,9 +106,14 @@ const Sidebar = ({ activeTab, onTabChange, planerType, onPlanerSwitch, isAdmin, 
         ))}
       </nav>
       <div 
-        style={{ padding: '20px', borderTop: '1px solid var(--glass-border)', fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', cursor: 'pointer' }}
+        style={{ padding: '20px', borderTop: '1px solid var(--glass-border)', fontSize: '0.75rem', color: 'var(--text-secondary)', cursor: 'pointer' }}
       >
-        {!isCollapsed && <span>{profile.title} • v2.2.0</span>}
+        {!isCollapsed && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <span style={{ fontWeight: 600 }}>{profile.title}</span>
+            <span style={{ opacity: 0.7 }}>v2.2.0</span>
+          </div>
+        )}
       </div>
     </aside>
   );
