@@ -43,12 +43,12 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-async function sendEmail(to, subject, text) {
+async function sendEmail(to, subject, text, footer = '-- Automatische Benachrichtigung vom Urlaubsplaner') {
     await transporter.sendMail({
         from: `"Urlaubsplaner" <${GMAIL_USER}>`,
         to,
         subject,
-        text: text + '\n\n-- Automatische Benachrichtigung vom Urlaubsplaner'
+        text: text + '\n\n' + footer
     });
     console.log(`  → Email sent to ${to}: ${subject}`);
 }
@@ -160,7 +160,8 @@ async function run() {
     if (sekrDigest.length > 0) {
         await sendEmail(SEKRETARIAT_EMAIL,
             `Urlaubsplaner: ${sekrDigest.length} neue genehmigte Abwesenheiten`,
-            `Guten Morgen,\n\nfolgende Abwesenheiten wurden genehmigt und müssen im PO eingetragen werden:\n\n${sekrDigest.join('\n\n')}`
+            `Guten Morgen,\n\nfolgende Abwesenheiten wurden genehmigt und müssen im PO eingetragen werden:\n\n${sekrDigest.join('\n\n')}`,
+            'Viele Grüße\nProf. Stefan Wagner'
         );
     }
 
