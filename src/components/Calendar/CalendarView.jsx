@@ -148,14 +148,15 @@ const CalendarView = ({
     const currM = now.getMonth(); // 0-11
     const currQ = Math.floor(currM / 3); // 0-3
     
-    // Valid months for current and next quarter (rolling up to 7 months to be safe)
+    // Valid months for current and next quarter (exactly 6 months from start of current quarter)
     const qMonths = [];
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 6; i++) {
       const d = new Date(currY, currQ * 3 + i, 1);
       const y = d.getFullYear();
       const m = d.getMonth() + 1;
       qMonths.push(`${y}_${String(m).padStart(2, '0')}`);
-      qMonths.push(`${y}_${m}`); // Also support format without leading zero
+      qMonths.push(`${y}_${m}`); 
+      qMonths.push(`${y}-${String(m).padStart(2, '0')}`); // Also support YYYY-MM
     }
 
     const monthNum = activeMonthStr.replace('month_', '');
@@ -163,11 +164,11 @@ const CalendarView = ({
 
     const monthRecords = rotationData.filter(a => {
       const mId = String(a.monat_id || a.mi || '');
-      // Match with prefix, without prefix, and without leading zeros
       const mNum = activeMonthStr.replace('month_', '');
       const mNumNoZero = mNum.replace('_0', '_');
+      const mNumDash = mNum.replace('_', '-');
       
-      return mId === activeMonthStr || mId === mNum || mId === mNumNoZero;
+      return mId === activeMonthStr || mId === mNum || mId === mNumNoZero || mId === mNumDash;
     });
     
     const map = {};
@@ -175,7 +176,7 @@ const CalendarView = ({
       const empId = String(r.mitarbeiter_id || r.mi_id || r.ei || r.employee_id);
       const areaId = (r.ai || r.bi || r.area_id || '').toLowerCase();
       if (empId && areaId) {
-        // CONFLICT RESOLUTION: Use priority from MONTH_AREA_ORDER (lower index = higher priority)
+        // CONFLICT RESOLUTION: Use priority from MONTH_AREA_ORDER
         const currentIdx = MONTH_AREA_ORDER.indexOf(areaId);
         const existingIdx = map[empId] ? MONTH_AREA_ORDER.indexOf(map[empId]) : 999;
         
@@ -185,7 +186,7 @@ const CalendarView = ({
       }
     });
     return map;
-  }, [rotationData, activeMonthStr, groupColors]);
+  }, [rotationData, activeMonthStr]);
 
   const getEmpArea = (empId) => empAreaMap[String(empId)] || 'none';
 
