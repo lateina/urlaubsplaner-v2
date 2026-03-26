@@ -3,7 +3,7 @@
   "name": "Urlaubsplaner Assistenzärzte",
   "short_name": "Planer ASS",
   "description": "Urlaubsplaner für Assistenzärzte",
-  "start_url": "./assistenz.html",
+  "start_url": "./assistenz.html?p=ass",
   "scope": "./",
   "display": "standalone",
   "display_override": ["standalone", "window-controls-overlay"],
