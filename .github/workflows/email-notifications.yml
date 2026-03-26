@@ -1,0 +1,29 @@
+name: Email Notifications
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # 07:00 AM CET
+  workflow_dispatch:      # manually triggerable
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          
+      - name: Install dependencies
+        run: |
+          npm install node-fetch nodemailer
+          
+      - name: Run notification script
+        env:
+          JSONBIN_KEY: ${{ secrets.JSONBIN_KEY }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          SEKRETARIAT_EMAIL: ${{ secrets.SEKRETARIAT_EMAIL }}
+        run: node scripts/email_notifications.js
