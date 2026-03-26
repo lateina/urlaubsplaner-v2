@@ -24,11 +24,16 @@ const Tooltip = ({ x, y, visible, content }) => {
     });
   };
 
+  const windowWidth = typeof window !== 'undefined' ? window.innerWidth : 1000;
+  const showLeft = x > windowWidth * 0.6;
+
   return (
     <div style={{
       position: 'fixed',
       top: y + 15,
-      left: x + 15,
+      left: showLeft ? x - 15 : x + 15,
+      transform: showLeft ? 'translateX(-100%)' : 'none',
+      maxWidth: 'min(calc(100vw - 40px), 300px)',
       background: 'rgba(15, 23, 42, 0.95)',
       color: 'white',
       padding: '8px 12px',
@@ -41,6 +46,7 @@ const Tooltip = ({ x, y, visible, content }) => {
       border: '1px solid rgba(255,255,255,0.1)',
       lineHeight: '1.4'
     }}>
+
       {renderContent()}
     </div>
   );
