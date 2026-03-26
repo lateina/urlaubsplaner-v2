@@ -3,9 +3,10 @@
   "name": "Urlaubsplaner Assistenzärzte",
   "short_name": "Planer ASS",
   "description": "Urlaubsplaner für Assistenzärzte",
-  "start_url": "./assistenz.html?p=ass",
+  "start_url": "./assistenz.html",
   "scope": "./",
   "display": "standalone",
+
   "display_override": ["standalone", "window-controls-overlay"],
   "background_color": "#ffffff",
   "theme_color": "#ffffff",

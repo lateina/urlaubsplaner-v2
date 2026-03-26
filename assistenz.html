@@ -13,13 +13,10 @@
 
     <title>Urlaubsplaner Assistenzärzte</title>
     <script>
-      // Force profile for this entry point if not already set via URL
-      const url = new URL(window.location.href);
-      if (!url.searchParams.has('p')) {
-        url.searchParams.set('p', 'ass');
-        window.history.replaceState({}, '', url.toString());
-      }
+      // The profile is now detected in App.jsx based on the filename or p= query param.
+      // We no longer force a URL change here to keep PWA installation stable on iOS.
     </script>
+
   </head>
   <body>
     <div id="root"></div>

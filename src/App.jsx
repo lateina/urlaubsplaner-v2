@@ -73,7 +73,7 @@ const App = () => {
   const [isICalModalOpen, setIsICalModalOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
-  // Detect planer type from URL (?p=oa or ?p=ass) or localStorage
+  // Detect planer type from filename or localStorage (no forced URL params for PWA stability)
   const [planerType, setPlanerType] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     const p = params.get('p');
@@ -81,24 +81,25 @@ const App = () => {
       localStorage.setItem('planer_type', p);
       return p;
     }
+
+    // Fallback: check the path
+    const path = window.location.pathname;
+    if (path.includes('assistenz.html')) return 'ass';
+    if (path.includes('index.html') || path.endsWith('/')) return 'oa';
+
     const saved = localStorage.getItem('planer_type');
     return PLANER_PROFILES[saved] ? saved : DEFAULT_PROFILE;
   });
 
   const binId = planerType === 'oa' ? APP_CONFIG.OA_BIN_ID : APP_CONFIG.ASS_BIN_ID;
 
-  // Sync planerType to localStorage and URL
+  // Sync planerType to localStorage and body classes (ignore URL for PWA)
   useEffect(() => {
     localStorage.setItem('planer_type', planerType);
-    const url = new URL(window.location.href);
-    if (url.searchParams.get('p') !== planerType) {
-      url.searchParams.set('p', planerType);
-      window.history.replaceState({}, '', url.toString());
-    }
-    
     document.body.classList.remove('planer-ass', 'planer-oa');
     document.body.classList.add(`planer-${planerType}`);
   }, [planerType]);
+
 
   // Auto-collapse sidebar in landscape on mobile-sized screens
   useEffect(() => {
