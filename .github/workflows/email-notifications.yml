@@ -21,7 +21,7 @@ jobs:
           
       - name: Install dependencies
         run: |
-          npm install node-fetch nodemailer
+          npm install node-fetch nodemailer --legacy-peer-deps
           
       - name: Run notification script
         env:
