@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Trash2, UserPlus, Save } from 'lucide-react';
 
-const EmployeeAdmin = ({ employees, skills, onSave }) => {
+const EmployeeAdmin = ({ employees, skills, onSave, perms = {} }) => {
   const [editingEmployees, setEditingEmployees] = useState(employees);
   const [sortBy, setBy] = useState('id'); // 'id' or 'name'
 
@@ -59,7 +59,7 @@ const EmployeeAdmin = ({ employees, skills, onSave }) => {
   };
 
   const visibleEmployees = editingEmployees
-    .filter(e => !e._deleted)
+    .filter(e => !e._deleted && (perms.canEditSpecialAccounts || (e.id !== 'admin' && e.id !== 'sekretariat')))
 
     .sort((a, b) => {
       if (sortBy === 'name') {

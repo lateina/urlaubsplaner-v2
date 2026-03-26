@@ -518,9 +518,11 @@ const App = () => {
     canDeleteAbsences: isFullAdmin,
     canSwitchPlaner: isFullAdmin || isSekretariat,
     forcePlanerAss: isSpokesperson,
+    canEditSpecialAccounts: isFullAdmin,
     canSeePOKarte: isFullAdmin || isSekretariat,
     canShowCalendarEntry: !isSekretariat
   };
+
 
 
 
@@ -627,7 +629,9 @@ const App = () => {
               employees={appData.employees} 
               skills={appData.skills} 
               onSave={(newList) => handleUpdateAdminData({ employees: newList })} 
+              perms={perms}
             />
+
           </div>
         );
       case 'skills':
