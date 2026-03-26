@@ -269,7 +269,8 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, width: '100%', boxSizing: 'border-box' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, width: '100%', boxSizing: 'border-box', maxWidth: 320 }}>
+
           <div className="form-group">
             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 6, color: '#000000' }}>Von</label>
             <input type="date" name="startDate" value={formData.startDate} onChange={handleChange} required 
