@@ -4,19 +4,18 @@ import { User, LogOut } from 'lucide-react';
 const Header = ({ user, onLogout }) => {
   return (
     <header className="header glass" style={{ 
-      height: 'calc(50px + env(safe-area-inset-top))',
+      height: 'calc(75px + env(safe-area-inset-top))',
       paddingTop: 'env(safe-area-inset-top)',
       paddingLeft: 'calc(env(safe-area-inset-left) + 20px)',
       paddingRight: 'calc(env(safe-area-inset-right) + 20px)',
+      paddingBottom: '12px',
       display: 'flex', 
-      alignItems: 'center', 
+      alignItems: 'flex-end', 
       justifyContent: 'space-between',
       position: 'sticky',
       top: 0,
       zIndex: 100,
       borderBottom: '1px solid var(--glass-border)',
-      borderBottomLeftRadius: '24px',
-      borderBottomRightRadius: '24px',
       boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
     }}>
       <div className="header-user" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
