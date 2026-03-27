@@ -1,7 +1,7 @@
 import React from 'react';
 import { User, LogOut } from 'lucide-react';
 
-const Header = ({ user, onLogout }) => {
+const Header = ({ user, onLogout, isSaving }) => {
   return (
     <header className="header glass" style={{ 
       height: 'calc(var(--header-h) + env(safe-area-inset-top))',
