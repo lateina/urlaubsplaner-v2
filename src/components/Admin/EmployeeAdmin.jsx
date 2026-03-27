@@ -111,11 +111,16 @@ const EmployeeAdmin = ({ employees, skills, onSave, perms = {} }) => {
             <tr style={{ background: '#f1f5f9', color: '#64748b' }}>
               <th 
                 onClick={() => setBy('id')}
-                style={{ padding: '12px 16px', fontWeight: 700, cursor: 'pointer', background: sortBy === 'id' ? '#e2e8f0' : 'transparent' }}
+                style={{ padding: '12px 16px', fontWeight: 700, cursor: 'pointer', background: sortBy === 'id' ? '#e2e8f0' : 'transparent', borderRadius: '8px 0 0 0' }}
               >
                 ID {sortBy === 'id' && '↓'}
               </th>
-              <th style={{ padding: '12px 16px', fontWeight: 700 }}>Name</th>
+              <th 
+                onClick={() => setBy('name')}
+                style={{ padding: '12px 16px', fontWeight: 700, cursor: 'pointer', background: sortBy === 'name' ? '#e2e8f0' : 'transparent' }}
+              >
+                Name {sortBy === 'name' && '↓'}
+              </th>
               <th style={{ padding: '12px 16px', fontWeight: 700 }}>Signatur (Alias)</th>
               <th style={{ padding: '12px 16px', fontWeight: 700 }}>PIN</th>
               <th style={{ padding: '12px 16px', fontWeight: 700 }}>Gruppen / Bereiche</th>
