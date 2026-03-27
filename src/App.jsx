@@ -9,6 +9,7 @@ import CategoryAdmin from './components/Admin/SkillAdmin';
 import AbsenceSummary from './components/Admin/AbsenceSummary';
 import ICalExportModal from './components/Admin/ICalExportModal';
 import InstallPrompt from './components/UI/InstallPrompt';
+import LegalModal from './components/UI/LegalModal';
 import Login from './components/Auth/Login';
 import { apiService } from './services/apiService';
 import { APP_CONFIG } from './config/appConfig';
@@ -85,6 +86,7 @@ const App = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isICalModalOpen, setIsICalModalOpen] = useState(false);
+  const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
   // Detect planer type from filename or localStorage (no forced URL params for PWA stability)
@@ -783,6 +785,7 @@ const App = () => {
         currentUser={auth.user}
         badgeCount={actionRequiredCount}
         onOpenICal={() => setIsICalModalOpen(true)}
+        onOpenLegal={() => setIsLegalModalOpen(true)}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
       />
@@ -803,6 +806,7 @@ const App = () => {
           isAdmin={isAdmin}
           perms={perms}
           onOpenICal={() => setIsICalModalOpen(true)}
+          onOpenLegal={() => setIsLegalModalOpen(true)}
         />
         <InstallPrompt />
       </main>
@@ -813,6 +817,10 @@ const App = () => {
         absences={appData.absences}
         employees={appData.employees}
         perms={perms}
+      />
+      <LegalModal 
+        isOpen={isLegalModalOpen} 
+        onClose={() => setIsLegalModalOpen(false)} 
       />
     </div>
   );

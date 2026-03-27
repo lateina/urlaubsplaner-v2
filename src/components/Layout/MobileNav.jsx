@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Calendar, Bell, Users, Settings, ClipboardList, ShieldCheck, Download, MoreHorizontal, LayoutGrid } from 'lucide-react';
+import { Calendar, Bell, Users, Settings, ClipboardList, ShieldCheck, Download, MoreHorizontal, LayoutGrid, Info } from 'lucide-react';
 
-const MobileNav = ({ activeTab, onTabChange, badgeCount, isAdmin, perms, onOpenICal }) => {
+const MobileNav = ({ activeTab, onTabChange, badgeCount, isAdmin, perms, onOpenICal, onOpenLegal }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const primaryItems = [
@@ -14,12 +14,15 @@ const MobileNav = ({ activeTab, onTabChange, badgeCount, isAdmin, perms, onOpenI
     ...(perms?.canAdminEmployees ? [{ id: 'employees', icon: Users, label: 'Mitarbeiter' }] : []),
     ...(perms?.canAdminSkills ? [{ id: 'skills', icon: ShieldCheck, label: 'Skills' }] : []),
     ...(perms?.canICalExport ? [{ id: 'ical', icon: Download, label: 'iCal Export' }] : []),
-    { id: 'settings', icon: Settings, label: 'Einstellungen' }
+    { id: 'settings', icon: Settings, label: 'Einstellungen' },
+    { id: 'legal', icon: Info, label: 'Impressum' }
   ];
 
   const handleItemClick = (id) => {
     if (id === 'ical') {
       onOpenICal();
+    } else if (id === 'legal') {
+      onOpenLegal();
     } else {
       onTabChange(id);
     }

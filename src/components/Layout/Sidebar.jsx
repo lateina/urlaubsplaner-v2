@@ -117,7 +117,12 @@ const Sidebar = ({ activeTab, onTabChange, planerType, onPlanerSwitch, isAdmin, 
         {!isCollapsed && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <span style={{ fontWeight: 600 }}>{profile.title}</span>
-            <span style={{ opacity: 0.7 }}>v2.2.0</span>
+            <span 
+              onClick={(e) => { e.stopPropagation(); onOpenLegal(); }}
+              style={{ opacity: 0.7, textDecoration: 'underline', cursor: 'pointer' }}
+            >
+              v2.2.0
+            </span>
           </div>
         )}
       </div>
