@@ -118,6 +118,13 @@ const App = () => {
     if (isIPHONE) {
       document.body.classList.add('is-iphone');
     }
+
+    // Dynamic theme color update for PWA title bar (macOS/Android)
+    const color = planerType === 'oa' ? '#f3e8ff' : '#dbeafe';
+    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    if (metaThemeColor) {
+      metaThemeColor.setAttribute('content', color);
+    }
   }, [planerType]);
 
 
