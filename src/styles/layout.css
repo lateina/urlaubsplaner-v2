@@ -165,7 +165,7 @@ input[type="date"] {
   :root {
     --header-h: 44px;
     --header-align: flex-end;
-    --header-pb: 8px;
+    --header-pb: 14px;
   }
   .sidebar {
     display: none; /* Hide sidebar on small portrait screens only */
