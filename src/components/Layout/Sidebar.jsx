@@ -8,7 +8,7 @@ const Sidebar = ({ activeTab, onTabChange, planerType, onPlanerSwitch, isAdmin, 
   const navItems = [
     { id: 'calendar', label: 'Kalender', icon: Calendar },
     { id: 'requests', label: 'Anfragen', icon: Bell, badge: badgeCount },
-    ...(perms.canSeeSummary ? [{ id: 'summary', label: 'Zusammenfassung', icon: ClipboardList }] : []),
+    ...(perms.canSeeSummary ? [{ id: 'summary', label: 'Report', icon: ClipboardList }] : []),
     ...(perms.canAdminEmployees ? [{ id: 'employees', label: 'Mitarbeiter', icon: Users }] : []),
     ...(perms.canAdminSkills ? [{ id: 'skills', label: 'Skills', icon: ShieldCheck }] : []),
     ...(perms.canAdminAreas && planerType !== 'oa' ? [{ id: 'areas', label: 'Bereiche', icon: ChevronsLeftRight }] : []),

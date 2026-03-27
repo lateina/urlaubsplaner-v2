@@ -24,3 +24,6 @@ dist-ssr
 !index.html
 !assistenz.html
 !manifest-*.json
+
+# Backups
+src_backup_*

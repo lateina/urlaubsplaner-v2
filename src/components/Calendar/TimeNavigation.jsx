@@ -38,7 +38,7 @@ const TimeNavigation = ({ days, onScrollToCol, activeMonthKey, onNavigate, onScr
                 const targetIndex = days.findIndex(d => d.year === y.year && d.month === currentMonth);
                 if (targetIndex !== -1) onScrollToCol(targetIndex);
               }}
-              className="nav-item"
+              className="nav-item time-nav-btn"
               style={{ 
                 padding: '4px 14px', 
                 background: isActive ? 'var(--primary)' : 'rgba(255, 255, 255, 0.5)', 
@@ -59,6 +59,7 @@ const TimeNavigation = ({ days, onScrollToCol, activeMonthKey, onNavigate, onScr
 
           <button 
             onClick={() => onNavigate(-1)}
+            className="time-nav-btn"
             style={{ 
               background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px',
               color: 'var(--text-secondary)', display: 'flex', alignItems: 'center'
@@ -72,6 +73,7 @@ const TimeNavigation = ({ days, onScrollToCol, activeMonthKey, onNavigate, onScr
           
           <button 
             onClick={onScrollToToday}
+            className="time-nav-btn"
             style={{ 
               border: '1px solid var(--glass-border)', 
               padding: '4px 12px', 
@@ -87,6 +89,7 @@ const TimeNavigation = ({ days, onScrollToCol, activeMonthKey, onNavigate, onScr
 
           <button 
             onClick={() => onNavigate(1)}
+            className="time-nav-btn"
             style={{ 
               background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px',
               color: 'var(--text-secondary)', display: 'flex', alignItems: 'center'
@@ -100,6 +103,7 @@ const TimeNavigation = ({ days, onScrollToCol, activeMonthKey, onNavigate, onScr
 
           <button 
             onClick={onToggleSort}
+            className="time-nav-btn"
             style={{ 
               border: '1px solid #9333ea', 
               padding: '4px 12px', 
@@ -117,6 +121,7 @@ const TimeNavigation = ({ days, onScrollToCol, activeMonthKey, onNavigate, onScr
           {showEntryButton && (
             <button 
               onClick={onOpenEntryModal}
+              className="time-nav-btn"
               style={{ 
                 background: 'var(--primary)', 
                 color: 'white', 
@@ -148,7 +153,7 @@ const TimeNavigation = ({ days, onScrollToCol, activeMonthKey, onNavigate, onScr
             <button 
               key={m.key} 
               onClick={() => onScrollToCol(m.index)}
-              className="nav-item"
+              className="nav-item time-nav-btn"
               style={{ 
                 padding: '4px 10px', 
                 background: isActive ? 'rgba(56, 189, 248, 0.1)' : 'transparent', 

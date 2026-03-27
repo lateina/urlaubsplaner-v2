@@ -18,7 +18,7 @@
 
 @media (orientation: landscape) {
   :root {
-    --header-h: 22px;
+    --header-h: 29px;
     --header-align: center;
     --header-pb: 0;
   }
@@ -111,7 +111,7 @@ html, body {
   padding: 0 24px;
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 1000;
 }
 
 /* Content Area */
@@ -193,6 +193,16 @@ input[type="date"] {
     margin-left: 0 !important;
     margin-right: 12px;
   }
+}
+
+/* iPhone specialized larger touch targets for the calendar header */
+body.is-iphone .time-nav-btn,
+body.is-iphone .calendar-toolbar button {
+  padding-top: 14px !important;
+  padding-bottom: 14px !important;
+  min-height: 44px !important;
+  display: flex !important;
+  align-items: center !important;
 }
 
 

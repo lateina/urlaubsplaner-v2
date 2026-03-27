@@ -10,7 +10,7 @@ const MobileNav = ({ activeTab, onTabChange, badgeCount, isAdmin, perms, onOpenI
   ];
 
   const secondaryItems = [
-    ...(perms?.canSeeSummary ? [{ id: 'summary', icon: ClipboardList, label: 'Zusammenfassung' }] : []),
+    ...(perms?.canSeeSummary ? [{ id: 'summary', icon: ClipboardList, label: 'Report' }] : []),
     ...(perms?.canAdminEmployees ? [{ id: 'employees', icon: Users, label: 'Mitarbeiter' }] : []),
     ...(perms?.canAdminSkills ? [{ id: 'skills', icon: ShieldCheck, label: 'Skills' }] : []),
     ...(perms?.canICalExport ? [{ id: 'ical', icon: Download, label: 'iCal Export' }] : []),

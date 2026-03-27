@@ -473,7 +473,6 @@ body.planer-oa .modal-card textarea {
   background: rgba(var(--primary-rgb), 0.1);
   color: var(--primary);
   font-weight: 700;
-  border-right: 3px solid var(--primary);
 }
 
 .badge {

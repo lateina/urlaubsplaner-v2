@@ -111,6 +111,12 @@ const App = () => {
     localStorage.setItem('planer_type', planerType);
     document.body.classList.remove('planer-ass', 'planer-oa');
     document.body.classList.add(`planer-${planerType}`);
+    
+    // iPhone detection for specialized styling
+    const isIPHONE = /iPhone/.test(navigator.userAgent) && !window.MSStream;
+    if (isIPHONE) {
+      document.body.classList.add('is-iphone');
+    }
   }, [planerType]);
 
 

@@ -14,7 +14,7 @@ const Header = ({ user, onLogout }) => {
       justifyContent: 'space-between',
       position: 'sticky',
       top: 0,
-      zIndex: 100,
+      zIndex: 1000,
       borderBottom: '1px solid var(--glass-border)',
       boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
     }}>
