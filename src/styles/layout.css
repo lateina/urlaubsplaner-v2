@@ -164,6 +164,8 @@ input[type="date"] {
 @media (max-width: 768px) {
   :root {
     --header-h: 48px;
+    --header-align: center;
+    --header-pb: 0;
   }
   .sidebar {
     display: none; /* Hide sidebar on small portrait screens only */
