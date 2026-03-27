@@ -406,8 +406,9 @@ const App = () => {
   };
 
   const handleSaveAbsence = async (newAbsences) => {
-    // We use a functional update via setAppData to ensure we have the absolute latest state
-    // when multiple updates happen rapidly (like during a drag operation)
+    if (!isAdmin) return;
+    let nextDataToSave = null;
+    
     setAppData(prev => {
       let finalAbsences = newAbsences || { ...prev.absences };
       
@@ -435,16 +436,13 @@ const App = () => {
       }
 
       const updatedStats = updateVacationStats(finalAbsences, prev.employees, prev.vacationStats);
-      const nextData = { ...prev, absences: finalAbsences, vacationStats: updatedStats };
-      
-      // We still need to trigger the side effect (saving to server)
-      // Since we are inside a functional update, we can't await here.
-      // But we can call saveAllData with the new state to handle the API part.
-      // Note: saveAllData also calls setAppData(newData), which might be redundant but safe.
-      saveAllDataSideEffect(nextData);
-      
-      return nextData;
+      nextDataToSave = { ...prev, absences: finalAbsences, vacationStats: updatedStats };
+      return nextDataToSave;
     });
+
+    if (nextDataToSave) {
+      saveAllDataSideEffect(nextDataToSave);
+    }
   };
 
   // Dedicated side effect for saving to API without re-triggering setAppData recursively or causing race conditions
