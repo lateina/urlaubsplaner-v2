@@ -16,7 +16,8 @@ const Header = ({ user, onLogout }) => {
       top: 0,
       zIndex: 1000,
       borderBottom: '1px solid var(--glass-border)',
-      boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
+      boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+      boxSizing: 'border-box'
     }}>
       <div className="header-user" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <div className="header-user-icon" style={{ padding: '8px', background: 'rgba(255, 255, 255, 0.2)', borderRadius: '50%', color: 'var(--primary)', border: '1px solid var(--glass-border)' }}>
