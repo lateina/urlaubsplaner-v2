@@ -41,6 +41,7 @@ const CalendarView = ({
   const [draggedEmpId, setDraggedEmpId] = useState(null);
   const [lastDraggedDate, setLastDraggedDate] = useState(null);
   const [tempAbsences, setTempAbsences] = useState(null);
+  const tempAbsencesRef = useRef(null);
   const [sortMode, setSortMode] = useState('skill'); 
 
   useEffect(() => {
@@ -428,8 +429,8 @@ const CalendarView = ({
             }
           });
         }
-        if (onSaveAbsences && tempAbsences) {
-          onSaveAbsences(tempAbsences);
+        if (onSaveAbsences && tempAbsencesRef.current) {
+          onSaveAbsences(tempAbsencesRef.current);
         }
       }
       setIsDragging(false);
@@ -437,6 +438,7 @@ const CalendarView = ({
       setDraggedEmpId(null);
       setLastDraggedDate(null);
       setTempAbsences(null);
+      tempAbsencesRef.current = null;
     }
   };
   window.addEventListener('mouseup', handleMouseUp);
@@ -456,8 +458,10 @@ const CalendarView = ({
     setDraggedDates([dateStr]);
     setDraggedEmpId(empId);
     setLastDraggedDate(dateStr);
-    setTempAbsences({ ...absences }); // Initialize with current state
-    applyDraggedAbsence(empId, dateStr, initialAction, { ...absences });
+    const initialAbsences = { ...absences };
+    setTempAbsences(initialAbsences); 
+    tempAbsencesRef.current = initialAbsences;
+    applyDraggedAbsence(empId, dateStr, initialAction, initialAbsences);
   };
 
   const applyDraggedAbsence = (empId, dateStr, forcedAction = null, baseAbsences = null) => {
@@ -498,7 +502,9 @@ const CalendarView = ({
         }
       });
 
-      return { ...newAbsences };
+      const result = { ...newAbsences };
+      tempAbsencesRef.current = result;
+      return result;
     });
 
     setLastDraggedDate(dateStr);
