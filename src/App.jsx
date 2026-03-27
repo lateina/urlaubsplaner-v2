@@ -324,9 +324,9 @@ const App = () => {
   };
 
 
-  const calculateVacationUsed = (empId, absences, year = new Date().getFullYear(), requests = []) => {
+  const calculateVacationUsed = (empId, absences = {}, year = new Date().getFullYear(), requests = []) => {
     const vacationDates = new Set();
-    const empAbsences = absences[empId] || {};
+    const empAbsences = (absences && absences[empId]) || {};
     
     // 1. From confirmed absences
     Object.entries(empAbsences).forEach(([dateStr, entry]) => {
@@ -409,7 +409,7 @@ const App = () => {
     // We use a functional update via setAppData to ensure we have the absolute latest state
     // when multiple updates happen rapidly (like during a drag operation)
     setAppData(prev => {
-      let finalAbsences = newAbsences;
+      let finalAbsences = newAbsences || { ...prev.absences };
       
       // Detect if this is formData from AbsenceModal (single update) or a full object
       if (newAbsences && typeof newAbsences === 'object' && newAbsences.startDate && newAbsences.employeeId) {
