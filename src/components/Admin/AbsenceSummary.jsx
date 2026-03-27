@@ -95,8 +95,7 @@ const AbsenceSummary = ({ employees = [], absences = {}, status = {} }) => {
     }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-           <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#1e293b' }}>1. Export Report (Absenzen)</h3>
-           <span style={{ fontSize: '0.75rem', background: '#e2e8f0', padding: '4px 8px', borderRadius: '4px' }}>V1 Parität</span>
+           <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 900, color: '#0f172a' }}>Zusammenfassung</h3>
         </div>
         <textarea 
           readOnly 
@@ -108,8 +107,8 @@ const AbsenceSummary = ({ employees = [], absences = {}, status = {} }) => {
             padding: '24px', 
             borderRadius: '16px', 
             border: '1px solid var(--glass-border)', 
-            fontFamily: '"JetBrains Mono", "Courier New", monospace', 
-            fontSize: '0.9rem', 
+            fontFamily: 'inherit', 
+            fontSize: '1rem', 
             lineHeight: '1.6', 
             resize: 'vertical', 
             background: 'rgba(255, 255, 255, 0.65)', 
@@ -123,7 +122,7 @@ const AbsenceSummary = ({ employees = [], absences = {}, status = {} }) => {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#1e293b' }}>2. Status Report (Fertigmeldungen)</h3>
+        <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 900, color: '#0f172a' }}>Status Report</h3>
         <textarea 
           readOnly 
           value={statusSummary || 'Keine Fertigmeldungen vorhanden.'} 
@@ -133,8 +132,8 @@ const AbsenceSummary = ({ employees = [], absences = {}, status = {} }) => {
             padding: '20px', 
             borderRadius: '16px', 
             border: '1px solid var(--glass-border)', 
-            fontFamily: '"JetBrains Mono", "Courier New", monospace', 
-            fontSize: '0.9rem', 
+            fontFamily: 'inherit', 
+            fontSize: '1rem', 
             resize: 'none', 
             background: 'rgba(255, 255, 255, 0.65)', 
             color: '#1e293b',
