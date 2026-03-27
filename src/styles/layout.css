@@ -205,5 +205,15 @@ body.is-iphone .calendar-toolbar button {
   align-items: center !important;
 }
 
+/* iPhone specialized landscape optimization: hide header to save space */
+@media (orientation: landscape) {
+  body.is-iphone .header {
+    display: none !important;
+  }
+  body.is-iphone {
+    --header-h: 0px !important;
+  }
+}
+
 
 

@@ -38,7 +38,7 @@ const MobileNav = ({ activeTab, onTabChange, badgeCount, isAdmin, perms, onOpenI
       {isMenuOpen && (
         <div className="glass" style={{
           position: 'fixed',
-          bottom: 'calc(env(safe-area-inset-bottom) + 72px)',
+          bottom: 'calc(env(safe-area-inset-bottom) + 52px)',
           right: '16px',
           width: '240px',
           borderRadius: '20px',
@@ -79,7 +79,7 @@ const MobileNav = ({ activeTab, onTabChange, badgeCount, isAdmin, perms, onOpenI
         bottom: 0,
         left: 0,
         right: 0,
-        height: '64px',
+        height: '44px',
         display: 'flex',
         justifyContent: 'space-around',
         alignItems: 'center',
@@ -100,14 +100,14 @@ const MobileNav = ({ activeTab, onTabChange, badgeCount, isAdmin, perms, onOpenI
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: '4px',
+              gap: '2px',
               color: activeTab === item.id && !isMenuOpen ? 'var(--primary)' : 'var(--text-secondary)',
               fontSize: '0.65rem',
               position: 'relative',
               flex: 1
             }}
           >
-            <item.icon size={24} />
+            <item.icon size={22} />
             {item.badge > 0 && (
               <span className="badge" style={{ position: 'absolute', top: -4, right: '25%' }}>
                 {item.badge}
@@ -123,14 +123,14 @@ const MobileNav = ({ activeTab, onTabChange, badgeCount, isAdmin, perms, onOpenI
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: '4px',
+            gap: '2px',
             color: isMenuOpen ? 'var(--primary)' : 'var(--text-secondary)',
             fontSize: '0.65rem',
             position: 'relative',
             flex: 1
           }}
         >
-          <LayoutGrid size={24} />
+          <LayoutGrid size={22} />
           <span style={{ fontWeight: 700 }}>Mehr</span>
         </div>
       </nav>

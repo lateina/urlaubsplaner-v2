@@ -56,7 +56,7 @@ const InstallPrompt = () => {
       className="glass" 
       style={{
         position: 'fixed',
-        bottom: 'calc(env(safe-area-inset-bottom) + 80px)',
+        bottom: 'calc(env(safe-area-inset-bottom) + 60px)',
         left: '20px',
         right: '20px',
         zIndex: 1000,
