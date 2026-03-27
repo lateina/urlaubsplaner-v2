@@ -437,10 +437,11 @@ const CalendarView = ({
       setDraggedEmpId(null);
       setLastDraggedDate(null);
       setTempAbsences(null);
-    };
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => window.removeEventListener('mouseup', handleMouseUp);
-  }, [isDragging, dragStartVal, draggedDates, draggedEmpId, dragVertreter, dragArt, mode, employees, currentUser, onSubmitRequest]);
+    }
+  };
+  window.addEventListener('mouseup', handleMouseUp);
+  return () => window.removeEventListener('mouseup', handleMouseUp);
+}, [isDragging, dragStartVal, draggedDates, draggedEmpId, dragVertreter, dragArt, mode, employees, currentUser, onSubmitRequest]);
 
 
   const handleCellDragTouch = (e, empId, dateStr) => {
