@@ -39,6 +39,8 @@ const CalendarView = ({
   const [dragStartVal, setDragStartVal] = useState(null); // 'set' or 'clear'
   const [draggedDates, setDraggedDates] = useState([]);
   const [draggedEmpId, setDraggedEmpId] = useState(null);
+  const [lastDraggedDate, setLastDraggedDate] = useState(null);
+  const [tempAbsences, setTempAbsences] = useState(null);
   const [sortMode, setSortMode] = useState('skill'); 
 
   useEffect(() => {
@@ -386,11 +388,12 @@ const CalendarView = ({
 
   useEffect(() => {
     const handleMouseUp = () => {
-      if (isDragging && dragStartVal === 'set' && draggedDates.length > 0 && draggedEmpId) {
-        const vName = dragVertreter;
-        const vId = employees.find(e => e.name === vName)?.id || '';
-        
-        const sorted = [...draggedDates].sort();
+      if (isDragging && draggedEmpId) {
+        if (dragStartVal === 'set' && draggedDates.length > 0) {
+          const vName = dragVertreter;
+          const vId = employees.find(e => e.name === vName)?.id || '';
+          
+          const sorted = [...draggedDates].sort();
         const minD = sorted[0];
         const maxD = sorted[sorted.length - 1];
         
@@ -425,10 +428,15 @@ const CalendarView = ({
             }
           });
         }
+        if (onSaveAbsences && tempAbsences) {
+          onSaveAbsences(tempAbsences);
+        }
       }
       setIsDragging(false);
       setDraggedDates([]);
       setDraggedEmpId(null);
+      setLastDraggedDate(null);
+      setTempAbsences(null);
     };
     window.addEventListener('mouseup', handleMouseUp);
     return () => window.removeEventListener('mouseup', handleMouseUp);
@@ -446,43 +454,53 @@ const CalendarView = ({
     setIsDragging(true);
     setDraggedDates([dateStr]);
     setDraggedEmpId(empId);
-    applyDraggedAbsence(empId, dateStr, initialAction);
-
+    setLastDraggedDate(dateStr);
+    setTempAbsences({ ...absences }); // Initialize with current state
+    applyDraggedAbsence(empId, dateStr, initialAction, { ...absences });
   };
 
-  const applyDraggedAbsence = (empId, dateStr, forcedAction = null) => {
+  const applyDraggedAbsence = (empId, dateStr, forcedAction = null, baseAbsences = null) => {
     const action = forcedAction || dragStartVal;
     if (!action) return;
 
-    const newAbsences = { ...absences };
-    if (!newAbsences[empId]) newAbsences[empId] = {};
-    const dObj = days.find(d => d.dateStr === dateStr);
-    if (!dObj) return;
+    setTempAbsences(prev => {
+      const newAbsences = prev || baseAbsences || { ...absences };
+      if (!newAbsences[empId]) newAbsences[empId] = {};
+      
+      const targetDates = [dateStr];
 
-    if (action === 'set') {
-      setDraggedDates(prev => prev.includes(dateStr) ? prev : [...prev, dateStr]);
-    }
-
-
-    if (action === 'clear') {
-
-      if (newAbsences[empId][dateStr]) {
-        delete newAbsences[empId][dateStr];
-        if (onSaveAbsences) onSaveAbsences(newAbsences);
+      // INTERPOLATION: Fill gaps if we skipped dates during drag
+      if (lastDraggedDate && lastDraggedDate !== dateStr) {
+        const start = new Date(lastDraggedDate < dateStr ? lastDraggedDate : dateStr);
+        const end = new Date(lastDraggedDate < dateStr ? dateStr : lastDraggedDate);
+        let curr = new Date(start);
+        curr.setDate(curr.getDate() + 1);
+        while (curr < end) {
+          targetDates.push(curr.toISOString().split('T')[0]);
+          curr.setDate(curr.getDate() + 1);
+        }
       }
-    } else {
-      // Only set if not already set or if different
-      const current = newAbsences[empId][dateStr];
-      if (!current || current.type !== mode) {
-        newAbsences[empId][dateStr] = {
-          type: mode,
-          text: dragArt,
-          vertreter: dragVertreter,
-          status: 'confirmed'
-        };
-        if (onSaveAbsences) onSaveAbsences(newAbsences);
-      }
-    }
+
+      targetDates.forEach(dStr => {
+        if (action === 'set') {
+          setDraggedDates(p => p.includes(dStr) ? p : [...p, dStr]);
+          newAbsences[empId][dStr] = {
+            type: mode,
+            text: dragArt,
+            vertreter: dragVertreter,
+            status: 'confirmed'
+          };
+        } else if (action === 'clear') {
+          if (newAbsences[empId][dStr]) {
+            delete newAbsences[empId][dStr];
+          }
+        }
+      });
+
+      return { ...newAbsences };
+    });
+
+    setLastDraggedDate(dateStr);
   };
 
   const handleEditQuota = (emp) => {
@@ -1111,7 +1129,8 @@ const CalendarView = ({
                 {/* BODY CELLS (Absolute relative to Row) */}
                 {virtualCols.map((vCol) => {
                   const day = days[vCol.index];
-                  const absence = absences[emp.id]?.[day.dateStr];
+                  const currentAbsences = tempAbsences || absences;
+                  const absence = currentAbsences[emp.id]?.[day.dateStr];
                   const pendingReq = !absence && requests.find(r => 
                     r.empId === emp.id && r.dates.includes(day.dateStr) && r.status.startsWith('pending')
                   );

@@ -385,34 +385,62 @@ const App = () => {
   };
 
   const handleSaveAbsence = async (newAbsences) => {
-    let finalAbsences = newAbsences;
-    
-    // Detect if this is formData from AbsenceModal (single update) or a full object
-    // formData has startDate and employeeId, while full absences object is keyed by employeeId
-    if (newAbsences && typeof newAbsences === 'object' && newAbsences.startDate && newAbsences.employeeId) {
-      const formData = newAbsences;
-      finalAbsences = { ...appData.absences };
+    // We use a functional update via setAppData to ensure we have the absolute latest state
+    // when multiple updates happen rapidly (like during a drag operation)
+    setAppData(prev => {
+      let finalAbsences = newAbsences;
       
-      const dates = [];
-      let curr = new Date(formData.startDate);
-      const end = new Date(formData.endDate);
-      while (curr <= end) {
-        dates.push(curr.toISOString().split('T')[0]);
-        curr.setDate(curr.getDate() + 1);
+      // Detect if this is formData from AbsenceModal (single update) or a full object
+      if (newAbsences && typeof newAbsences === 'object' && newAbsences.startDate && newAbsences.employeeId) {
+        const formData = newAbsences;
+        finalAbsences = { ...prev.absences };
+        
+        const dates = [];
+        let curr = new Date(formData.startDate);
+        const end = new Date(formData.endDate);
+        while (curr <= end) {
+          dates.push(curr.toISOString().split('T')[0]);
+          curr.setDate(curr.getDate() + 1);
+        }
+
+        if (!finalAbsences[formData.employeeId]) finalAbsences[formData.employeeId] = {};
+        dates.forEach(d => {
+          finalAbsences[formData.employeeId][d] = {
+            type: formData.type,
+            text: formData.remarks || '',
+            status: 'confirmed'
+          };
+        });
       }
 
-      if (!finalAbsences[formData.employeeId]) finalAbsences[formData.employeeId] = {};
-      dates.forEach(d => {
-        finalAbsences[formData.employeeId][d] = {
-          type: formData.type,
-          text: formData.remarks || '',
-          status: 'confirmed'
-        };
-      });
-    }
+      const updatedStats = updateVacationStats(finalAbsences, prev.employees, prev.vacationStats);
+      const nextData = { ...prev, absences: finalAbsences, vacationStats: updatedStats };
+      
+      // We still need to trigger the side effect (saving to server)
+      // Since we are inside a functional update, we can't await here.
+      // But we can call saveAllData with the new state to handle the API part.
+      // Note: saveAllData also calls setAppData(newData), which might be redundant but safe.
+      saveAllDataSideEffect(nextData);
+      
+      return nextData;
+    });
+  };
 
-    const updatedStats = updateVacationStats(finalAbsences);
-    await saveAllData({ ...appData, absences: finalAbsences, vacationStats: updatedStats });
+  // Dedicated side effect for saving to API without re-triggering setAppData recursively or causing race conditions
+  const saveAllDataSideEffect = async (newData) => {
+    try {
+      const storagePayload = {
+        ...newData,
+        state: newData.absences,
+        __REQUESTS__: newData.requests
+      };
+      if (storagePayload.employees) {
+        storagePayload.employees = storagePayload.employees.filter(e => !e._isCrossProfile);
+      }
+      await apiService.save(binId, auth.masterKey, storagePayload);
+    } catch (err) {
+      console.error('Speichern fehlgeschlagen:', err);
+    }
   };
 
 
