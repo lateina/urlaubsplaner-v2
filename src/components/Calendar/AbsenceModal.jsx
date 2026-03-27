@@ -360,8 +360,8 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
         </div>
 
         <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
-          <button type="button" onClick={onClose} style={{ flex: 1, padding: '14px', borderRadius: 14, border: '1px solid rgba(0,0,0,0.2)', background: '#f1f5f9', color: '#000000', fontWeight: 600, cursor: 'pointer' }}>Abbrechen</button>
-          <button type="submit" style={{ flex: 2, padding: '14px', borderRadius: 14, border: 'none', background: 'var(--primary)', color: 'white', fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
+          <button type="button" onClick={onClose} style={{ flex: 1, padding: '14px', borderRadius: 14, border: '1px solid rgba(0,0,0,0.2)', background: '#f1f5f9', color: '#000000', fontWeight: 600, fontSize: '1.1rem', cursor: 'pointer' }}>Abbrechen</button>
+          <button type="submit" style={{ flex: 2, padding: '14px', borderRadius: 14, border: 'none', background: 'var(--primary)', color: 'white', fontWeight: 700, fontSize: '1.1rem', cursor: 'pointer', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
             {perms.canEnterDirectly ? 'Direkt Speichern' : 'Antrag stellen'}
           </button>
         </div>
