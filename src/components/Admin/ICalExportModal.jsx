@@ -156,7 +156,7 @@ const ICalExportModal = ({ isOpen, onClose, absences, employees }) => {
           style={{ 
             marginTop: '8px', width: '100%', padding: '16px', borderRadius: '14px', 
             border: 'none', background: 'var(--primary)', color: 'white', 
-            fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', 
+            fontWeight: 800, fontSize: '1.1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', 
             justifyContent: 'center', gap: '8px', boxShadow: '0 8px 20px rgba(139, 92, 246, 0.3)',
             transition: 'transform 0.2s'
           }}
