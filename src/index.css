@@ -494,3 +494,8 @@ body.planer-oa .modal-card textarea {
 @media (min-width: 769px) {
   .mobile-nav { display: none !important; }
 }
+
+@keyframes slideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}

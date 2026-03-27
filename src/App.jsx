@@ -8,6 +8,7 @@ import EmployeeAdmin from './components/Admin/EmployeeAdmin';
 import CategoryAdmin from './components/Admin/SkillAdmin';
 import AbsenceSummary from './components/Admin/AbsenceSummary';
 import ICalExportModal from './components/Admin/ICalExportModal';
+import InstallPrompt from './components/UI/InstallPrompt';
 import Login from './components/Auth/Login';
 import { apiService } from './services/apiService';
 import { APP_CONFIG } from './config/appConfig';
@@ -764,6 +765,7 @@ const App = () => {
           perms={perms}
           onOpenICal={() => setIsICalModalOpen(true)}
         />
+        <InstallPrompt />
       </main>
       {/* Modals & Overlays */}
       <ICalExportModal 
