@@ -532,13 +532,17 @@ const App = () => {
     await saveAllData({ ...appData, requests: updatedRequests });
   };
 
-  const makeStamp = (user) => ({
-    at: new Date().toISOString(),
-    uid: user?.id,
-    name: user?.stampAlias || user?.name,
+  const resolvedUser = appData.employees.find(e => e.id === auth.user?.id) || auth.user;
 
-    ua: navigator.userAgent
-  });
+  const makeStamp = (user) => {
+    const latest = appData.employees.find(e => e.id === user?.id) || user;
+    return {
+      at: new Date().toISOString(),
+      uid: latest?.id,
+      name: latest?.stampAlias || latest?.name,
+      ua: navigator.userAgent
+    };
+  };
 
   const handleUpdateAdminData = async (newData) => {
     const nextAppData = { ...appData, ...newData };
@@ -595,7 +599,7 @@ const App = () => {
 
   const actionRequiredCount = appData.requests.filter(r => {
     if (isAdmin) return r.status === 'pending_admin';
-    return r.status === 'pending_vertreter' && r.vertreterId === auth.user?.id;
+    return r.status === 'pending_vertreter' && r.vertreterId === resolvedUser?.id;
   }).length + (perms.canSeePOKarte ? poPendingCount : 0);
 
 
@@ -634,7 +638,7 @@ const App = () => {
             onSaveAbsences={handleSaveAbsence}
             onSubmitRequest={handleSubmitRequest}
             isAdmin={isAdmin}
-            currentUser={auth.user}
+            currentUser={resolvedUser}
             groupColors={appData.groupColors}
             rotationData={appData.rotationData}
             skills={appData.skills}
@@ -650,7 +654,7 @@ const App = () => {
           <RequestsView 
             requests={appData.requests}
             employees={appData.employees}
-            currentUser={auth.user}
+            currentUser={resolvedUser}
             isAdmin={isAdmin}
             onApprove={handleApproveRequest}
             onReject={handleRejectRequest}
