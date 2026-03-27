@@ -441,7 +441,7 @@ const CalendarView = ({
   };
   window.addEventListener('mouseup', handleMouseUp);
   return () => window.removeEventListener('mouseup', handleMouseUp);
-}, [isDragging, dragStartVal, draggedDates, draggedEmpId, dragVertreter, dragArt, mode, employees, currentUser, onSubmitRequest]);
+}, [isDragging, tempAbsences, onSaveAbsences, dragStartVal, draggedDates, draggedEmpId, dragVertreter, dragArt, mode, employees, currentUser, onSubmitRequest]);
 
 
   const handleCellDragTouch = (e, empId, dateStr) => {
@@ -709,7 +709,8 @@ const CalendarView = ({
           else setSortMode('standard');
         }}
         onOpenEntryModal={() => setIsModalOpen(true)}
-        showEntryButton={perms.canShowCalendarEntry}
+        showEntryButton={isAdmin}
+        onSave={() => onSaveAbsences && onSaveAbsences()}
       />
 
 
