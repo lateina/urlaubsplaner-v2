@@ -2,7 +2,7 @@ import React from 'react';
 import { Calendar, ClipboardList, Users, ShieldCheck, Settings, Bell, ChevronsLeftRight, Download, Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { PLANER_PROFILES } from '../../config/planerConfig';
 
-const Sidebar = ({ activeTab, onTabChange, planerType, onPlanerSwitch, isAdmin, perms, badgeCount, currentUser, onOpenICal, isCollapsed, onToggleCollapse }) => {
+const Sidebar = ({ activeTab, onTabChange, planerType, onPlanerSwitch, isAdmin, perms, badgeCount, currentUser, onOpenICal, onOpenLegal, isCollapsed, onToggleCollapse }) => {
   const profile = PLANER_PROFILES[planerType];
   
   const navItems = [
