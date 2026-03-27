@@ -29,12 +29,12 @@ const Modal = ({ isOpen, onClose, title, children }) => {
         display: 'flex',
         flexDirection: 'column',
         backdropFilter: 'blur(30px)', // High blur ONLY inside the modal
-        border: '1px solid rgba(255, 255, 255, 0.4)',
+        border: 'none',
         position: 'relative'
       }}>
         <div style={{
           padding: '24px 28px',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.2)',
+          borderBottom: 'none',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',

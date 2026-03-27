@@ -126,7 +126,7 @@ const ICalExportModal = ({ isOpen, onClose, absences, employees }) => {
           <div className="glass" style={{ 
             maxHeight: '220px', overflowY: 'auto', padding: '8px', 
             borderRadius: '16px', background: 'rgba(255, 255, 255, 0.25)',
-            border: '1px solid var(--glass-border)'
+            border: 'none'
           }}>
             {sortedEmployees.map(emp => (
               <div 

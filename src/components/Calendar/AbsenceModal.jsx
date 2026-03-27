@@ -331,7 +331,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
           {showVertreterResults && vertreterSearch.length > 0 && (
             <div className="glass" style={{ 
               position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, 
-              background: 'rgba(255, 255, 255, 0.95)', border: '1px solid var(--glass-border)', borderRadius: 12,
+              background: 'rgba(255, 255, 255, 0.95)', border: 'none', borderRadius: 12,
               maxHeight: 200, overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
               backdropFilter: 'blur(10px)'
             }}>
@@ -339,7 +339,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
                 <div 
                   key={emp.id} 
                   onClick={() => handleVertreterSelect(emp)}
-                  style={{ padding: '10px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border)' }}
+                  style={{ padding: '10px 12px', cursor: 'pointer', borderBottom: 'none' }}
                   onMouseEnter={(e) => e.target.style.background = '#f1f5f9'}
                   onMouseLeave={(e) => e.target.style.background = 'transparent'}
                 >
