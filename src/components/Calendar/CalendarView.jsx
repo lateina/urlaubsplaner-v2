@@ -608,6 +608,7 @@ const CalendarView = ({
         skills={skills}
         absences={absences}
         requests={requests}
+        vacationStats={vacationStats}
       />
 
 
@@ -1055,7 +1056,45 @@ const CalendarView = ({
 
                       {/* V1 Vacation Badge */}
                       {(() => {
-                        const stats = vacationStats[emp.id] || { total: 0, quota: 30 };
+                        let stats = vacationStats[emp.id] || { total: 0, quota: 30 };
+                        
+                        // REAL-TIME: If dragging this employee, calculate live total from tempAbsences
+                        if (isDragging && draggedEmpId === emp.id && tempAbsences) {
+                          const year = new Date().getFullYear();
+                          const vacationDates = new Set();
+                          const empAbsences = tempAbsences[emp.id] || {};
+                          
+                          // 1. From temporary drag state
+                          Object.entries(empAbsences).forEach(([dateStr, entry]) => {
+                            if (!dateStr.startsWith(String(year))) return;
+                            const type = typeof entry === 'object' ? entry.type : entry;
+                            if (type === 'U' || type === 'V') {
+                              const d = days.find(day => day.dateStr === dateStr);
+                              if (d && !d.isWeekend && !d.holiday) {
+                                vacationDates.add(dateStr);
+                              }
+                            }
+                          });
+
+                          // 2. From pending requests (not yet in tempAbsences)
+                          requests.filter(r => 
+                            r.empId === emp.id && 
+                            r.status.startsWith('pending') && 
+                            (r.type === 'U' || r.type === 'V')
+                          ).forEach(r => {
+                            r.dates.forEach(dateStr => {
+                              if (!dateStr.startsWith(String(year))) return;
+                              if (empAbsences[dateStr]) return; 
+                              const d = days.find(day => day.dateStr === dateStr);
+                              if (d && !d.isWeekend && !d.holiday) {
+                                vacationDates.add(dateStr);
+                              }
+                            });
+                          });
+
+                          stats = { ...stats, total: vacationDates.size };
+                        }
+
                         const over = stats.total > stats.quota;
                         const canEdit = isAdmin || currentUser === emp.id;
                         

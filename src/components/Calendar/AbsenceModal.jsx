@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { getSpecialDayInfo } from '../../utils/calendarUtils';
 import Modal from '../UI/Modal';
 
-const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isAdmin, perms = {}, currentUser, skills = [], absences = {}, requests = [] }) => {
+const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isAdmin, perms = {}, currentUser, skills = [], absences = {}, requests = [], vacationStats = {} }) => {
   const [formData, setFormData] = useState({
     startDate: '',
     endDate: '',
@@ -11,6 +12,40 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
     remarks: '',
     employeeId: currentUser?.id || ''
   });
+
+  // Calculate vacation days in range
+  const vacationInfo = useMemo(() => {
+    if ((formData.type !== 'U' && formData.type !== 'V') || !formData.startDate || !formData.endDate) {
+      return null;
+    }
+
+    const start = new Date(formData.startDate);
+    const end = new Date(formData.endDate);
+    if (end < start) return null;
+
+    let count = 0;
+    const year = new Date().getFullYear();
+    let curr = new Date(start);
+    while (curr <= end) {
+      const dStr = curr.toISOString().split('T')[0];
+      if (dStr.startsWith(String(year))) {
+        const { holiday } = getSpecialDayInfo(dStr);
+        const isWeekend = (curr.getDay() === 0 || curr.getDay() === 6);
+        if (!isWeekend && !holiday) {
+          count++;
+        }
+      }
+      curr.setDate(curr.getDate() + 1);
+    }
+
+    const currentStats = vacationStats[formData.employeeId] || { total: 0, quota: 30 };
+    return {
+      daysInRange: count,
+      currentTotal: currentStats.total,
+      projectedTotal: currentStats.total + count,
+      quota: currentStats.quota
+    };
+  }, [formData.startDate, formData.endDate, formData.type, formData.employeeId, vacationStats]);
 
   // Ensure employeeId is initialized to someone other than admin if we're an admin
   React.useEffect(() => {
@@ -293,6 +328,40 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
             <option value="S">Sonstiges (S)</option>
           </select>
         </div>
+
+        {vacationInfo && (
+          <div style={{ 
+            padding: '16px', 
+            background: 'rgba(59, 130, 246, 0.08)', 
+            border: '2px solid rgba(59, 130, 246, 0.2)', 
+            borderRadius: 16,
+            fontSize: '0.875rem',
+            color: '#1e40af',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            boxShadow: '0 4px 12px rgba(59, 130, 246, 0.05)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontWeight: 600 }}>Urlaubstage (Netto):</span>
+              <span style={{ fontWeight: 800, fontSize: '1rem', color: '#2563eb' }}>{vacationInfo.daysInRange} Tage</span>
+            </div>
+            <div style={{ height: '1px', background: 'rgba(59, 130, 246, 0.1)', margin: '4px 0' }}></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
+              <span>Aktuell geplant:</span>
+              <span style={{ fontWeight: 700 }}>{vacationInfo.currentTotal} / {vacationInfo.quota}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
+              <span>Nach diesem Eintrag:</span>
+              <span style={{ 
+                fontWeight: 900, 
+                color: vacationInfo.projectedTotal > vacationInfo.quota ? '#ef4444' : '#2563eb' 
+              }}>
+                {vacationInfo.projectedTotal} / {vacationInfo.quota}
+              </span>
+            </div>
+          </div>
+        )}
 
         {formData.type === 'D' && (
           <div style={{ 

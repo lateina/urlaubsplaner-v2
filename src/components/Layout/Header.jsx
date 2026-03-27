@@ -25,7 +25,24 @@ const Header = ({ user, onLogout }) => {
         </div>
         <div className="header-user-info">
           <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>{user?.name || 'Mitarbeiter'}</div>
-          <div className="header-user-status" style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Status: Online</div>
+          {isSaving ? (
+            <div className="header-user-status" style={{ 
+              fontSize: '0.7rem', 
+              color: '#3b82f6', 
+              fontWeight: 800,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}>
+              <span style={{ 
+                width: 6, height: 6, borderRadius: '50%', background: '#3b82f6',
+                animation: 'pulse 1s infinite alternate'
+              }}></span>
+              Speichere...
+            </div>
+          ) : (
+            <div className="header-user-status" style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Status: Online</div>
+          )}
         </div>
       </div>
 

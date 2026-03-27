@@ -6,7 +6,7 @@ Prof. Dr. Stefan Wagner, Klinik und Poliklinik für Innere Medizin II, 93053 Reg
 
 **2. Datenverarbeitung**
 Bei Nutzung dieses Tools werden folgende Daten verarbeitet:
-* Identifikationsdaten (Name, Vorname)
+* Identifikationsdaten (Name, Vorname, dienstliche E-Mail-Adresse)
 * Planungsdaten (Urlaub, Abwesenheiten, Status)
 * Technische Daten (IP-Adresse, Zeitpunkt des Zugriffs) zur Sicherstellung des Betriebs.
 

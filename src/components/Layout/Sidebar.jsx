@@ -2,7 +2,7 @@ import React from 'react';
 import { Calendar, ClipboardList, Users, ShieldCheck, Settings, Bell, ChevronsLeftRight, Download, Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { PLANER_PROFILES } from '../../config/planerConfig';
 
-const Sidebar = ({ activeTab, onTabChange, planerType, onPlanerSwitch, isAdmin, perms, badgeCount, currentUser, onOpenICal, onOpenLegal, isCollapsed, onToggleCollapse }) => {
+const Sidebar = ({ activeTab, onTabChange, planerType, onPlanerSwitch, isAdmin, perms, badgeCount, currentUser, onOpenICal, onOpenLegal, isCollapsed, onToggleCollapse, isSaving }) => {
   const profile = PLANER_PROFILES[planerType];
   
   const navItems = [
@@ -75,13 +75,16 @@ const Sidebar = ({ activeTab, onTabChange, planerType, onPlanerSwitch, isAdmin, 
         {perms.canSwitchPlaner && !isCollapsed && (
           <button 
             onClick={(e) => { e.stopPropagation(); onPlanerSwitch(); }}
-            title="Planer wechseln"
+            title={isSaving ? "Wird gespeichert..." : "Planer wechseln"}
+            disabled={isSaving}
             style={{ 
-              background: 'none', border: 'none', cursor: 'pointer', 
-              color: 'var(--text-secondary)', padding: 4, display: 'flex' 
+              background: 'none', border: 'none', cursor: isSaving ? 'wait' : 'pointer', 
+              color: isSaving ? 'var(--primary)' : 'var(--text-secondary)', 
+              padding: 4, display: 'flex',
+              opacity: isSaving ? 0.5 : 1
             }}
           >
-            <ChevronsLeftRight size={18} />
+            <ChevronsLeftRight size={18} className={isSaving ? 'animate-spin' : ''} />
           </button>
         )}
       </div>

@@ -68,7 +68,7 @@ const LegalModal = ({ isOpen, onClose }) => {
             <p style={{ margin: '0 0 4px 0', fontWeight: 700 }}>2. Datenverarbeitung</p>
             <p style={{ margin: 0 }}>Bei Nutzung dieses Tools werden verarbeitet:</p>
             <ul style={{ margin: '8px 0 0 20px', padding: 0 }}>
-              <li><strong>Identifikationsdaten:</strong> Name, Vorname</li>
+              <li><strong>Identifikationsdaten:</strong> Name, Vorname, dienstliche E-Mail-Adresse</li>
               <li><strong>Planungsdaten:</strong> Abwesenheitszeiträume (Urlaub, Fortbildung etc.), Status der Genehmigung</li>
               <li><strong>Technische Daten:</strong> IP-Adresse und Zugriffszeitpunkt (Logging durch Hoster)</li>
             </ul>

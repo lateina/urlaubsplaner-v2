@@ -84,6 +84,7 @@ const App = () => {
     vacationStats: {}
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState(null);
   const [isICalModalOpen, setIsICalModalOpen] = useState(false);
   const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
@@ -323,39 +324,57 @@ const App = () => {
   };
 
 
-  const calculateVacationUsed = (empId, absences, year = 2026) => {
-    let count = 0;
+  const calculateVacationUsed = (empId, absences, year = new Date().getFullYear(), requests = []) => {
+    const vacationDates = new Set();
     const empAbsences = absences[empId] || {};
     
+    // 1. From confirmed absences
     Object.entries(empAbsences).forEach(([dateStr, entry]) => {
-      // Basic type check
+      if (!dateStr.startsWith(String(year))) return;
       const type = typeof entry === 'object' ? entry.type : entry;
       const status = typeof entry === 'object' ? entry.status : 'confirmed';
       
-      if (!dateStr.startsWith(String(year))) return;
       if (status === 'rejected') return;
       
       if (type === 'U' || type === 'V') {
-        const d = new Date(dateStr);
-        const dow = d.getDay();
-        const isWeekend = (dow === 0 || dow === 6);
         const { holiday } = getSpecialDayInfo(dateStr);
+        const d = new Date(dateStr);
+        const isWeekend = (d.getDay() === 0 || d.getDay() === 6);
         if (!isWeekend && !holiday) {
-          count++;
+          vacationDates.add(dateStr);
         }
       }
     });
-    return count;
+
+    // 2. From pending requests (not yet in absences)
+    requests.filter(r => 
+      r.empId === empId && 
+      r.status.startsWith('pending') && 
+      (r.type === 'U' || r.type === 'V')
+    ).forEach(r => {
+      r.dates.forEach(dateStr => {
+        if (!dateStr.startsWith(String(year))) return;
+        const { holiday } = getSpecialDayInfo(dateStr);
+        const d = new Date(dateStr);
+        const isWeekend = (d.getDay() === 0 || d.getDay() === 6);
+        if (!isWeekend && !holiday) {
+          vacationDates.add(dateStr);
+        }
+      });
+    });
+
+    return vacationDates.size;
   };
 
-  const updateVacationStats = (newAbsences, employees = null, currentStats = null) => {
+  const updateVacationStats = (newAbsences, employees = null, currentStats = null, requests = null) => {
     const targetEmployees = employees || appData.employees;
     const statsToUpdate = currentStats || appData.vacationStats;
+    const targetRequests = requests || appData.requests;
     const newStats = { ...statsToUpdate };
-    const year = 2026; 
+    const year = new Date().getFullYear(); 
     
     targetEmployees.forEach(emp => {
-      const used = calculateVacationUsed(emp.id, newAbsences, year);
+      const used = calculateVacationUsed(emp.id, newAbsences, year, targetRequests);
       const currentQuota = emp.vacationQuota ?? (statsToUpdate[emp.id]?.quota ?? 30);
       newStats[emp.id] = { total: used, quota: currentQuota };
     });
@@ -430,6 +449,7 @@ const App = () => {
 
   // Dedicated side effect for saving to API without re-triggering setAppData recursively or causing race conditions
   const saveAllDataSideEffect = async (newData) => {
+    setIsSaving(true);
     try {
       const storagePayload = {
         ...newData,
@@ -442,6 +462,8 @@ const App = () => {
       await apiService.save(binId, auth.masterKey, storagePayload);
     } catch (err) {
       console.error('Speichern fehlgeschlagen:', err);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -635,6 +657,11 @@ const App = () => {
 
   const togglePlaner = () => {
     if (!isAdmin) return;
+    if (isSaving) {
+      if (!window.confirm('Es wird gerade noch gespeichert. Möchten Sie trotzdem den Planer wechseln? (Möglicher Datenverlust)')) {
+        return;
+      }
+    }
     const next = planerType === 'ass' ? 'oa' : 'ass';
     setPlanerType(next);
     // We NO LONGER modify the URL here to keep PWAs stable.
@@ -788,10 +815,11 @@ const App = () => {
         onOpenLegal={() => setIsLegalModalOpen(true)}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        isSaving={isSaving}
       />
       
       <main className="main-content">
-        <Header user={auth.user} onLogout={handleLogout} />
+        <Header user={auth.user} onLogout={handleLogout} isSaving={isSaving} />
         
         <div className="view-container">
           {error ? (
