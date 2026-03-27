@@ -269,16 +269,16 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, width: '100%', boxSizing: 'border-box' }}>
-          <div className="form-group">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, width: '100%', boxSizing: 'border-box' }}>
+          <div className="form-group" style={{ minWidth: 0 }}>
             <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4, color: '#000000' }}>Von</label>
             <input type="date" name="startDate" value={formData.startDate} onChange={handleChange} required 
-                   style={{ width: '100%', padding: '10px 8px', borderRadius: 12, border: '2px solid rgba(0, 0, 0, 0.4)', background: 'white', color: '#000000', fontWeight: 500, fontSize: '0.9rem', boxSizing: 'border-box' }} />
+                   style={{ width: '100%', padding: '10px 4px', borderRadius: 12, border: '2px solid rgba(0, 0, 0, 0.4)', background: 'white', color: '#000000', fontWeight: 500, fontSize: '0.85rem', boxSizing: 'border-box' }} />
           </div>
-          <div className="form-group">
+          <div className="form-group" style={{ minWidth: 0 }}>
             <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4, color: '#000000' }}>Bis</label>
             <input type="date" name="endDate" value={formData.endDate} onChange={handleChange} required 
-                   style={{ width: '100%', padding: '10px 8px', borderRadius: 12, border: '2px solid rgba(0, 0, 0, 0.4)', background: 'white', color: '#000000', fontWeight: 500, fontSize: '0.9rem', boxSizing: 'border-box' }} />
+                   style={{ width: '100%', padding: '10px 4px', borderRadius: 12, border: '2px solid rgba(0, 0, 0, 0.4)', background: 'white', color: '#000000', fontWeight: 500, fontSize: '0.85rem', boxSizing: 'border-box' }} />
           </div>
         </div>
 
