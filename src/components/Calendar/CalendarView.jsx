@@ -429,9 +429,9 @@ const CalendarView = ({
             }
           });
         }
-        if (onSaveAbsences && tempAbsencesRef.current) {
-          onSaveAbsences(tempAbsencesRef.current);
-        }
+      }
+      if (onSaveAbsences && tempAbsencesRef.current) {
+        onSaveAbsences(tempAbsencesRef.current);
       }
       setIsDragging(false);
       setDraggedDates([]);
