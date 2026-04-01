@@ -24,7 +24,8 @@ const CalendarView = ({
   actionRequiredCount = 0,
   vacationStats = {},
   onUpdateAdminData,
-  perms = {}
+  perms = {},
+  isCalendarAdmin = false
 }) => {
   const effectiveAreaOrder = areaOrder || MONTH_AREA_ORDER;
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
@@ -715,7 +716,7 @@ const CalendarView = ({
           else setSortMode('standard');
         }}
         onOpenEntryModal={() => setIsModalOpen(true)}
-        showSaveButton={isAdmin}
+        showSaveButton={isCalendarAdmin}
         showEntryButton={perms.canShowCalendarEntry}
         onSave={() => onSaveAbsences && onSaveAbsences()}
       />

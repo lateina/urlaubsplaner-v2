@@ -24,47 +24,49 @@ const Login = ({ onLogin, initialMasterKey, binId, planerType }) => {
     setIsLoading(true);
     setError('');
     try {
-      // 1. Fetch main bin (ASS or OA)
-      const response = await fetch(`${APP_CONFIG.API_URL}/${binId}/latest`, {
+      // 1. Define fetches
+      const mainFetch = fetch(`${APP_CONFIG.API_URL}/${binId}/latest`, {
         headers: { 'X-Master-Key': masterKey }
       });
       
-      if (response.ok) {
-        const data = await response.json();
-        let emps = data.record.employees || [];
-        
-        // 2. If it's the assistant planer, also fetch FOAs from OA bin
-        if (planerType === 'ass' && binId === APP_CONFIG.ASS_BIN_ID) {
-          try {
-            const oaResponse = await fetch(`${APP_CONFIG.API_URL}/${APP_CONFIG.OA_BIN_ID}/latest`, {
-              headers: { 'X-Master-Key': masterKey }
-            });
-            if (oaResponse.ok) {
-              const oaData = await oaResponse.json();
-              const foas = (oaData.record.employees || []).filter(emp => {
-                const grps = Array.isArray(emp.groups) ? emp.groups : (emp.group ? [emp.group] : []);
-                return grps.some(g => g && String(g).toLowerCase().includes('funktionsoberarzt'));
-              }).map(f => ({ ...f, _isCrossProfile: true }));
+      const oaFetch = (planerType === 'ass' && binId === APP_CONFIG.ASS_BIN_ID) 
+        ? fetch(`${APP_CONFIG.API_URL}/${APP_CONFIG.OA_BIN_ID}/latest`, { headers: { 'X-Master-Key': masterKey } })
+        : Promise.resolve(null);
 
-              // Merge FOAs (only if not already in list)
-              foas.forEach(f => {
-                if (!emps.find(e => e.id === f.id)) emps.push(f);
-              });
-            }
-          } catch (e) {
-            console.warn("FOA fetch failed during login", e);
-          }
-        }
-        
-        setEmployees(emps);
-        setIsMasterKeyValid(true);
-        localStorage.setItem(`${planerType}_jsonbin_key`, masterKey);
-
-      } else {
+      // 2. Execute parallel
+      const [mainRes, oaRes] = await Promise.all([mainFetch, oaFetch]);
+      
+      if (!mainRes.ok) {
         setIsMasterKeyValid(false);
         setError('Master Key ungültig');
+        return;
       }
-    } catch (err) {
+
+      const mainData = await mainRes.json();
+      let emps = mainData.record.employees || [];
+
+      // 3. Process optional OA data
+      if (oaRes && oaRes.ok) {
+        try {
+          const oaData = await oaRes.json();
+          const foas = (oaData.record.employees || []).filter(emp => {
+            const grps = Array.isArray(emp.groups) ? emp.groups : (emp.group ? [emp.group] : []);
+            return grps.some(g => g && String(g).toLowerCase().includes('funktionsoberarzt'));
+          }).map(f => ({ ...f, _isCrossProfile: true }));
+
+          foas.forEach(f => {
+            if (!emps.find(e => e.id === f.id)) emps.push(f);
+          });
+        } catch (e) {
+          console.warn("FOA fetch parsing failed", e);
+        }
+      }
+      
+      setEmployees(emps);
+      setIsMasterKeyValid(true);
+      localStorage.setItem(`${planerType}_jsonbin_key`, masterKey);
+
+      } catch (err) {
       setError('Verbindungsfehler');
     } finally {
       setIsLoading(false);

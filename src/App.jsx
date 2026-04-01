@@ -152,13 +152,24 @@ const App = () => {
       loadData(auth.masterKey);
     }
   }, [planerType, auth.isAuthenticated]);
-
   const loadData = useCallback(async (key) => {
     setIsLoading(true);
     setError(null);
     const profile = PLANER_PROFILES[planerType];
+    
     try {
-      const data = await apiService.load(binId, key);
+      // 1. Define all parallel fetches
+      const mainFetch = apiService.load(binId, key);
+      const oaFetch = (planerType === 'ass') ? apiService.load(APP_CONFIG.OA_BIN_ID, key) : Promise.resolve(null);
+      const rotationFetch = apiService.load(ROTATION_BIN_ID, key);
+
+      // 2. Execute parallel
+      const [data, oaData, rotations] = await Promise.all([
+        mainFetch,
+        oaFetch.catch(e => { console.warn("OA fetch failed", e); return null; }),
+        rotationFetch.catch(e => { console.warn("Rotation fetch failed", e); return null; })
+      ]);
+
       let employees = data.employees || [];
       let absences = data.state || {}; // In the bin it's called "state"
 
@@ -196,21 +207,18 @@ const App = () => {
       let status = data.status || data.__STATUS__ || absences.__STATUS__ || {};
       let areaOrder = data.areaOrder || null;
 
-      // Cross-fetch FOAs if this is the Resident Planner
-      if (planerType === 'ass') {
+      // Process FOAs if this is the Resident Planner and we have OA data
+      if (planerType === 'ass' && oaData) {
         try {
-          const oaData = await apiService.load(APP_CONFIG.OA_BIN_ID, key);
           const foas = (oaData.employees || []).filter(emp => {
             const grps = Array.isArray(emp.groups) ? emp.groups : (emp.group ? [emp.group] : []);
-            // LEGACY MATCH: Be flexible with naming (case-insensitive "funktionsoberarzt")
             return grps.some(g => g && String(g).toLowerCase().includes('funktionsoberarzt'));
           }).map(f => ({ 
             ...f, 
-            groups: ['skill_funktionsoberarzt'], // Force ONLY FOA skill in resident view for correct color/sort
+            groups: ['skill_funktionsoberarzt'],
             _isCrossProfile: true 
           }));
 
-          // Merge FOAs (only if not already present by ID)
           foas.forEach(f => {
             if (!employees.find(e => e.id === f.id)) {
               employees.push(f);
@@ -220,30 +228,22 @@ const App = () => {
             }
           });
 
-          // Ensure "Funktionsoberarzt" is at the TOP of the skills list for residents
           const foaIdx = skills.findIndex(s => {
             const name = typeof s === 'object' ? s.name : s;
             return name && String(name).toLowerCase().includes('funktionsoberarzt');
           });
           
           if (foaIdx === -1) {
-             const foaSkill = { id: 'skill_funktionsoberarzt', name: 'Funktionsoberarzt' };
-             skills.unshift(foaSkill); // Put at the very top
+             skills.unshift({ id: 'skill_funktionsoberarzt', name: 'Funktionsoberarzt' });
           } else if (foaIdx > 0) {
-             // Move existing one to the top
              const [item] = skills.splice(foaIdx, 1);
              skills.unshift(item);
           }
         } catch (e) {
-          console.warn("Could not cross-load FOAs from OA bin", e);
+          console.warn("FOA processing failed", e);
         }
       }
 
-      // Load rotation data silently
-      let rotations = [];
-      try {
-        rotations = await apiService.load(ROTATION_BIN_ID, key);
-      } catch (e) { console.warn("Rotation data load failed", e); }
 
       const migratedSkills = skills.map(s => {
         if (typeof s === 'object' && s.id) return s;
@@ -607,6 +607,7 @@ const App = () => {
   const isSekretariat = auth.user?.id === 'sekretariat';
   const isSpokesperson = auth.user?.id === 'assistentensprecher' || auth.user?.role === 'assistentensprecher';
   const isAdmin = isFullAdmin || isSekretariat || isSpokesperson;
+  const isCalendarAdmin = isFullAdmin || isSekretariat;
 
   const perms = {
     canAdminEmployees: isFullAdmin || isSpokesperson,
@@ -702,6 +703,7 @@ const App = () => {
             vacationStats={appData.vacationStats}
             onUpdateAdminData={handleUpdateAdminData}
             perms={perms}
+            isCalendarAdmin={isCalendarAdmin}
           />
         );
       case 'requests':
