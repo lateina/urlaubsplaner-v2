@@ -512,6 +512,7 @@ const CalendarView = ({
   };
 
   const handleEditQuota = (emp) => {
+    if (emp._isCrossProfile) return;
     if (!isCalendarAdmin && currentUser?.id !== emp.id) {
       alert('Stopp! Nur der Admin oder der Mitarbeiter selbst können das Urlaubskontingent ändern.');
       return;
@@ -1106,7 +1107,7 @@ const CalendarView = ({
                         }
 
                         const over = stats.total > stats.quota;
-                        const canEdit = isAdmin || currentUser === emp.id;
+                        const canEdit = (isAdmin || (currentUser && currentUser.id === emp.id)) && !emp._isCrossProfile;
                         
                         return (
                           <div className="vac-badge" style={{ fontSize: '0.7rem', marginTop: '-2px' }}>

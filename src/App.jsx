@@ -278,7 +278,16 @@ const App = () => {
         }
       });
       
-      const finalStats = updateVacationStats(absences, migratedEmployees, data.vacationStats || {});
+      let finalStats = updateVacationStats(absences, migratedEmployees, data.vacationStats || {});
+
+      // Sync FOA stats from OA bin if this is the Resident Planner
+      if (planerType === 'ass' && oaData && oaData.vacationStats) {
+        Object.entries(oaData.vacationStats).forEach(([empId, stats]) => {
+          if (migratedEmployees.find(e => e.id === empId && e._isCrossProfile)) {
+            finalStats[empId] = stats;
+          }
+        });
+      }
 
       setAppData({
         employees: migratedEmployees,
