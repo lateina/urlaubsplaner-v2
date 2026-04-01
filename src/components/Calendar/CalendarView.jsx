@@ -448,7 +448,7 @@ const CalendarView = ({
 
 
   const handleCellDragTouch = (e, empId, dateStr) => {
-    if (!isAdmin) return;
+    if (!isCalendarAdmin) return;
     if (e.pointerType !== 'mouse') return;
     
     const existing = absences[empId]?.[dateStr];
@@ -512,7 +512,7 @@ const CalendarView = ({
   };
 
   const handleEditQuota = (emp) => {
-    if (!isAdmin && currentUser?.id !== emp.id) {
+    if (!isCalendarAdmin && currentUser?.id !== emp.id) {
       alert('Stopp! Nur der Admin oder der Mitarbeiter selbst können das Urlaubskontingent ändern.');
       return;
     }
@@ -1223,7 +1223,7 @@ const CalendarView = ({
                         fontSize: '0.8rem', 
                         fontWeight: 'bold',
                         opacity: emp._isCrossProfile ? 0.7 : 1,
-                        cursor: isAdmin ? 'crosshair' : 'default'
+                        cursor: isCalendarAdmin ? 'crosshair' : 'default'
                       }}
                     >
                       {absence?.text && <span className="cell-text">{absence.text}</span>}
