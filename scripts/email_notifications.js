@@ -68,83 +68,105 @@ async function run() {
         process.exit(1);
     }
 
+    const binData = {};
+    const allEmployees = [];
+    const binIds = Object.keys(BINS);
+
+    // 1. Pre-fetch all bins and collect all employees from all bins
+    for (const binId of binIds) {
+        try {
+            console.log(`Fetching Bin ${binId}...`);
+            const data = await fetchBin(binId);
+            binData[binId] = data;
+            if (data.employees) {
+                // Collect all employees into a global list for cross-bin lookups (e.g. FOAs)
+                allEmployees.push(...data.employees);
+            }
+        } catch (err) {
+            console.error(`Error fetching bin ${binId}:`, err);
+        }
+    }
+
     let adminDigest = [];
     let sekrDigest = [];
 
+    // 2. Process each bin using the global employee pool for representatives
     for (const [binId, appUrl] of Object.entries(BINS)) {
-        console.log(`Processing Bin ${binId}...`);
-        try {
-            const data = await fetchBin(binId);
-            const employees = data.employees || [];
-            const requests = data.requests || [];
-            let changed = false;
+        const data = binData[binId];
+        if (!data) continue;
 
-            for (const req of requests) {
-                if (!req.notified) req.notified = {};
-                
-                const emp = employees.find(e => e.id === req.empId);
-                const vtr = employees.find(e => e.id === req.vertreterId);
-                const empName = emp?.name || req.empId;
-                const datesStr = fmtDates(req.dates);
-                const typeLabel = TYPE_LABELS[req.type] || req.type;
-                const link = `\nZum Urlaubsplaner:\n${appUrl}\n`;
+        console.log(`Processing Notifications for Bin ${binId}...`);
+        const employeesInBin = data.employees || [];
+        const requests = data.requests || [];
+        let changed = false;
 
-                // 1. Pending Vertreter -> Individual Email
-                if (req.status === 'pending_vertreter' && !req.notified.pending_vertreter) {
-                    if (vtr?.email) {
-                        await sendEmail(vtr.email, 
-                            `Vertretungsanfrage von ${empName}`,
-                            `Hallo ${vtr.name},\n\n${empName} beantragt ${typeLabel} (${datesStr}) und bittet dich um Zustimmung als Vertreter.${link}`
-                        );
-                        req.notified.pending_vertreter = true;
-                        changed = true;
-                    }
-                }
+        for (const req of requests) {
+            if (!req.notified) req.notified = {};
+            
+            // Requesters should be in their own bin
+            const emp = employeesInBin.find(e => e.id === req.empId);
+            
+            // Representatives might be in a different bin (e.g. FOA representing Assistant)
+            const vtr = allEmployees.find(e => e.id === req.vertreterId);
+            
+            const empName = emp?.name || req.empId;
+            const datesStr = fmtDates(req.dates);
+            const typeLabel = TYPE_LABELS[req.type] || req.type;
+            const link = `\nZum Urlaubsplaner:\n${appUrl}\n`;
 
-                // 2. Pending Admin -> Add to Admin Digest
-                if (req.status === 'pending_admin' && !req.notified.pending_admin) {
-                    adminDigest.push(`• ${empName} | ${typeLabel} | ${datesStr}${req.vertreter ? ` | Vertreter: ${req.vertreter}` : ''}\n  → ${appUrl}`);
-                    req.notified.pending_admin = true;
+            // 1. Pending Vertreter -> Individual Email
+            if (req.status === 'pending_vertreter' && !req.notified.pending_vertreter) {
+                if (vtr?.email) {
+                    await sendEmail(vtr.email, 
+                        `Vertretungsanfrage von ${empName}`,
+                        `Hallo ${vtr.name},\n\n${empName} beantragt ${typeLabel} (${datesStr}) und bittet dich um Zustimmung als Vertreter.${link}`
+                    );
+                    req.notified.pending_vertreter = true;
                     changed = true;
                 }
+            }
 
-                // 3. Approved -> Individual Email + Sekr Digest
-                if (req.status === 'approved' && !req.notified.approved) {
-                    if (emp?.email) {
-                        await sendEmail(emp.email,
-                            'Dein Antrag wurde genehmigt ✓',
-                            `Hallo ${empName},\n\ndein Antrag auf ${typeLabel} (${datesStr}) wurde genehmigt.${link}`
-                        );
-                        req.notified.approved = true;
-                        changed = true;
-                    }
-                    if (!req.notified.sekretariat) {
-                        sekrDigest.push(`• ${empName} | ${typeLabel} | ${datesStr}${req.vertreter ? ` | Vertreter: ${req.vertreter}` : ''}`);
-                        req.notified.sekretariat = true;
-                        changed = true;
-                    }
+            // 2. Pending Admin -> Add to Admin Digest
+            if (req.status === 'pending_admin' && !req.notified.pending_admin) {
+                adminDigest.push(`• ${empName} | ${typeLabel} | ${datesStr}${req.vertreter ? ` | Vertreter: ${req.vertreter}` : ''}\n  → ${appUrl}`);
+                req.notified.pending_admin = true;
+                changed = true;
+            }
+
+            // 3. Approved -> Individual Email + Sekr Digest
+            if (req.status === 'approved' && !req.notified.approved) {
+                if (emp?.email) {
+                    await sendEmail(emp.email,
+                        'Dein Antrag wurde genehmigt ✓',
+                        `Hallo ${empName},\n\ndein Antrag auf ${typeLabel} (${datesStr}) wurde genehmigt.${link}`
+                    );
+                    req.notified.approved = true;
+                    changed = true;
                 }
-
-                // 4. Rejected -> Individual Email
-                if (req.status === 'rejected' && !req.notified.rejected) {
-                    if (emp?.email) {
-                        const by = req.rejectedBy === 'vertreter' ? 'deinem Vertreter' : 'dem Leitenden Oberarzt';
-                        await sendEmail(emp.email,
-                            'Dein Antrag wurde abgelehnt',
-                            `Hallo ${empName},\n\ndein Antrag auf ${typeLabel} (${datesStr}) wurde von ${by} abgelehnt.${req.rejectionNote ? `\nGrund: ${req.rejectionNote}` : ''}${link}`
-                        );
-                        req.notified.rejected = true;
-                        changed = true;
-                    }
+                if (!req.notified.sekretariat) {
+                    sekrDigest.push(`• ${empName} | ${typeLabel} | ${datesStr}${req.vertreter ? ` | Vertreter: ${req.vertreter}` : ''}`);
+                    req.notified.sekretariat = true;
+                    changed = true;
                 }
             }
 
-            if (changed) {
-                await saveBin(binId, data);
-                console.log(`  Bin ${binId} updated with notification status.`);
+            // 4. Rejected -> Individual Email
+            if (req.status === 'rejected' && !req.notified.rejected) {
+                if (emp?.email) {
+                    const by = req.rejectedBy === 'vertreter' ? 'deinem Vertreter' : 'dem Leitenden Oberarzt';
+                    await sendEmail(emp.email,
+                        'Dein Antrag wurde abgelehnt',
+                        `Hallo ${empName},\n\ndein Antrag auf ${typeLabel} (${datesStr}) wurde von ${by} abgelehnt.${req.rejectionNote ? `\nGrund: ${req.rejectionNote}` : ''}${link}`
+                    );
+                    req.notified.rejected = true;
+                    changed = true;
+                }
             }
-        } catch (err) {
-            console.error(`Error processing bin ${binId}:`, err);
+        }
+
+        if (changed) {
+            await saveBin(binId, data);
+            console.log(`  Bin ${binId} updated with notification status.`);
         }
     }
 

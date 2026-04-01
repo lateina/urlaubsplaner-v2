@@ -715,7 +715,8 @@ const CalendarView = ({
           else setSortMode('standard');
         }}
         onOpenEntryModal={() => setIsModalOpen(true)}
-        showEntryButton={isAdmin}
+        showSaveButton={isAdmin}
+        showEntryButton={perms.canShowCalendarEntry}
         onSave={() => onSaveAbsences && onSaveAbsences()}
       />
 
