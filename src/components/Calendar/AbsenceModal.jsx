@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { getSpecialDayInfo } from '../../utils/calendarUtils';
 import Modal from '../UI/Modal';
 
-const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isAdmin, perms = {}, currentUser, skills = [], absences = {}, requests = [], vacationStats = {} }) => {
+const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isAdmin, perms = {}, currentUser, skills = [], absences = {}, requests = [], vacationStats = {}, planerType }) => {
   const [formData, setFormData] = useState({
     startDate: '',
     endDate: '',
@@ -46,6 +46,61 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
       quota: currentStats.quota
     };
   }, [formData.startDate, formData.endDate, formData.type, formData.employeeId, vacationStats]);
+
+  // STAFFING CHECK: Identify issues CAUSED by this absence
+  const causedStaffingIssues = useMemo(() => {
+    if (planerType !== 'oa' || !formData.startDate || !formData.endDate) return [];
+    
+    const issues = [];
+    const requester = employees.find(e => e.id === formData.employeeId);
+    if (!requester) return [];
+
+    const has = (e, sId) => {
+      const grps = Array.isArray(e.groups) ? e.groups : (e.group ? [e.group] : []);
+      return grps.some(g => g === sId || g === `skill_${sId.toLowerCase()}`);
+    };
+
+    const start = new Date(formData.startDate);
+    const end = new Date(formData.endDate);
+    let curr = new Date(start);
+
+    while (curr <= end) {
+      const dStr = curr.toISOString().split('T')[0];
+      const { holiday } = getSpecialDayInfo(dStr);
+      const isWeekend = (curr.getDay() === 0 || curr.getDay() === 6);
+
+      if (!isWeekend && !holiday) {
+        const pres = employees.filter(e => 
+          e.id !== 'admin' && 
+          e.id !== 'sekretariat' && 
+          !e._isCrossProfile &&
+          !absences[e.id]?.[dStr]
+        );
+
+        const requesterInPres = pres.some(e => e.id === requester.id);
+        
+        if (requesterInPres) {
+          const checkSkill = (skillLabel, skillKey, threshold) => {
+            if (has(requester, skillKey)) {
+              const count = pres.filter(e => has(e, skillKey)).length;
+              if (count === threshold) { 
+                issues.push({ date: dStr, skill: skillLabel });
+              }
+            }
+          };
+
+          checkSkill('TAVI', 'TAVI', 1);
+          checkSkill('Privat', 'Privat', 1);
+          checkSkill('TEER', 'TEER', 1);
+          checkSkill('HK', 'Herzkatheter', 3);
+          checkSkill('Echo', 'Echo', 1);
+          checkSkill('EPU', 'EPU', 2);
+        }
+      }
+      curr.setDate(curr.getDate() + 1);
+    }
+    return issues;
+  }, [formData.startDate, formData.endDate, formData.employeeId, planerType, employees, absences]);
 
   // Ensure employeeId is initialized to someone other than admin if we're an admin
   React.useEffect(() => {
@@ -359,6 +414,44 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
               }}>
                 {vacationInfo.projectedTotal} / {vacationInfo.quota}
               </span>
+            </div>
+          </div>
+        )}
+
+        {causedStaffingIssues.length > 0 && (
+          <div style={{ 
+            padding: '16px', 
+            background: 'rgba(245, 158, 11, 0.08)', 
+            border: '2px solid rgba(245, 158, 11, 0.3)', 
+            borderRadius: 16,
+            fontSize: '0.85rem',
+            color: '#92400e',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            boxShadow: '0 4px 12px rgba(245, 158, 11, 0.05)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 800 }}>
+              <span style={{ fontSize: '1.1rem' }}>⚠️</span> Besetzungs-Warnung
+            </div>
+            <div style={{ fontSize: '0.8rem', lineHeight: 1.4 }}>
+              Diese Abwesenheit führt zu einer Unterdeckung in folgenden Bereichen:
+              <ul style={{ margin: '8px 0 0 18px', padding: 0 }}>
+                {(() => {
+                  // Group by skill
+                  const grouped = {};
+                  causedStaffingIssues.forEach(issue => {
+                    if (!grouped[issue.skill]) grouped[issue.skill] = [];
+                    const [y, m, d] = issue.date.split('-');
+                    grouped[issue.skill].push(`${d}.${m}.`);
+                  });
+                  return Object.entries(grouped).map(([skill, dates]) => (
+                    <li key={skill}>
+                      <strong>{skill}:</strong> {dates.join(', ')}
+                    </li>
+                  ));
+                })()}
+              </ul>
             </div>
           </div>
         )}
