@@ -9,9 +9,14 @@ Willkommen im neuen Abwesenheitsplaner v2. Dieses Tool ist als Progressive Web A
 2.  **Mitarbeiter-Auswahl:** Suchen oder wählen Sie Ihren Namen aus der alphabetisch sortierten Liste aus.
 3.  **PIN:** Geben Sie Ihren persönlichen PIN ein, um sich anzumelden.
 
-## 2. Funktionen
+## 2. Navigation & Bedienung
+Der Kalender bietet intuitive Möglichkeiten zur Steuerung:
+- **Heute-Button:** Ein Klick auf "Heute" bringt Sie sofort zum aktuellen Datum. Ein roter Pfeil markiert kurzzeitig den heutigen Tag.
+- **Horizontales Scrollen:** Wenn Sie mit der Maus über die Datums-Kopfzeile fahren, können Sie mit dem Mausrad direkt seitlich scrollen.
+- **Greifen & Schieben:** Sie können den Kalender verschieben, indem Sie die Kopfzeile anklicken und ziehen.
+- **Farben:** Wochenenden sind grau hinterlegt, bayerische Feiertage hellrot. Ihre eigene Zeile ist dezent markiert.
 
-### Abwesenheit beantragen
+## 3. Abwesenheit beantragen
 Klicken Sie oben auf die Schaltfläche "Abwesenheit beantragen" oder nutzen Sie die **Drag-and-Drop-Funktion** direkt im Kalender-Grid (Klicken und Ziehen über den gewünschten Zeitraum).
 
 ### Besetzungs-Check (Neu)
@@ -22,6 +27,10 @@ Das System prüft bereits während der Datenauswahl im Antrag, ob durch Ihren Ur
 
 ### Vertreter-Regelung
 Wählen Sie im Antragsformular einen Kollegen als Vertreter aus. Das System prüft automatisch, ob dieser im gewählten Zeitraum selbst anwesend und nicht bereits als Vertreter für jemanden anderen eingetragen ist.
+**Hinweis:** Ihr Vertreter muss der Anfrage erst im System zustimmen, bevor sie zur finalen Freigabe an den Admin weitergeleitet wird.
+
+### Selbst als Vertreter zustimmen
+Wenn ein Kollege Sie als Vertreter anfragt, sehen Sie dies unter dem Reiter **"Anfragen"** (Glocken-Symbol) im Bereich "Vertretungsanfragen". Dort können Sie zustimmen oder die Vertretung ablehnen.
 
 ## 3. Installation als App (Empfohlen)
 Um den Planer wie eine App zu nutzen:
@@ -30,10 +39,11 @@ Um den Planer wie eine App zu nutzen:
 - **PC (Chrome/Edge):** Symbol in der Adressleiste -> "Installieren".
 
 ## 4. Status & Benachrichtigungen
-Im Reiter **"Anfragen"** (Glocken-Symbol) sehen Sie den aktuellen Status Ihrer Anträge:
-- `pending_vertreter`: Wartet auf Bestätigung durch Ihren Vertreter.
-- `pending_admin`: Wartet auf finale Freigabe durch den Administrator (LOA).
-- `approved`: Antrag ist genehmigt und fest im Kalender eingetragen.
+Im Reiter **"Anfragen"** (Glocken-Symbol) sehen Sie den Status Ihrer Anträge:
+- **Wartet auf Vertreter (`pending_vertreter`):** Ihr gewählter Vertreter muss der Anfrage noch zustimmen.
+- **Wartet auf Admin (`pending_admin`):** Der Vertreter hat zugestimmt; die finale Freigabe durch den Administrator (LOA) steht noch aus.
+- **Genehmigt (`approved`):** Der Antrag ist final bestätigt und fest im Kalender eingetragen.
+- **Abgelehnt (`rejected`):** Der Wunsch konnte nicht erfüllt werden (siehe Begründung im Tool).
 
 ---
 *Bei technischen Problemen oder einem vergessenem PIN wenden Sie sich bitte an den Administrator.*

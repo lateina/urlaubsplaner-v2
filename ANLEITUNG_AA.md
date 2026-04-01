@@ -9,32 +9,40 @@ Willkommen in der neuen Version des Urlaubsplaners v2 für Assistenten.
 2.  **Mitarbeiter-Auswahl:** Wählen Sie Ihren Namen aus der alphabetisch sortierten Liste aus.
 3.  **PIN:** Geben Sie Ihren PIN ein, um sich anzumelden.
 
-## 2. Funktionen
+## 2. Navigation & Bedienung
+Der Kalender bietet intuitive Steuerungsmöglichkeiten (ähnlich wie am Desktop):
+- **Heute-Button:** Ein Klick auf "Heute" bringt Sie sofort zum aktuellen Datum (inkl. kurzem rotem Pfeil-Indikator).
+- **Horizontales Scrollen:** Wenn Sie mit der Maus über die Monats-Kopfzeile fahren, können Sie mit dem Mausrad direkt seitlich scrollen.
+- **Greifen & Schieben:** Sie können den Kalender verschieben, indem Sie die Kopfzeile anklicken und ziehen.
+- **Farben:** Wochenenden sind grau, bayerische Feiertage hellrot markiert. Deine eigene Zeile ist hervorgehoben.
 
-### Rotations-Ansicht
-Die Kalenderansicht wird im Assistentenplaner primär nach Ihren aktuellen **Rotationsbereichen** (Stationen, Funktionsbereiche) sortiert. So sehen Sie direkt im "Skill-Sort"-Modus (Standard), wer zeitgleich mit Ihnen in Ihrem aktuellen Team abwesend ist.
+## 3. Abwesenheit beantragen (Der 2-Schritt-Prozess)
+Um deine Abwesenheit rechtssicher zu planen, sind zwei Schritte notwendig:
 
-### Sichtbarkeit von Funktionsoberärzten (FOA)
-Zusätzlich zu Ihren Kollegen werden die zuständigen **Funktionsoberärzte** ebenfalls im Kalender angezeigt, um die Koordination von Urlaubs- und Fortbildungszeiten zu erleichtern.
+### Schritt 1: Der Antrag
+- Nutze die Schaltfläche "Abwesenheit beantragen" oder ziehen Sie mit der Maus direkt über die gewünschten Tage.
+- **Wichtig:** Wähle einen **Vertreter** aus der Liste. Das System zeigt nur Kollegen an, die aktuell in deiner Rotation verfügbar sind.
 
-### Abwesenheit beantragen
-Nutzen Sie die Schaltfläche "Abwesenheit beantragen" oder ziehen Sie mit der Maus/Finger direkt über die gewünschten Tage im Kalender-Grid (Drag-and-Drop).
+### Schritt 2: Die Zustimmung
+- Dein Vertreter erhält nun eine Benachrichtigung im System.
+- Sobald der Vertreter im Reiter **"Anfragen"** zugestimmt hat, geht der Antrag zur finalen Prüfung an den Administrator.
 
-### Vertreter-Check
-Das System prüft bei der Antragstellung automatisch:
-- Ob Ihr gewählter Vertreter im gleichen Zeitraum anwesend ist.
-- Ob er bereits als Vertreter für einen anderen Kollegen eingetragen ist.
-- Ob Sie selbst aktuell bereits als Vertreter für jemanden fungieren.
+### Selbst als Vertreter zustimmen
+Wenn ein Kollege dich als Vertreter anfragt:
+1. Gehe zum Tab **"Anfragen"** (Glocken-Icon).
+2. Unter **"Vertretungsanfragen"** siehst du die Details.
+3. Klicke auf "Zustimmen" oder gib bei Ablehnung einen Grund an.
 
 ## 3. Installation als App (Empfohlen)
 - **iOS (Safari):** Teilen-Icon (Viereck mit Pfeil) -> "Zum Home-Bildschirm hinzufügen".
 - **Android (Chrome):** Drei Punkte -> "App installieren" oder "Zum Startbildschirm hinzufügen".
 
 ## 4. Status-Tracking
-Über die Glocke (Anfragen) oben rechts können Sie jederzeit den Fortschritt Ihrer Anträge einsehen:
-- `pending_vertreter`: Wartet auf Bestätigung durch den Vertreter.
-- `pending_admin`: Wartet auf Freigabe durch die Verwaltung (Sekretariat/LOA).
-- `approved`: Antrag ist genehmigt und fest im Kalender.
+Über die Glocke (Anfragen) oben rechts siehst du den Verlauf:
+- **Wartet auf Vertreter (`pending_vertreter`):** Dein Kollege muss der Vertretung noch zustimmen.
+- **Wartet auf Admin (`pending_admin`):** Vertreter hat zugestimmt; finale Freigabe durch Sprecher/Verwaltung steht aus.
+- **Genehmigt (`approved`):** Der Urlaub ist final bestätigt und fest eingetragen.
+- **Abgelehnt (`rejected`):** Der Wunsch konnte nicht erfüllt werden.
 
 ---
 *Bei Problemen wenden Sie sich bitte an das Sekretariat.*
