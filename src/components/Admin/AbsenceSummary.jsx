@@ -17,6 +17,7 @@ const AbsenceSummary = ({ employees = [], absences = {}, status = {} }) => {
     const typeMap = { 
       'U': 'Urlaub', 
       'V': 'Urlaub', 
+      'FZA': 'Freizeitausgleich',
       'D': 'Dienstreise', 
       'F': 'Fortbildung', 
       'T': 'Sonstiges', 

@@ -1,6 +1,6 @@
 # Anleitung: Abwesenheitsplaner für Assistenten (AA-Planer)
 
-Willkommen in der neuen Version des Urlaubsplaners v2 für Assistenten.
+Willkommen beim neuen Urlaubsplaner für Assistenten. Dieses Tool ist als Progressive Web App (PWA) konzipiert und kann auf Eurem Smartphone oder PC wie eine App installiert werden.
 
 ## 1. Zugang & Anmeldung
 

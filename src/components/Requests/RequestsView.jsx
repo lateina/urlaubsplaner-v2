@@ -26,7 +26,7 @@ const RequestsView = ({
     }
   }, [isAdmin]);
 
-  const typeLabel = { U: 'Urlaub', D: 'Dienstreise', F: 'Fortbildung', S: 'Sonstiges' };
+  const typeLabel = { U: 'Urlaub', FZA: 'Freizeitausgleich', D: 'Dienstreise', F: 'Fortbildung', S: 'Sonstiges' };
   const statusLabel = {
     pending_vertreter: 'Vertreter-Zustimmung ausstehend',
     pending_admin: 'Leitender OA-Freigabe ausstehend',

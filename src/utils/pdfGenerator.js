@@ -14,7 +14,7 @@ export async function generateAndDownloadPDF(req, employees = []) {
     if (!req) return alert('Antrag nicht gefunden.');
     const emp = employees.find(e => e.id === req.empId);
     
-    const isUrlaub = req.type === 'U';
+    const isUrlaub = req.type === 'U' || req.type === 'FZA';
     
     const pdfDoc = await PDFDocument.load(isUrlaub ? PDF_TEMPLATE_B64 : PDF_TEMPLATE_DIENST_B64);
     const form = pdfDoc.getForm();
@@ -26,14 +26,20 @@ export async function generateAndDownloadPDF(req, employees = []) {
     if (isUrlaub) {
       try { form.getTextField('Text1').setText(emp ? emp.name : req.empId); } catch(e){}
       try { form.getTextField('AcroFormField_108').setText(emp ? emp.name : req.empId); } catch(e){}
-      try { form.getTextField('AcroFormField_36').setText(startStr); } catch(e){}
-      try { form.getTextField('AcroFormField_38').setText(endStr); } catch(e){}
-      
-      const workDays = req.dates.length; // Simplified; V1 had a isWorkday check but we can just use length for now as per V1 logic
-      try { form.getTextField('AcroFormField_40').setText(String(workDays)); } catch(e){}
       try { form.getTextField('Text1_27').setText('Klinik und Poliklinik für Innere Medizin II'); } catch(e){}
-      try { form.getCheckBox('Kontrollkästchen17').check(); } catch(e){}
       try { form.getCheckBox('Kontrollkästchen14').check(); } catch(e){}
+      
+      if (req.type === 'FZA') {
+        try { form.getTextField('AcroFormField_102').setText(startStr); } catch(e){}
+        try { form.getTextField('AcroFormField_104').setText(endStr); } catch(e){}
+        try { form.getTextField('AcroFormField_106').setText(String(req.dates.length)); } catch(e){}
+        try { form.getCheckBox('AcroFormField_99').check(); } catch(e){}
+      } else {
+        try { form.getTextField('AcroFormField_36').setText(startStr); } catch(e){}
+        try { form.getTextField('AcroFormField_38').setText(endStr); } catch(e){}
+        try { form.getTextField('AcroFormField_40').setText(String(req.dates.length)); } catch(e){}
+        try { form.getCheckBox('Kontrollkästchen17').check(); } catch(e){}
+      }
     } else {
       try { form.getTextField('Text1').setText(emp ? emp.name : req.empId); } catch(e){}
       try { form.getTextField('AcroFormField_174').setText(emp ? emp.name : req.empId); } catch(e){}

@@ -5,7 +5,7 @@
 
 export const generateICalBlob = (absencesByEmp, employees, startDate, endDate, selectedEmpIds) => {
   const events = [];
-  const typeLabels = { 'U': 'Urlaub', 'D': 'Dienstreise', 'F': 'Fortbildung', 'S': 'Sonstiges', 'V': 'V-Dienst' };
+  const typeLabels = { 'U': 'Urlaub', 'FZA': 'Freizeitausgleich', 'D': 'Dienstreise', 'F': 'Fortbildung', 'S': 'Sonstiges', 'V': 'V-Dienst' };
   const filterStart = new Date(startDate);
   const filterEnd = new Date(endDate);
   filterEnd.setHours(23, 59, 59, 999);

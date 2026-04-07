@@ -544,7 +544,7 @@ const CalendarView = ({
 
       const target = absence || pendingReq;
       if (target) {
-        const typeLabel = { U: 'Urlaub', V: 'Urlaub', D: 'Dienstreise', F: 'Fortbildung', S: 'Sonstiges', T: 'Sonstiges' };
+        const typeLabel = { U: 'Urlaub', V: 'Urlaub', FZA: 'Freizeitausgleich', D: 'Dienstreise', F: 'Fortbildung', S: 'Sonstiges', T: 'Sonstiges' };
         const statusLabel = { 
           pending_vertreter: 'Vertreter-Zustimmung ausstehend', 
           pending_admin: 'LOA-Freigabe ausstehend' 
@@ -649,7 +649,7 @@ const CalendarView = ({
             
             {perms.canDeleteAbsences && (
               <div className="segmented-control glass" style={{ display: 'flex', background: 'rgba(255, 255, 255, 0.3)', padding: '3px', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
-                {['U', 'D', 'F', 'S'].map(m => (
+                {['U', 'FZA', 'D', 'F', 'S'].map(m => (
                   <button 
                     key={m}
                     onClick={() => setMode(m)}

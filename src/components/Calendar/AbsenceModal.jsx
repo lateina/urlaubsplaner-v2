@@ -378,6 +378,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
           <select name="type" value={formData.type} onChange={handleChange} 
                   style={{ width: '100%', padding: '12px 16px', borderRadius: 14, border: '2px solid rgba(0, 0, 0, 0.4)', background: 'white', color: '#000000', fontWeight: 500, fontSize: '1rem', boxSizing: 'border-box' }}>
             <option value="U">Urlaub (U)</option>
+            <option value="FZA">Freizeitausgleich (FZA)</option>
             <option value="D">Dienstreise (D)</option>
             <option value="F">Fortbildung (F)</option>
             <option value="S">Sonstiges (S)</option>

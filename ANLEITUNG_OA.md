@@ -1,6 +1,6 @@
 # Anleitung: Abwesenheitsplaner für Oberärzte (OA-Planer)
 
-Willkommen im neuen Abwesenheitsplaner. Dieses Tool ist als Progressive Web App (PWA) konzipiert und kann auf Ihrem Smartphone oder PC wie eine App installiert werden.
+Willkommen im neuen Abwesenheitsplaner. Dieses Tool ist als Progressive Web App (PWA) konzipiert und kann auf Eurem Smartphone oder PC wie eine App installiert werden.
 
 ## 1. Zugang & Anmeldung
 
@@ -62,4 +62,4 @@ Nach der finalen Genehmigung im Urlaubsplaner muss der Urlaub noch im offizielle
 
 ---
 
-_Bei technischen Problemen oder einem vergessenem PIN wenden Sie sich bitte an den Administrator._
+
