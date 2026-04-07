@@ -70,12 +70,13 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
       const isWeekend = (curr.getDay() === 0 || curr.getDay() === 6);
 
       if (!isWeekend && !holiday) {
-        const pres = employees.filter(e => 
-          e.id !== 'admin' && 
-          e.id !== 'sekretariat' && 
-          !e._isCrossProfile &&
-          !absences[e.id]?.[dStr]
-        );
+        const pres = employees.filter(e => {
+          if (e.id === 'admin' || e.id === 'sekretariat' || e.active === false || e._isCrossProfile) return false;
+          if (absences[e.id]?.[dStr]) return false;
+          if (e.entryDate && dStr < e.entryDate) return false;
+          if (e.exitDate && dStr > e.exitDate) return false;
+          return true;
+        });
 
         const requesterInPres = pres.some(e => e.id === requester.id);
         
@@ -128,7 +129,15 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
                       e.name?.toLowerCase().includes('administrator') ||
                       e.name?.toLowerCase().includes('assistentensprecher');
     
-    if (isSelf || isSpecial) return false;
+    if (isSelf || isSpecial || e.active === false) return false;
+    
+    // Check if representative is active during the requested time
+    if (formData.startDate) {
+      if (e.exitDate && formData.startDate > e.exitDate) return false;
+    }
+    if (formData.endDate) {
+      if (e.entryDate && formData.endDate < e.entryDate) return false;
+    }
 
     // Filter by skill hierarchy compatibility
     const myEmp = employees.find(emp => emp.id === formData.employeeId);
@@ -202,6 +211,20 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
     if (!isDirect && !isOptional && !formData.vertreterId) {
       alert('Bitte einen Vertreter auswählen.');
       return;
+    }
+
+    const requester = employees.find(e => e.id === formData.employeeId);
+    if (requester) {
+      if (requester.entryDate && (formData.startDate < requester.entryDate || formData.endDate < requester.entryDate)) {
+        const [y, m, d] = requester.entryDate.split('-');
+        alert(`Zeitraum ungültig: Liegt vor dem Eintrittsdatum (${d}.${m}.${y}).`);
+        return;
+      }
+      if (requester.exitDate && (formData.startDate > requester.exitDate || formData.endDate > requester.exitDate)) {
+        const [y, m, d] = requester.exitDate.split('-');
+        alert(`Zeitraum ungültig: Liegt nach dem Austrittsdatum (${d}.${m}.${y}).`);
+        return;
+      }
     }
 
     // Build dates array

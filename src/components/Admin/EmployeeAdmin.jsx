@@ -39,7 +39,9 @@ const EmployeeAdmin = ({ employees, skills, onSave, perms = {} }) => {
       pin: String(Math.floor(Math.random() * 10000)).padStart(4, '0'),
       groups: [],
       active: true,
-      role: 'User'
+      role: 'User',
+      entryDate: '',
+      exitDate: ''
     };
     setEditingEmployees([...editingEmployees, newEmp]);
   };
@@ -123,6 +125,8 @@ const EmployeeAdmin = ({ employees, skills, onSave, perms = {} }) => {
               </th>
               <th style={{ padding: '12px 16px', fontWeight: 700 }}>Signatur (Alias)</th>
               <th style={{ padding: '12px 16px', fontWeight: 700 }}>PIN</th>
+              <th style={{ padding: '12px 16px', fontWeight: 700 }}>Eintritt</th>
+              <th style={{ padding: '12px 16px', fontWeight: 700 }}>Austritt</th>
               <th style={{ padding: '12px 16px', fontWeight: 700 }}>Gruppen / Bereiche</th>
               <th style={{ padding: '12px 16px', fontWeight: 700, textAlign: 'center' }}>Aktiv</th>
               <th style={{ padding: '12px 16px', fontWeight: 700, textAlign: 'center' }}>Aktion</th>
@@ -176,6 +180,28 @@ const EmployeeAdmin = ({ employees, skills, onSave, perms = {} }) => {
                     style={{ 
                       width: '60px', padding: '6px', border: '1px solid #e2e8f0', borderRadius: '4px',
                       fontSize: '0.85rem', textAlign: 'center'
+                    }}
+                  />
+                </td>
+                <td style={{ padding: '8px 16px' }}>
+                  <input 
+                    type="date" 
+                    value={emp.entryDate || ''} 
+                    onChange={(e) => handleAddField(emp.id, 'entryDate', e.target.value)}
+                    style={{ 
+                      padding: '6px', border: '1px solid #e2e8f0', borderRadius: '4px',
+                      fontSize: '0.85rem', color: '#475569'
+                    }}
+                  />
+                </td>
+                <td style={{ padding: '8px 16px' }}>
+                  <input 
+                    type="date" 
+                    value={emp.exitDate || ''} 
+                    onChange={(e) => handleAddField(emp.id, 'exitDate', e.target.value)}
+                    style={{ 
+                      padding: '6px', border: '1px solid #e2e8f0', borderRadius: '4px',
+                      fontSize: '0.85rem', color: '#475569'
                     }}
                   />
                 </td>

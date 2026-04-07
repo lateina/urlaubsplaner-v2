@@ -97,12 +97,13 @@ const CalendarView = ({
     days.forEach(day => {
       if (day.isWeekend || day.holiday) return;
       
-      const pres = employees.filter(e => 
-        e.id !== 'admin' && 
-        e.id !== 'sekretariat' && 
-        !e._isCrossProfile &&
-        !absences[e.id]?.[day.dateStr]
-      );
+      const pres = employees.filter(e => {
+        if (e.id === 'admin' || e.id === 'sekretariat' || e.active === false || e._isCrossProfile) return false;
+        if (absences[e.id]?.[day.dateStr]) return false;
+        if (e.entryDate && day.dateStr < e.entryDate) return false;
+        if (e.exitDate && day.dateStr > e.exitDate) return false;
+        return true;
+      });
       
       const has = (e, sId) => {
         const grps = Array.isArray(e.groups) ? e.groups : (e.group ? [e.group] : []);
@@ -280,14 +281,22 @@ const CalendarView = ({
       return parts.length > 1 ? `${parts[parts.length - 1]}, ${parts.slice(0, -1).join(' ')}` : clean;
     };
 
-    const baseFiltered = [...employees].filter(emp => 
-      emp.id !== 'admin' && 
-      emp.id !== 'sekretariat' && 
-      emp.id !== 'assistentensprecher' &&
-      !emp.name?.toLowerCase().includes('administrator') &&
-      !emp.name?.toLowerCase().includes('assistentensprecher') &&
-      emp.active !== false
-    );
+    const baseFiltered = [...employees].filter(emp => {
+      if (emp.id === 'admin' || emp.id === 'sekretariat' || emp.id === 'assistentensprecher') return false;
+      if (emp.name?.toLowerCase().includes('administrator') || emp.name?.toLowerCase().includes('assistentensprecher')) return false;
+      if (emp.active === false) return false;
+      
+      // Filter by entry/exit dates relative to the loaded calendar days range
+      if (days.length > 0) {
+        const firstDay = days[0].dateStr;
+        const lastDay = days[days.length - 1].dateStr;
+        
+        if (emp.exitDate && emp.exitDate < firstDay) return false; // Left before calendar start
+        if (emp.entryDate && emp.entryDate > lastDay) return false; // Starts after calendar end
+      }
+      
+      return true;
+    });
 
     if (sortMode === 'rotation') {
       return baseFiltered.sort((a, b) => {
@@ -1180,6 +1189,33 @@ const CalendarView = ({
                 {/* BODY CELLS (Absolute relative to Row) */}
                 {virtualCols.map((vCol) => {
                   const day = days[vCol.index];
+                  const isBeforeEntry = emp.entryDate && day.dateStr < emp.entryDate;
+                  const isAfterExit = emp.exitDate && day.dateStr > emp.exitDate;
+                  const isBlocked = isBeforeEntry || isAfterExit;
+
+                  if (isBlocked) {
+                    return (
+                      <div
+                        key={`${vRow.key}-${vCol.key}`}
+                        className="cell body-item"
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: vCol.start + NAME_W,
+                          width: vCol.size,
+                          height: vRow.size,
+                          background: 'repeating-linear-gradient(45deg, #f1f5f9, #f1f5f9 10px, #e2e8f0 10px, #e2e8f0 20px)',
+                          borderRight: '1px solid var(--border)',
+                          borderBottom: '1px solid var(--border)',
+                          borderTop: 'none',
+                          borderLeft: 'none',
+                          opacity: 0.6,
+                          cursor: 'not-allowed'
+                        }}
+                      />
+                    );
+                  }
+
                   const currentAbsences = tempAbsences || absences;
                   const absence = currentAbsences[emp.id]?.[day.dateStr];
                   const pendingReq = !absence && requests.find(r => 
