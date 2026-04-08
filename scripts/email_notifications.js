@@ -51,7 +51,7 @@ function toFirestore(obj) {
 }
 
 async function fetchFirestoreCollection(collectionId) {
-    const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/${collectionId}?key=${FIREBASE_API_KEY}`;
+    const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/${collectionId}?key=${FIREBASE_API_KEY}&pageSize=1000`;
     const res = await fetch(url);
     if (!res.ok) return [];
     const data = await res.json();
