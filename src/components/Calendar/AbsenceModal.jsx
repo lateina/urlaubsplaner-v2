@@ -192,10 +192,24 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
   const needsVertreter = (empId) => {
     const emp = employees.find(e => e.id === empId);
     if (!emp) return true;
-    const grps = Array.isArray(emp.groups) ? emp.groups : [];
-    // Standard rule from V1: Chef and 'Kein Vertreter nötig' don't need representative
-    if (grps.some(g => g === 'Chef' || g === 'skill_chef')) return false;
-    const isOptional = grps.some(g => g === 'Kein Vertreter nötig' || g === 'skill_keinvertreternotig');
+    
+    const gIds = Array.isArray(emp.groups) ? emp.groups : [];
+    
+    // Check if any of the employee's group IDs or their resolved names indicate no representative is needed
+    const isOptional = gIds.some(gid => {
+      // 1. Check direct IDs
+      if (gid === 'skill_chef' || gid === 'skill_keinvertreternotig' || gid === 'Chef') return true;
+      
+      // 2. Resolve name from skills array and check
+      const skillObj = skills.find(s => s.id === gid);
+      if (skillObj) {
+        const name = skillObj.name;
+        if (name === 'Chef' || name === 'Kein Vertreter nötig') return true;
+      }
+      
+      return false;
+    });
+
     return !isOptional;
   };
 

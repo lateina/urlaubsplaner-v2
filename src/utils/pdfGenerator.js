@@ -1,6 +1,7 @@
 import { PDFDocument, rgb } from 'pdf-lib';
 import { PDF_TEMPLATE_B64 } from '../data/pdfTemplate';
 import { PDF_TEMPLATE_DIENST_B64 } from '../data/pdfTemplateDienstreise';
+import { getSpecialDayInfo } from './calendarUtils';
 
 /**
  * Generates and downloads a travel or vacation request PDF.
@@ -23,6 +24,14 @@ export async function generateAndDownloadPDF(req, employees = []) {
     const startStr = formatD(req.dates[0]);
     const endStr = formatD(req.dates[req.dates.length - 1]);
     
+    // Calculate actual work days (excluding weekends and Bavarian holidays)
+    const workDaysCount = req.dates.filter(dateStr => {
+      const { holiday } = getSpecialDayInfo(dateStr);
+      const d = new Date(dateStr);
+      const isWeekend = (d.getDay() === 0 || d.getDay() === 6);
+      return !isWeekend && !holiday;
+    }).length;
+    
     if (isUrlaub) {
       try { form.getTextField('Text1').setText(emp ? emp.name : req.empId); } catch(e){}
       try { form.getTextField('AcroFormField_108').setText(emp ? emp.name : req.empId); } catch(e){}
@@ -32,12 +41,12 @@ export async function generateAndDownloadPDF(req, employees = []) {
       if (req.type === 'FZA') {
         try { form.getTextField('AcroFormField_102').setText(startStr); } catch(e){}
         try { form.getTextField('AcroFormField_104').setText(endStr); } catch(e){}
-        try { form.getTextField('AcroFormField_106').setText(String(req.dates.length)); } catch(e){}
+        try { form.getTextField('AcroFormField_106').setText(String(workDaysCount)); } catch(e){}
         try { form.getCheckBox('AcroFormField_99').check(); } catch(e){}
       } else {
         try { form.getTextField('AcroFormField_36').setText(startStr); } catch(e){}
         try { form.getTextField('AcroFormField_38').setText(endStr); } catch(e){}
-        try { form.getTextField('AcroFormField_40').setText(String(req.dates.length)); } catch(e){}
+        try { form.getTextField('AcroFormField_40').setText(String(workDaysCount)); } catch(e){}
         try { form.getCheckBox('Kontrollkästchen17').check(); } catch(e){}
       }
     } else {
