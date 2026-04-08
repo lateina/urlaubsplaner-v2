@@ -29,9 +29,14 @@ export const generateICalBlob = (absencesByEmp, employees, startDate, endDate, s
 
         // PO Filter logic (requested by user)
         if (onlyPo) {
-          if (!val.uid) return false; // Direct entries have no PO stamp path
-          const req = requests.find(r => r.id === val.uid);
-          if (!req || !req.stamps?.po) return false;
+          // Dienstreisen focus on external tracking, so skip the internal PO-stamp check
+          if (val.type === 'D') {
+            // Keep in export
+          } else {
+            if (!val.uid) return false; // Direct entries have no PO stamp path
+            const req = requests.find(r => r.id === val.uid);
+            if (!req || !req.stamps?.po) return false;
+          }
         }
 
         // Delta Export logic:
