@@ -13,6 +13,8 @@ import LegalModal from './components/UI/LegalModal';
 import Login from './components/Auth/Login';
 import { apiService } from './services/apiService';
 import { firestoreService } from './services/firestoreService';
+import { db, auth } from './config/firebase';
+import { signInAnonymously } from 'firebase/auth';
 import { APP_CONFIG } from './config/appConfig';
 import { PLANER_PROFILES, DEFAULT_PROFILE } from './config/planerConfig';
 import { ROTATION_BIN_ID, MONTH_AREA_MAPPING, MONTH_AREA_ORDER } from './config/rotationConfig';
@@ -74,6 +76,13 @@ const App = () => {
       authProfile: savedProfile 
     };
   });
+
+  // Standalone Firebase Auth (Anonymous) for Firestore access
+  useEffect(() => {
+    signInAnonymously(auth).catch(err => {
+      console.error("Firebase Anonymous Login failed:", err);
+    });
+  }, []);
 
   const [appData, setAppData] = useState({ 
     employees: [], 
