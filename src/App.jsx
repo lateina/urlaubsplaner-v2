@@ -198,6 +198,23 @@ const App = () => {
       // --- End Healing Logic ---
 
       let requests = data.requests || data.__REQUESTS__ || []; // Try both names
+
+      // --- UID Sync/Healing Logic: Link existing approved requests to absences ---
+      (requests || []).forEach(req => {
+        if (req.status === 'approved' && req.id && req.empId && req.dates) {
+          if (!absences[req.empId]) return;
+          req.dates.forEach(d => {
+            const entry = absences[req.empId][d];
+            // If entry exists, matches type, and has no UID yet, link it
+            if (entry && entry.type === req.type && !entry.uid) {
+              entry.uid = req.id;
+              // Set a default updatedAt if missing so delta logic works
+              if (!entry.updatedAt) entry.updatedAt = req.stamps?.admin?.at || new Date().toISOString();
+            }
+          });
+        }
+      });
+      // --- End UID Sync Logic ---
       let skills = (data.skills && data.skills.length > 0) ? data.skills : (profile.defaultSkills || []);
       let groupColors = { 
         ...DEFAULT_GROUP_COLORS, 
@@ -855,6 +872,7 @@ const App = () => {
         onClose={() => setIsICalModalOpen(false)}
         absences={appData.absences}
         employees={appData.employees}
+        requests={appData.requests}
         onSaveAbsences={handleSaveAbsence}
         perms={perms}
       />

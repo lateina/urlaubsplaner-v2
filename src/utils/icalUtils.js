@@ -4,7 +4,7 @@
  */
 
 export const generateICalBlob = (absencesByEmp, employees, startDate, endDate, selectedEmpIds, options = {}) => {
-  const { onlyNew = false } = options;
+  const { onlyNew = false, onlyPo = false, requests = [] } = options;
   const events = [];
   const typeLabels = { 'U': 'Urlaub', 'FZA': 'Freizeitausgleich', 'D': 'Dienstreise', 'F': 'Fortbildung', 'S': 'Sonstiges', 'V': 'V-Dienst' };
   const filterStart = new Date(startDate);
@@ -27,9 +27,14 @@ export const generateICalBlob = (absencesByEmp, employees, startDate, endDate, s
         
         if (!isInRange || !isNotPending) return false;
 
+        // PO Filter logic (requested by user)
+        if (onlyPo) {
+          if (!val.uid) return false; // Direct entries have no PO stamp path
+          const req = requests.find(r => r.id === val.uid);
+          if (!req || !req.stamps?.po) return false;
+        }
+
         // Delta Export logic:
-        // Include if onlyNew is false, OR if it hasn't been exported yet,
-        // OR if it has been updated since the last export.
         if (onlyNew) {
           const exportTime = val.exportedAt ? new Date(val.exportedAt).getTime() : 0;
           const updateTime = val.updatedAt ? new Date(val.updatedAt).getTime() : 0;

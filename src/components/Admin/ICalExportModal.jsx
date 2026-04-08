@@ -3,11 +3,12 @@ import Modal from '../UI/Modal';
 import { generateICalBlob, downloadBlob } from '../../utils/icalUtils';
 import { Calendar, Users, Download, CheckSquare, Square } from 'lucide-react';
 
-const ICalExportModal = ({ isOpen, onClose, absences, employees, onSaveAbsences }) => {
+const ICalExportModal = ({ isOpen, onClose, absences, employees, requests, onSaveAbsences }) => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [selectedIds, setSelectedIds] = useState([]);
   const [onlyNew, setOnlyNew] = useState(false);
+  const [onlyPo, setOnlyPo] = useState(false);
   const [markAsExported, setMarkAsExported] = useState(true);
 
   // Default date range: current year
@@ -46,11 +47,15 @@ const ICalExportModal = ({ isOpen, onClose, absences, employees, onSaveAbsences 
       return;
     }
 
-    const { blob, exportedDays } = generateICalBlob(absences, employees, startDate, endDate, selectedIds, { onlyNew });
+    const { blob, exportedDays } = generateICalBlob(absences, employees, startDate, endDate, selectedIds, { 
+      onlyNew, 
+      onlyPo, 
+      requests 
+    });
     
     if (!blob) {
-      alert(onlyNew 
-        ? 'Keine neuen oder geänderten Abwesenheiten im gewählten Zeitraum gefunden.' 
+      alert(onlyNew || onlyPo
+        ? 'Keine passenden Abwesenheiten (neu/geändert oder mit PO-Status) im gewählten Zeitraum gefunden.' 
         : 'Keine genehmigten Abwesenheiten im gewählten Zeitraum gefunden.'
       );
       return;
@@ -154,6 +159,17 @@ const ICalExportModal = ({ isOpen, onClose, absences, employees, onSaveAbsences 
             <div>
               <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#1e293b' }}>Nur neue / geänderte Termine</div>
               <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Bereits exportierte Termine ohne Änderungen werden ignoriert.</div>
+            </div>
+          </div>
+
+          <div 
+            onClick={() => setOnlyPo(!onlyPo)}
+            style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
+          >
+            {onlyPo ? <CheckSquare size={20} color="var(--primary)" /> : <Square size={20} color="#94a3b8" />}
+            <div>
+              <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#1e293b' }}>Nur Termine mit PO-Eintrag</div>
+              <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Exportiert nur Termine, für die bereits ein PO-Checkmark gesetzt wurde.</div>
             </div>
           </div>
 
