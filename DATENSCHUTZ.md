@@ -16,8 +16,8 @@ Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (§ 26 BDSG) sowie Art. 6 Abs. 1 lit
 
 **4. Hosting und Datensicherheit**
 * Frontend: GitHub Pages (GitHub Inc., USA).
-* Speicherung: JSONBin.io.
-* Sicherheit: Verschlüsselte Übertragung via HTTPS.
+* Speicherung: Google Cloud Firestore (EU-Region) & JSONBin.io (verschlüsselter Backup-Speicher).
+* Sicherheit: Verschlüsselte Übertragung via HTTPS (SSL/TLS).
 
 **5. Speicherdauer & Rechte**
 Daten werden gelöscht, sobald sie für den Zweck der Planung nicht mehr erforderlich sind. Nutzer haben das Recht auf Auskunft, Berichtigung, Löschung und Widerspruch.

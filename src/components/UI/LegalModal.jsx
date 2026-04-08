@@ -90,8 +90,8 @@ const LegalModal = ({ isOpen, onClose }) => {
             <p style={{ margin: '0 0 4px 0', fontWeight: 700 }}>4. Hosting und Datensicherheit</p>
             <ul style={{ margin: '8px 0 0 20px', padding: 0 }}>
               <li><strong>Frontend:</strong> GitHub Pages (GitHub Inc., USA). Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO.</li>
-              <li><strong>Datenbank:</strong> JSONBin.io (Daten werden verschlüsselt gespeichert).</li>
-              <li><strong>Verschlüsselung:</strong> Die Übertragung erfolgt via HTTPS.</li>
+              <li><strong>Datenbank:</strong> Google Firestore (Cloud-Speicherung, Region EU) & JSONBin.io (verschlüsselter Backup-Speicher).</li>
+              <li><strong>Verschlüsselung:</strong> Die Übertragung erfolgt via HTTPS (SSL/TLS).</li>
             </ul>
           </div>
 
@@ -120,7 +120,7 @@ const LegalModal = ({ isOpen, onClose }) => {
           </ul>
           <p style={{ margin: 0, fontSize: '0.8rem', opacity: 0.8 }}>
             <strong>Einwilligung:</strong> Mit der Nutzung erklären Sie sich einverstanden, dass Ihre Daten zweckgebunden 
-            auf GitHub/JSONBin.io verarbeitet werden.
+            auf GitHub, Google Cloud (Firestore EU) und JSONBin.io verarbeitet werden.
           </p>
         </section>
 
