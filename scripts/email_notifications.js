@@ -3,6 +3,11 @@ import fetch from 'node-fetch';
 
 const FIREBASE_API_KEY = process.env.FIREBASE_API_KEY;
 const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID;
+const JSONBIN_KEY = process.env.JSONBIN_KEY;
+const GMAIL_USER = process.env.GMAIL_USER || 'dienstereminder@gmail.com';
+const GMAIL_PASSWORD = process.env.GMAIL_APP_PASSWORD;
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+const SEKRETARIAT_EMAIL = process.env.SEKRETARIAT_EMAIL;
 
 const BINS = {
     '694548d1d0ea881f403427e3': { type: 'oa', url: 'https://lateina.github.io/urlaubsplaner-v2/' },
@@ -97,8 +102,9 @@ function fmtDates(dates) {
 async function run() {
     console.log('--- Starting Daily Email Notifications (Hybrid Firestore Mode) ---');
     
-    if (!JSONBIN_KEY || !FIREBASE_API_KEY || !FIREBASE_PROJECT_ID || !GMAIL_PASSWORD || !ADMIN_EMAIL || !SEKRETARIAT_EMAIL) {
+    if (!JSONBIN_KEY || !FIREBASE_API_KEY || !FIREBASE_PROJECT_ID || !GMAIL_PASSWORD || !GMAIL_USER || !ADMIN_EMAIL || !SEKRETARIAT_EMAIL) {
         console.error('Missing environment variables!');
+        console.error('Check: JSONBIN_KEY, FIREBASE_API_KEY, FIREBASE_PROJECT_ID, GMAIL_APP_PASSWORD, GMAIL_USER, ADMIN_EMAIL, SEKRETARIAT_EMAIL');
         process.exit(1);
     }
 

@@ -28,6 +28,7 @@ jobs:
           JSONBIN_KEY: ${{ secrets.JSONBIN_KEY }}
           FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
           SEKRETARIAT_EMAIL: ${{ secrets.SEKRETARIAT_EMAIL }}
