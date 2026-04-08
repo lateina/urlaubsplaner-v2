@@ -295,7 +295,7 @@ const App = () => {
         }
       });
       
-      let finalStats = updateVacationStats(absences, migratedEmployees, data.vacationStats || {});
+      let finalStats = updateVacationStats(absences, migratedEmployees, data.vacationStats || {}, requests);
 
       // Sync FOA stats from OA bin if this is the Resident Planner
       if (planerType === 'ass' && oaData && oaData.vacationStats) {
@@ -408,24 +408,60 @@ const App = () => {
   };
 
   // Helper to save entire state
+  const pruneOldRequests = (reqs) => {
+    if (!Array.isArray(reqs)) return [];
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+    // Keep all pending/approved, but filter old rejected/cancelled
+    let filtered = reqs.filter(r => {
+      if (r.status === 'pending' || r.status === 'approved' || r.status === 'pending_vertreter') return true;
+      
+      const stampDate = r.stamps?.admin?.at || r.stamps?.submitted?.at;
+      if (!stampDate) return true; // Keep if no date info
+      
+      const date = new Date(stampDate);
+      return date >= ninetyDaysAgo;
+    });
+
+    // If still too many, keep only the most recent 400
+    if (filtered.length > 400) {
+      filtered.sort((a, b) => {
+        const dateA = a.stamps?.submitted?.at || '';
+        const dateB = b.stamps?.submitted?.at || '';
+        return dateB.localeCompare(dateA);
+      });
+      filtered = filtered.slice(0, 400);
+    }
+
+    return filtered;
+  };
+
   const saveAllData = async (newData) => {
     setIsLoading(true);
     try {
+      const { absences, requests, ...rest } = newData;
+      
       const storagePayload = {
-        ...newData,
-        state: newData.absences, // Sync back to "state" key in bin
-        __REQUESTS__: newData.requests // Sync back to legacy key too just in case
+        ...rest,
+        state: absences, // Use 'state' as primary key for absences
+        requests: pruneOldRequests(requests), // Prune and save as 'requests'
+        // REDUNDANCY REMOVED: No more duplicate 'absences' or '__REQUESTS__' keys
       };
+
       // Remove cross-profile employees from saving
       if (storagePayload.employees) {
         storagePayload.employees = storagePayload.employees.filter(e => !e._isCrossProfile);
       }
       
-      await apiService.save(binId, auth.masterKey, storagePayload);
+      console.log(`[API Save] Attempting save to bin ${binId}... (Size optimization active)`);
+      const result = await apiService.save(binId, auth.masterKey, storagePayload);
+      console.log('[API Save] Success:', result ? 'Record updated' : 'No result');
       setAppData(newData);
     } catch (err) {
-      console.error(err);
-      alert('Speichern fehlgeschlagen!');
+      console.error('[API Save Error]:', err);
+      const isSizeError = err.message?.toLowerCase().includes('100kb') || err.message?.toLowerCase().includes('size');
+      alert(`Speichern fehlgeschlagen! ${isSizeError ? 'Der Datensatz ist zu groß (>100kb).' : `(${err.message})`}`);
     } finally {
       setIsLoading(false);
     }
@@ -584,30 +620,40 @@ const App = () => {
     await saveAllData({ ...appData, requests: updatedRequests });
   };
   const handleMarkPODone = async (reqId, checked, shortcut) => {
-    const reqIndex = appData.requests.findIndex(r => r.id === reqId);
-    if (reqIndex === -1) return;
+    let nextDataToSave = null;
+    
+    setAppData(prev => {
+      const reqIndex = prev.requests.findIndex(r => r.id === reqId);
+      if (reqIndex === -1) return prev;
 
-    const request = { ...appData.requests[reqIndex] };
-    if (checked) {
-      request.stamps = { 
-        ...request.stamps, 
-        po: { 
-          at: new Date().toISOString(), 
-          by: auth.user.id, 
-          name: auth.user.name, 
-          shortcut: shortcut 
-        } 
-      };
-    } else {
-      if (request.stamps) {
-        const { po, ...otherStamps } = request.stamps;
-        request.stamps = otherStamps;
+      const updatedRequests = [...prev.requests];
+      const request = { ...updatedRequests[reqIndex] };
+
+      if (checked) {
+        request.stamps = { 
+          ...request.stamps, 
+          po: { 
+            at: new Date().toISOString(), 
+            by: auth.user.id, 
+            name: auth.user.name, 
+            shortcut: shortcut 
+          } 
+        };
+      } else {
+        if (request.stamps) {
+          const { po, ...otherStamps } = request.stamps;
+          request.stamps = otherStamps;
+        }
       }
-    }
 
-    const updatedRequests = [...appData.requests];
-    updatedRequests[reqIndex] = request;
-    await saveAllData({ ...appData, requests: updatedRequests });
+      updatedRequests[reqIndex] = request;
+      nextDataToSave = { ...prev, requests: updatedRequests };
+      return nextDataToSave;
+    });
+
+    if (nextDataToSave) {
+      await saveAllData(nextDataToSave);
+    }
   };
 
   const resolvedUser = appData.employees.find(e => e.id === auth.user?.id) || auth.user;

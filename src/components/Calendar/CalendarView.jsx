@@ -462,7 +462,7 @@ const CalendarView = ({
 
 
   const handleCellDragTouch = (e, empId, dateStr) => {
-    if (!isCalendarAdmin) return;
+    if (!isCalendarAdmin || !perms.canDeleteAbsences) return;
     if (e.pointerType !== 'mouse') return;
     
     const existing = absences[empId]?.[dateStr];
@@ -1275,7 +1275,7 @@ const CalendarView = ({
                         fontSize: '0.8rem', 
                         fontWeight: 'bold',
                         opacity: emp._isCrossProfile ? 0.7 : 1,
-                        cursor: isCalendarAdmin ? 'crosshair' : 'default'
+                        cursor: (isCalendarAdmin && perms.canDeleteAbsences) ? 'crosshair' : 'default'
                       }}
                     >
                       {absence?.text && <span className="cell-text">{absence.text}</span>}

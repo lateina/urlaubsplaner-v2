@@ -78,6 +78,14 @@ const RequestsView = ({
 
   const [poShortcut, setPoShortcut] = useState(localStorage.getItem(`${planerType}_po_shortcut`) || '');
 
+  // Reset/Sync shortcut when switching planer profiles
+  React.useEffect(() => {
+    const saved = localStorage.getItem(`${planerType}_po_shortcut`);
+    if (saved !== null) {
+      setPoShortcut(saved);
+    }
+  }, [planerType]);
+
 
   const renderCard = (req) => {
     const isPendingVertreterForMe = req.vertreterId === cuId && req.status === 'pending_vertreter';
@@ -202,7 +210,7 @@ const RequestsView = ({
                             if (shortcut) {
                                 shortcut = shortcut.toUpperCase();
                                 setPoShortcut(shortcut);
-                                localStorage.setItem('po_shortcut', shortcut);
+                                localStorage.setItem(`${planerType}_po_shortcut`, shortcut);
                             } else {
                                 return;
                             }
