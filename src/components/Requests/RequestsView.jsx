@@ -89,7 +89,7 @@ const RequestsView = ({
 
   const renderCard = (req) => {
     const isPendingVertreterForMe = req.vertreterId === cuId && req.status === 'pending_vertreter';
-    const isPendingAdmin = isAdmin && req.status === 'pending_admin';
+    const isPendingAdmin = perms.canApproveRequests && req.status === 'pending_admin';
     const canApprove = isPendingVertreterForMe || isPendingAdmin;
     const showPOCheckbox = (subTab === 'po_transfer' || (isAdmin && req.status === 'approved')) && req.type !== 'D';
 
@@ -222,7 +222,7 @@ const RequestsView = ({
               </div>
           )}
 
-          {isAdmin && (
+          {perms.canDeleteRequests && (
             <button className="btn-delete" onClick={() => { if(confirm('Antrag wirklich löschen?')) onDelete(req.id); }}>
               <Trash2 size={16} />
             </button>

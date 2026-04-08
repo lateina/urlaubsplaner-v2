@@ -697,7 +697,9 @@ const App = () => {
     forcePlanerAss: isSpokesperson,
     canEditSpecialAccounts: isFullAdmin,
     canSeePOKarte: isFullAdmin || isSekretariat,
-    canShowCalendarEntry: !isSekretariat
+    canShowCalendarEntry: !isSekretariat,
+    canDeleteRequests: isFullAdmin,
+    canApproveRequests: isFullAdmin || isSpokesperson
   };
 
 
