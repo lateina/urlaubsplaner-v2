@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Trash2, UserPlus, Save } from 'lucide-react';
 
-const EmployeeAdmin = ({ employees, skills, onSave, perms = {} }) => {
+const EmployeeAdmin = ({ employees, skills, onSave, onMigrate, perms = {} }) => {
   const [editingEmployees, setEditingEmployees] = useState(employees);
   const [sortBy, setBy] = useState('id'); // 'id' or 'name'
 
@@ -94,6 +94,19 @@ const EmployeeAdmin = ({ employees, skills, onSave, perms = {} }) => {
           >
             <UserPlus size={16} /> Neu
           </button>
+          {onMigrate && (
+            <button 
+              onClick={onMigrate}
+              style={{ 
+                display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', 
+                background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px',
+                fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', color: '#64748b'
+              }}
+              title="Daten von JSONBin nach Firestore übertragen"
+            >
+              ☁️ Migration
+            </button>
+          )}
           <button 
             onClick={() => onSave(editingEmployees.filter(e => !e._deleted))}
             style={{ 

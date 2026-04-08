@@ -12,6 +12,7 @@ import InstallPrompt from './components/UI/InstallPrompt';
 import LegalModal from './components/UI/LegalModal';
 import Login from './components/Auth/Login';
 import { apiService } from './services/apiService';
+import { firestoreService } from './services/firestoreService';
 import { APP_CONFIG } from './config/appConfig';
 import { PLANER_PROFILES, DEFAULT_PROFILE } from './config/planerConfig';
 import { ROTATION_BIN_ID, MONTH_AREA_MAPPING, MONTH_AREA_ORDER } from './config/rotationConfig';
@@ -326,6 +327,40 @@ const App = () => {
     }
   }, [binId, planerType]);
 
+  const handleMigrateToFirestore = async () => {
+    if (!auth.isAuthenticated || !auth.masterKey) return;
+    if (!window.confirm('Möchtest du wirklich alle Abwesenheiten und Anträge von JSONBin nach Firestore migrieren? Bestehende Daten in Firestore für diesen Planer werden überschrieben.')) return;
+
+    setIsLoading(true);
+    try {
+      // 1. Fetch latest from JSONBin
+      const data = await apiService.load(binId, auth.masterKey);
+      const legacyAbsences = data.state || {};
+      const legacyRequests = data.requests || data.__REQUESTS__ || [];
+
+      console.log(`Starting migration for ${planerType}...`);
+
+      // 2. Migrate Absences (Employee by Employee)
+      const empIds = Object.keys(legacyAbsences);
+      for (const eid of empIds) {
+        await firestoreService.saveAbsence(planerType, eid, legacyAbsences[eid]);
+      }
+
+      // 3. Migrate Requests (Individual documents)
+      for (const req of legacyRequests) {
+        await firestoreService.saveRequest(planerType, req);
+      }
+
+      alert('Migration erfolgreich abgeschlossen! Die Daten werden nun aus Firestore geladen.');
+      window.location.reload(); // Reload to refresh all states
+    } catch (e) {
+      console.error('Migration failed:', e);
+      alert('Fehler bei der Migration: ' + e.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleLogin = (loginData) => {
     localStorage.setItem(`${planerType}_logged_user`, JSON.stringify(loginData.user));
     localStorage.setItem(`${planerType}_auth_profile`, planerType);
@@ -442,26 +477,38 @@ const App = () => {
     try {
       const { absences, requests, ...rest } = newData;
       
-      const storagePayload = {
+      // 1. Save Employees and Config to JSONBin
+      const jsonbinPayload = {
         ...rest,
-        state: absences, // Use 'state' as primary key for absences
-        requests: pruneOldRequests(requests), // Prune and save as 'requests'
-        // REDUNDANCY REMOVED: No more duplicate 'absences' or '__REQUESTS__' keys
+        // We set empty state/requests in JSONBin to avoid the size limit 
+        // while maintaining the structure if needed
+        state: {}, 
+        requests: []
       };
 
-      // Remove cross-profile employees from saving
-      if (storagePayload.employees) {
-        storagePayload.employees = storagePayload.employees.filter(e => !e._isCrossProfile);
+      if (jsonbinPayload.employees) {
+        jsonbinPayload.employees = jsonbinPayload.employees.filter(e => !e._isCrossProfile);
       }
       
-      console.log(`[API Save] Attempting save to bin ${binId}... (Size optimization active)`);
-      const result = await apiService.save(binId, auth.masterKey, storagePayload);
-      console.log('[API Save] Success:', result ? 'Record updated' : 'No result');
+      await apiService.save(binId, auth.masterKey, jsonbinPayload);
+      
+      // 2. Save Absences to Firestore (Only updated ones usually, but here we do bulk for simple integration)
+      // Note: In a real high-perf app we'd only save the changed employee.
+      // For now, to keep the existing save logic working:
+      const savePromises = Object.entries(absences).map(([eid, dates]) => 
+        firestoreService.saveAbsence(planerType, eid, dates)
+      );
+      
+      // 3. Save Requests to Firestore
+      const reqPromises = requests.map(req => firestoreService.saveRequest(planerType, req));
+
+      await Promise.all([...savePromises, ...reqPromises]);
+
+      console.log('[Hybrid Save] JSONBin (Employees) and Firestore (Calendar/Requests) updated.');
       setAppData(newData);
     } catch (err) {
-      console.error('[API Save Error]:', err);
-      const isSizeError = err.message?.toLowerCase().includes('100kb') || err.message?.toLowerCase().includes('size');
-      alert(`Speichern fehlgeschlagen! ${isSizeError ? 'Der Datensatz ist zu groß (>100kb).' : `(${err.message})`}`);
+      console.error('[Hybrid Save Error]:', err);
+      alert(`Speichern fehlgeschlagen! (${err.message})`);
     } finally {
       setIsLoading(false);
     }
@@ -511,15 +558,21 @@ const App = () => {
   const saveAllDataSideEffect = async (newData) => {
     setIsSaving(true);
     try {
-      const storagePayload = {
-        ...newData,
-        state: newData.absences,
-        __REQUESTS__: newData.requests
-      };
-      if (storagePayload.employees) {
-        storagePayload.employees = storagePayload.employees.filter(e => !e._isCrossProfile);
+      // 1. JSONBin (Employees only)
+      const { absences, requests, ...rest } = newData;
+      const jsonbinPayload = { ...rest, state: {}, requests: [] };
+      if (jsonbinPayload.employees) {
+        jsonbinPayload.employees = jsonbinPayload.employees.filter(e => !e._isCrossProfile);
       }
-      await apiService.save(binId, auth.masterKey, storagePayload);
+      await apiService.save(binId, auth.masterKey, jsonbinPayload);
+
+      // 2. Firestore (Absences)
+      // Optimization: Only update the changed employee if possible, but here we keep and use bulk save for safety
+      const promises = Object.entries(absences).map(([eid, dates]) => 
+        firestoreService.saveAbsence(planerType, eid, dates)
+      );
+      await Promise.all(promises);
+
     } catch (err) {
       console.error('Speichern fehlgeschlagen:', err);
     } finally {
@@ -617,7 +670,8 @@ const App = () => {
 
   const handleDeleteRequest = async (reqId) => {
     const updatedRequests = appData.requests.filter(r => r.id !== reqId);
-    await saveAllData({ ...appData, requests: updatedRequests });
+    await firestoreService.deleteRequest(reqId);
+    setAppData({ ...appData, requests: updatedRequests });
   };
   const handleMarkPODone = async (reqId, checked, shortcut) => {
     let nextDataToSave = null;
@@ -816,6 +870,7 @@ const App = () => {
               employees={appData.employees} 
               skills={appData.skills} 
               onSave={(newList) => handleUpdateAdminData({ employees: newList })} 
+              onMigrate={handleMigrateToFirestore}
               perms={perms}
             />
 

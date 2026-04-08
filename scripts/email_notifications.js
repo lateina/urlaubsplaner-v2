@@ -1,18 +1,15 @@
 import nodemailer from 'nodemailer';
 import fetch from 'node-fetch';
 
-const JSONBIN_KEY = process.env.JSONBIN_KEY;
-const GMAIL_PASSWORD = process.env.GMAIL_APP_PASSWORD;
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
-const SEKRETARIAT_EMAIL = process.env.SEKRETARIAT_EMAIL;
-const GMAIL_USER = 'dienstereminder@gmail.com';
+const FIREBASE_API_KEY = process.env.FIREBASE_API_KEY;
+const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID;
 
 const BINS = {
-    '694548d1d0ea881f403427e3': 'https://lateina.github.io/urlaubsplaner-v2/',
-    '699ffb53ae596e708f4b3de5': 'https://lateina.github.io/urlaubsplaner-v2/assistenz.html',
+    '694548d1d0ea881f403427e3': { type: 'oa', url: 'https://lateina.github.io/urlaubsplaner-v2/' },
+    '699ffb53ae596e708f4b3de5': { type: 'ass', url: 'https://lateina.github.io/urlaubsplaner-v2/assistenz.html' },
 };
 
-const TYPE_LABELS = { U: 'Urlaub', D: 'Dienstreise', F: 'Fortbildung', S: 'Sonstiges' };
+const TYPE_LABELS = { U: 'Urlaub', D: 'Dienstreise', F: 'Fortbildung', S: 'Sonstiges', FZA: 'Freizeitausgleich' };
 
 async function fetchBin(binId) {
     const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
@@ -22,14 +19,51 @@ async function fetchBin(binId) {
     return data.record;
 }
 
-async function saveBin(binId, data) {
-    await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-Master-Key': JSONBIN_KEY
-        },
-        body: JSON.stringify(data)
+// Helper to convert Firestore's "Value" format back to plain JS
+function fromFirestore(fields) {
+    const res = {};
+    for (const [key, value] of Object.entries(fields)) {
+        if (value.stringValue !== undefined) res[key] = value.stringValue;
+        else if (value.arrayValue !== undefined) res[key] = (value.arrayValue.values || []).map(v => v.stringValue || fromFirestore(v.mapValue.fields));
+        else if (value.mapValue !== undefined) res[key] = fromFirestore(value.mapValue.fields);
+        else if (value.booleanValue !== undefined) res[key] = value.booleanValue;
+        else if (value.integerValue !== undefined) res[key] = parseInt(value.integerValue, 10);
+        else if (value.timestampValue !== undefined) res[key] = value.timestampValue;
+    }
+    return res;
+}
+
+// Convert plain JS back to Firestore "Value" format (Simplified for our needs)
+function toFirestore(obj) {
+    const fields = {};
+    for (const [key, value] of Object.entries(obj)) {
+        if (typeof value === 'string') fields[key] = { stringValue: value };
+        else if (typeof value === 'boolean') fields[key] = { booleanValue: value };
+        else if (Array.isArray(value)) fields[key] = { arrayValue: { values: value.map(v => typeof v === 'string' ? { stringValue: v } : { mapValue: { fields: toFirestore(v) } }) } };
+        else if (typeof value === 'object' && value !== null) fields[key] = { mapValue: { fields: toFirestore(value) } };
+    }
+    return fields;
+}
+
+async function fetchFirestoreCollection(collectionId) {
+    const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/${collectionId}?key=${FIREBASE_API_KEY}`;
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.documents || []).map(doc => ({
+        ...fromFirestore(doc.fields),
+        id: doc.name.split('/').pop()
+    }));
+}
+
+async function updateFirestoreDocument(collectionId, docId, fieldsToUpdate) {
+    const updateMask = Object.keys(fieldsToUpdate).map(k => `updateMask.fieldPaths=${k}`).join('&');
+    const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/${collectionId}/${docId}?${updateMask}&key=${FIREBASE_API_KEY}`;
+    
+    await fetch(url, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fields: toFirestore(fieldsToUpdate) })
     });
 }
 
@@ -61,52 +95,45 @@ function fmtDates(dates) {
 }
 
 async function run() {
-    console.log('--- Starting Daily Email Notifications ---');
+    console.log('--- Starting Daily Email Notifications (Hybrid Firestore Mode) ---');
     
-    if (!JSONBIN_KEY || !GMAIL_PASSWORD || !ADMIN_EMAIL || !SEKRETARIAT_EMAIL) {
+    if (!JSONBIN_KEY || !FIREBASE_API_KEY || !FIREBASE_PROJECT_ID || !GMAIL_PASSWORD || !ADMIN_EMAIL || !SEKRETARIAT_EMAIL) {
         console.error('Missing environment variables!');
         process.exit(1);
     }
 
-    const binData = {};
+    // 1. Fetch employees from JSONBin
     const allEmployees = [];
     const binIds = Object.keys(BINS);
-
-    // 1. Pre-fetch all bins and collect all employees from all bins
     for (const binId of binIds) {
         try {
-            console.log(`Fetching Bin ${binId}...`);
+            console.log(`Fetching Employees from Bin ${binId}...`);
             const data = await fetchBin(binId);
-            binData[binId] = data;
-            if (data.employees) {
-                // Collect all employees into a global list for cross-bin lookups (e.g. FOAs)
-                allEmployees.push(...data.employees);
-            }
+            if (data.employees) allEmployees.push(...data.employees);
         } catch (err) {
             console.error(`Error fetching bin ${binId}:`, err);
         }
     }
 
+    // 2. Fetch all requests from Firestore
+    console.log('Fetching Requests from Firestore...');
+    const allRequests = await fetchFirestoreCollection('up_requests');
+    console.log(`Found ${allRequests.length} requests in Firestore.`);
+
     let adminDigest = [];
     let sekrDigest = [];
 
-    // 2. Process each bin using the global employee pool for representatives
-    for (const [binId, appUrl] of Object.entries(BINS)) {
-        const data = binData[binId];
-        if (!data) continue;
+    // 3. Process each bin
+    for (const [binId, config] of Object.entries(BINS)) {
+        const appUrl = config.url;
+        const planerType = config.type;
+        
+        console.log(`Processing Notifications for ${planerType} profile...`);
+        const requestsInBin = allRequests.filter(r => r.planerType === planerType);
 
-        console.log(`Processing Notifications for Bin ${binId}...`);
-        const employeesInBin = data.employees || [];
-        const requests = data.requests || [];
-        let changed = false;
-
-        for (const req of requests) {
-            if (!req.notified) req.notified = {};
-            
-            // Requesters should be in their own bin
-            const emp = employeesInBin.find(e => e.id === req.empId);
-            
-            // Representatives might be in a different bin (e.g. FOA representing Assistant)
+        for (const req of requestsInBin) {
+            const notified = req.notified || {};
+            const emp = allEmployees.find(e => e.id === req.empId);
             const vtr = allEmployees.find(e => e.id === req.vertreterId);
             
             const empName = emp?.name || req.empId;
@@ -114,59 +141,61 @@ async function run() {
             const typeLabel = TYPE_LABELS[req.type] || req.type;
             const link = `\nZum Urlaubsplaner:\n${appUrl}\n`;
 
+            const updates = {};
+
             // 1. Pending Vertreter -> Individual Email
-            if (req.status === 'pending_vertreter' && !req.notified.pending_vertreter) {
+            if (req.status === 'pending_vertreter' && !notified.pending_vertreter) {
                 if (vtr?.email) {
                     await sendEmail(vtr.email, 
                         `Vertretungsanfrage von ${empName}`,
                         `Hallo ${vtr.name},\n\n${empName} beantragt ${typeLabel} (${datesStr}) und bittet dich um Zustimmung als Vertreter.${link}`
                     );
-                    req.notified.pending_vertreter = true;
-                    changed = true;
+                    notified.pending_vertreter = true;
+                    updates.notified = notified;
                 }
             }
 
             // 2. Pending Admin -> Add to Admin Digest
-            if (req.status === 'pending_admin' && !req.notified.pending_admin) {
+            if (req.status === 'pending_admin' && !notified.pending_admin) {
                 adminDigest.push(`• ${empName} | ${typeLabel} | ${datesStr}${req.vertreter ? ` | Vertreter: ${req.vertreter}` : ''}\n  → ${appUrl}`);
-                req.notified.pending_admin = true;
-                changed = true;
+                notified.pending_admin = true;
+                updates.notified = notified;
             }
 
             // 3. Approved -> Individual Email + Sekr Digest
-            if (req.status === 'approved' && !req.notified.approved) {
+            if (req.status === 'approved' && !notified.approved) {
                 if (emp?.email) {
                     await sendEmail(emp.email,
                         'Dein Antrag wurde genehmigt ✓',
                         `Hallo ${empName},\n\ndein Antrag auf ${typeLabel} (${datesStr}) wurde genehmigt.${link}`
                     );
-                    req.notified.approved = true;
-                    changed = true;
+                    notified.approved = true;
+                    updates.notified = notified;
                 }
-                if (!req.notified.sekretariat) {
+                if (!notified.sekretariat) {
                     sekrDigest.push(`• ${empName} | ${typeLabel} | ${datesStr}${req.vertreter ? ` | Vertreter: ${req.vertreter}` : ''}`);
-                    req.notified.sekretariat = true;
-                    changed = true;
+                    notified.sekretariat = true;
+                    updates.notified = notified;
                 }
             }
 
             // 4. Rejected -> Individual Email
-            if (req.status === 'rejected' && !req.notified.rejected) {
+            if (req.status === 'rejected' && !notified.rejected) {
                 if (emp?.email) {
                     const by = req.rejectedBy === 'vertreter' ? 'deinem Vertreter' : 'dem Leitenden Oberarzt';
                     await sendEmail(emp.email,
                         'Dein Antrag wurde abgelehnt',
                         `Hallo ${empName},\n\ndein Antrag auf ${typeLabel} (${datesStr}) wurde von ${by} abgelehnt.${req.rejectionNote ? `\nGrund: ${req.rejectionNote}` : ''}${link}`
                     );
-                    req.notified.rejected = true;
-                    changed = true;
+                    notified.rejected = true;
+                    updates.notified = notified;
                 }
             }
-        }
 
-        if (changed) {
-            await saveBin(binId, data);
-            console.log(`  Bin ${binId} updated with notification status.`);
+            if (Object.keys(updates).length > 0) {
+                await updateFirestoreDocument('up_requests', req.id, updates);
+                console.log(`  → Firestore updated for request ${req.id}`);
+            }
         }
     }
 
