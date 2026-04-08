@@ -172,16 +172,27 @@ const App = () => {
       const mainFetch = apiService.load(binId, key);
       const oaFetch = (planerType === 'ass') ? apiService.load(APP_CONFIG.OA_BIN_ID, key) : Promise.resolve(null);
       const rotationFetch = apiService.load(ROTATION_BIN_ID, key);
+      const firestoreAbsencesFetch = firestoreService.loadAbsences(planerType);
+      const firestoreRequestsFetch = firestoreService.loadRequests(planerType);
+      
+      // Fetch OA absences from Firestore specifically if we are in Assistant Planner (for FOA sync)
+      const firestoreOAAbsencesFetch = (planerType === 'ass') 
+        ? firestoreService.loadAbsences('oa') 
+        : Promise.resolve({});
 
       // 2. Execute parallel
-      const [data, oaData, rotations] = await Promise.all([
+      const [data, oaData, rotations, fsAbsences, fsRequests, fsOAAbsences] = await Promise.all([
         mainFetch,
         oaFetch.catch(e => { console.warn("OA fetch failed", e); return null; }),
-        rotationFetch.catch(e => { console.warn("Rotation fetch failed", e); return null; })
+        rotationFetch.catch(e => { console.warn("Rotation fetch failed", e); return null; }),
+        firestoreAbsencesFetch.catch(e => { console.error("Firestore absences fetch failed", e); return {}; }),
+        firestoreRequestsFetch.catch(e => { console.error("Firestore requests fetch failed", e); return []; }),
+        firestoreOAAbsencesFetch.catch(e => { console.error("Firestore OA absences fetch failed", e); return {}; })
       ]);
 
       let employees = data.employees || [];
-      let absences = data.state || {}; // In the bin it's called "state"
+      // Combine JSONBin state with Firestore absences (Firestore takes precedence)
+      let absences = { ...(data.state || {}), ...fsAbsences };
 
       // --- Healing Logic: Detect if absences was overwritten by a single formData object ---
       if (absences && absences.startDate && absences.employeeId) {
@@ -207,7 +218,8 @@ const App = () => {
       }
       // --- End Healing Logic ---
 
-      let requests = data.requests || data.__REQUESTS__ || []; // Try both names
+      // Combine JSONBin requests with Firestore requests
+      let requests = fsRequests.length > 0 ? fsRequests : (data.requests || data.__REQUESTS__ || []);
 
       // --- UID Sync/Healing Logic: Link existing approved requests to absences ---
       (requests || []).forEach(req => {
@@ -249,8 +261,9 @@ const App = () => {
           foas.forEach(f => {
             if (!employees.find(e => e.id === f.id)) {
               employees.push(f);
-              if (oaData.state?.[f.id]) {
-                absences[f.id] = oaData.state[f.id];
+              const oaAbsenceEntry = fsOAAbsences[f.id] || oaData.state?.[f.id];
+              if (oaAbsenceEntry) {
+                absences[f.id] = oaAbsenceEntry;
               }
             }
           });
