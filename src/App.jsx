@@ -336,39 +336,6 @@ const App = () => {
     }
   }, [binId, planerType]);
 
-  const handleMigrateToFirestore = async () => {
-    if (!auth.isAuthenticated || !auth.masterKey) return;
-    if (!window.confirm('Möchtest du wirklich alle Abwesenheiten und Anträge von JSONBin nach Firestore migrieren? Bestehende Daten in Firestore für diesen Planer werden überschrieben.')) return;
-
-    setIsLoading(true);
-    try {
-      // 1. Fetch latest from JSONBin
-      const data = await apiService.load(binId, auth.masterKey);
-      const legacyAbsences = data.state || {};
-      const legacyRequests = data.requests || data.__REQUESTS__ || [];
-
-      console.log(`Starting migration for ${planerType}...`);
-
-      // 2. Migrate Absences (Employee by Employee)
-      const empIds = Object.keys(legacyAbsences);
-      for (const eid of empIds) {
-        await firestoreService.saveAbsence(planerType, eid, legacyAbsences[eid]);
-      }
-
-      // 3. Migrate Requests (Individual documents)
-      for (const req of legacyRequests) {
-        await firestoreService.saveRequest(planerType, req);
-      }
-
-      alert('Migration erfolgreich abgeschlossen! Die Daten werden nun aus Firestore geladen.');
-      window.location.reload(); // Reload to refresh all states
-    } catch (e) {
-      console.error('Migration failed:', e);
-      alert('Fehler bei der Migration: ' + e.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleLogin = (loginData) => {
     localStorage.setItem(`${planerType}_logged_user`, JSON.stringify(loginData.user));
@@ -879,7 +846,6 @@ const App = () => {
               employees={appData.employees} 
               skills={appData.skills} 
               onSave={(newList) => handleUpdateAdminData({ employees: newList })} 
-              onMigrate={handleMigrateToFirestore}
               perms={perms}
             />
 
