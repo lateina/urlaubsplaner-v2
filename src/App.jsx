@@ -13,7 +13,7 @@ import LegalModal from './components/UI/LegalModal';
 import Login from './components/Auth/Login';
 import { apiService } from './services/apiService';
 import { firestoreService } from './services/firestoreService';
-import { db, auth } from './config/firebase';
+import { db, auth as firebaseAuth } from './config/firebase';
 import { signInAnonymously } from 'firebase/auth';
 import { APP_CONFIG } from './config/appConfig';
 import { PLANER_PROFILES, DEFAULT_PROFILE } from './config/planerConfig';
@@ -79,7 +79,7 @@ const App = () => {
 
   // Standalone Firebase Auth (Anonymous) for Firestore access
   useEffect(() => {
-    signInAnonymously(auth).catch(err => {
+    signInAnonymously(firebaseAuth).catch(err => {
       console.error("Firebase Anonymous Login failed:", err);
     });
   }, []);
