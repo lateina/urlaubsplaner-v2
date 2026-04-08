@@ -44,6 +44,7 @@ const CalendarView = ({
   const [tempAbsences, setTempAbsences] = useState(null);
   const tempAbsencesRef = useRef(null);
   const [sortMode, setSortMode] = useState('skill'); 
+  const [currentDragUid, setCurrentDragUid] = useState(null);
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -381,15 +382,18 @@ const CalendarView = ({
     const empId = formData.employeeId;
     if (!newAbsences[empId]) newAbsences[empId] = {};
     
-    let curr = new Date(formData.startDate);
-    const end = new Date(formData.endDate);
+    const entryUid = 'direct_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    const updatedAt = new Date().toISOString();
+    
     while (curr <= end) {
       const dStr = curr.toISOString().split('T')[0];
       newAbsences[empId][dStr] = {
         type: formData.type,
         text: formData.remarks,
         vertreter: formData.vertreter,
-        vertreterId: formData.vertreterId
+        vertreterId: formData.vertreterId,
+        uid: entryUid,
+        updatedAt: updatedAt
       };
       curr.setDate(curr.getDate() + 1);
     }
@@ -449,6 +453,7 @@ const CalendarView = ({
       setLastDraggedDate(null);
       setTempAbsences(null);
       tempAbsencesRef.current = null;
+      setCurrentDragUid(null);
     }
   };
   window.addEventListener('mouseup', handleMouseUp);
@@ -471,12 +476,19 @@ const CalendarView = ({
     const initialAbsences = { ...absences };
     setTempAbsences(initialAbsences); 
     tempAbsencesRef.current = initialAbsences;
-    applyDraggedAbsence(empId, dateStr, initialAction, initialAbsences);
+
+    const initialUid = 'paint_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    setCurrentDragUid(initialUid);
+    
+    applyDraggedAbsence(empId, dateStr, initialAction, initialAbsences, initialUid);
   };
 
-  const applyDraggedAbsence = (empId, dateStr, forcedAction = null, baseAbsences = null) => {
+  const applyDraggedAbsence = (empId, dateStr, forcedAction = null, baseAbsences = null, overrideUid = null) => {
     const action = forcedAction || dragStartVal;
     if (!action) return;
+
+    const dragId = overrideUid || currentDragUid;
+    const updatedAt = new Date().toISOString();
 
     setTempAbsences(prev => {
       const newAbsences = prev || baseAbsences || { ...absences };
@@ -503,7 +515,9 @@ const CalendarView = ({
             type: mode,
             text: dragArt,
             vertreter: dragVertreter,
-            status: 'confirmed'
+            status: 'confirmed',
+            uid: dragId,
+            updatedAt: updatedAt
           };
         } else if (action === 'clear') {
           if (newAbsences[empId][dStr]) {

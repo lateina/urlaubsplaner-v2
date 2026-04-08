@@ -3,10 +3,12 @@ import Modal from '../UI/Modal';
 import { generateICalBlob, downloadBlob } from '../../utils/icalUtils';
 import { Calendar, Users, Download, CheckSquare, Square } from 'lucide-react';
 
-const ICalExportModal = ({ isOpen, onClose, absences, employees }) => {
+const ICalExportModal = ({ isOpen, onClose, absences, employees, onSaveAbsences }) => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [selectedIds, setSelectedIds] = useState([]);
+  const [onlyNew, setOnlyNew] = useState(false);
+  const [markAsExported, setMarkAsExported] = useState(true);
 
   // Default date range: current year
   useEffect(() => {
@@ -44,10 +46,40 @@ const ICalExportModal = ({ isOpen, onClose, absences, employees }) => {
       return;
     }
 
-    const blob = generateICalBlob(absences, employees, startDate, endDate, selectedIds);
+    const { blob, exportedDays } = generateICalBlob(absences, employees, startDate, endDate, selectedIds, { onlyNew });
+    
     if (!blob) {
-      alert('Keine genehmigten Abwesenheiten im gewählten Zeitraum gefunden.');
+      alert(onlyNew 
+        ? 'Keine neuen oder geänderten Abwesenheiten im gewählten Zeitraum gefunden.' 
+        : 'Keine genehmigten Abwesenheiten im gewählten Zeitraum gefunden.'
+      );
       return;
+    }
+
+    // Process marking as exported if requested
+    if (markAsExported && onSaveAbsences) {
+      const newAbsences = { ...absences };
+      const now = new Date().toISOString();
+      let count = 0;
+
+      Object.entries(exportedDays).forEach(([empId, dates]) => {
+        if (!newAbsences[empId]) return;
+        newAbsences[empId] = { ...newAbsences[empId] };
+        
+        dates.forEach(d => {
+          if (newAbsences[empId][d]) {
+            newAbsences[empId][d] = { 
+              ...newAbsences[empId][d], 
+              exportedAt: now 
+            };
+            count++;
+          }
+        });
+      });
+
+      if (count > 0) {
+        onSaveAbsences(newAbsences);
+      }
     }
 
     downloadBlob(blob, `export_${startDate}_bis_${endDate}.ics`);
@@ -109,6 +141,34 @@ const ICalExportModal = ({ isOpen, onClose, absences, employees }) => {
           </div>
         </div>
 
+        {/* Delta Options */}
+        <div className="glass" style={{ 
+          padding: '16px', borderRadius: '16px', background: 'rgba(59, 130, 246, 0.05)',
+          display: 'flex', flexDirection: 'column', gap: '12px', border: '1px solid rgba(59, 130, 246, 0.1)'
+        }}>
+          <div 
+            onClick={() => setOnlyNew(!onlyNew)}
+            style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
+          >
+            {onlyNew ? <CheckSquare size={20} color="var(--primary)" /> : <Square size={20} color="#94a3b8" />}
+            <div>
+              <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#1e293b' }}>Nur neue / geänderte Termine</div>
+              <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Bereits exportierte Termine ohne Änderungen werden ignoriert.</div>
+            </div>
+          </div>
+
+          <div 
+            onClick={() => setMarkAsExported(!markAsExported)}
+            style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
+          >
+            {markAsExported ? <CheckSquare size={20} color="var(--primary)" /> : <Square size={20} color="#94a3b8" />}
+            <div>
+              <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#1e293b' }}>Als exportiert markieren</div>
+              <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Speichert den aktuellen Zeitpunkt als Export-Datum für diese Termine.</div>
+            </div>
+          </div>
+        </div>
+
         {/* Employee Selection */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
@@ -124,7 +184,7 @@ const ICalExportModal = ({ isOpen, onClose, absences, employees }) => {
           </div>
           
           <div className="glass" style={{ 
-            maxHeight: '220px', overflowY: 'auto', padding: '8px', 
+            maxHeight: '180px', overflowY: 'auto', padding: '8px', 
             borderRadius: '16px', background: 'rgba(255, 255, 255, 0.25)',
             border: 'none'
           }}>
@@ -164,7 +224,7 @@ const ICalExportModal = ({ isOpen, onClose, absences, employees }) => {
           onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
         >
           <Download size={20} />
-          <span>.ics Datei exportieren</span>
+          <span>{onlyNew ? '.ics (nur Delta) exportieren' : '.ics Datei exportieren'}</span>
         </button>
       </div>
     </Modal>

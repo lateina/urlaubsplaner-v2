@@ -530,7 +530,9 @@ const App = () => {
           text: request.text,
           vertreter: request.vertreter,
           vertreterId: request.vertreterId,
-          status: 'confirmed'
+          status: 'confirmed',
+          uid: request.id,
+          updatedAt: new Date().toISOString()
         };
       });
       
@@ -853,6 +855,7 @@ const App = () => {
         onClose={() => setIsICalModalOpen(false)}
         absences={appData.absences}
         employees={appData.employees}
+        onSaveAbsences={handleSaveAbsence}
         perms={perms}
       />
       <LegalModal 
