@@ -32,7 +32,7 @@ const DEFAULT_GROUP_COLORS = {
   'hkl': '#8b5cf6',
   'cpu': '#f59e0b',
   'hfu': '#ef4444',
-  
+
   // Skills (IDs generiert aus Namen)
   'skill_chef': '#ef4444',
   'skill_privat': '#84cc16',
@@ -68,12 +68,12 @@ const App = () => {
     const savedKey = localStorage.getItem(`${effectiveType}_jsonbin_key`) || localStorage.getItem('jsonbin_key') || '';
     const savedUser = localStorage.getItem(`${effectiveType}_logged_user`);
     const savedProfile = localStorage.getItem(`${effectiveType}_auth_profile`);
-    
-    return { 
-      user: savedUser ? JSON.parse(savedUser) : null, 
-      masterKey: savedKey, 
+
+    return {
+      user: savedUser ? JSON.parse(savedUser) : null,
+      masterKey: savedKey,
       isAuthenticated: !!(savedKey && savedUser),
-      authProfile: savedProfile 
+      authProfile: savedProfile
     };
   });
 
@@ -84,11 +84,11 @@ const App = () => {
     });
   }, []);
 
-  const [appData, setAppData] = useState({ 
-    employees: [], 
-    absences: {}, 
+  const [appData, setAppData] = useState({
+    employees: [],
+    absences: {},
     requests: [],
-    skills: [], 
+    skills: [],
     groupColors: DEFAULT_GROUP_COLORS,
     rotationData: [],
     vacationStats: {}
@@ -99,7 +99,7 @@ const App = () => {
   const [isICalModalOpen, setIsICalModalOpen] = useState(false);
   const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  
+
   // Detect planer type from filename or localStorage (no forced URL params for PWA stability)
   const [planerType, setPlanerType] = useState(() => {
     const params = new URLSearchParams(window.location.search);
@@ -125,7 +125,7 @@ const App = () => {
     localStorage.setItem('planer_type', planerType);
     document.body.classList.remove('planer-ass', 'planer-oa');
     document.body.classList.add(`planer-${planerType}`);
-    
+
     // iPhone detection for specialized styling
     const isIPHONE = /iPhone/.test(navigator.userAgent) && !window.MSStream;
     if (isIPHONE) {
@@ -166,7 +166,7 @@ const App = () => {
     setIsLoading(true);
     setError(null);
     const profile = PLANER_PROFILES[planerType];
-    
+
     try {
       // 1. Define all parallel fetches
       const mainFetch = apiService.load(binId, key);
@@ -174,10 +174,10 @@ const App = () => {
       const rotationFetch = apiService.load(ROTATION_BIN_ID, key);
       const firestoreAbsencesFetch = firestoreService.loadAbsences(planerType);
       const firestoreRequestsFetch = firestoreService.loadRequests(planerType);
-      
+
       // Fetch OA absences from Firestore specifically if we are in Assistant Planner (for FOA sync)
-      const firestoreOAAbsencesFetch = (planerType === 'ass') 
-        ? firestoreService.loadAbsences('oa') 
+      const firestoreOAAbsencesFetch = (planerType === 'ass')
+        ? firestoreService.loadAbsences('oa')
         : Promise.resolve({});
 
       // 2. Execute parallel
@@ -238,10 +238,10 @@ const App = () => {
       });
       // --- End UID Sync Logic ---
       let skills = (data.skills && data.skills.length > 0) ? data.skills : (profile.defaultSkills || []);
-      let groupColors = { 
-        ...DEFAULT_GROUP_COLORS, 
+      let groupColors = {
+        ...DEFAULT_GROUP_COLORS,
         ...(profile.defaultColors || {}),
-        ...(data.groupColors || {}) 
+        ...(data.groupColors || {})
       };
       let status = data.status || data.__STATUS__ || absences.__STATUS__ || {};
       let areaOrder = data.areaOrder || null;
@@ -252,10 +252,10 @@ const App = () => {
           const foas = (oaData.employees || []).filter(emp => {
             const grps = Array.isArray(emp.groups) ? emp.groups : (emp.group ? [emp.group] : []);
             return grps.some(g => g && String(g).toLowerCase().includes('funktionsoberarzt'));
-          }).map(f => ({ 
-            ...f, 
+          }).map(f => ({
+            ...f,
             groups: ['skill_funktionsoberarzt'],
-            _isCrossProfile: true 
+            _isCrossProfile: true
           }));
 
           foas.forEach(f => {
@@ -272,12 +272,12 @@ const App = () => {
             const name = typeof s === 'object' ? s.name : s;
             return name && String(name).toLowerCase().includes('funktionsoberarzt');
           });
-          
+
           if (foaIdx === -1) {
-             skills.unshift({ id: 'skill_funktionsoberarzt', name: 'Funktionsoberarzt' });
+            skills.unshift({ id: 'skill_funktionsoberarzt', name: 'Funktionsoberarzt' });
           } else if (foaIdx > 0) {
-             const [item] = skills.splice(foaIdx, 1);
-             skills.unshift(item);
+            const [item] = skills.splice(foaIdx, 1);
+            skills.unshift(item);
           }
         } catch (e) {
           console.warn("FOA processing failed", e);
@@ -287,12 +287,12 @@ const App = () => {
 
       const migratedSkills = skills.map(s => {
         if (typeof s === 'object' && s.id) return s;
-        return { 
-          id: `skill_${String(s).toLowerCase().trim().replace(/[^a-z0-9]/g, '')}`, 
-          name: String(s) 
+        return {
+          id: `skill_${String(s).toLowerCase().trim().replace(/[^a-z0-9]/g, '')}`,
+          name: String(s)
         };
       });
-      
+
       const migratedEmployees = employees.map(emp => {
         const groups = Array.isArray(emp.groups) ? emp.groups : (emp.group ? [emp.group] : []);
         const migratedGroups = groups.map(g => {
@@ -317,7 +317,7 @@ const App = () => {
           }
         }
       });
-      
+
       let finalStats = updateVacationStats(absences, migratedEmployees, data.vacationStats || {}, requests);
 
       // Sync FOA stats from OA bin if this is the Resident Planner
@@ -354,7 +354,7 @@ const App = () => {
     localStorage.setItem(`${planerType}_logged_user`, JSON.stringify(loginData.user));
     localStorage.setItem(`${planerType}_auth_profile`, planerType);
     localStorage.setItem(`${planerType}_jsonbin_key`, loginData.masterKey);
-    
+
     setAuth({
       user: loginData.user,
       masterKey: loginData.masterKey,
@@ -377,15 +377,15 @@ const App = () => {
   const calculateVacationUsed = (empId, absences = {}, year = new Date().getFullYear(), requests = []) => {
     const vacationDates = new Set();
     const empAbsences = (absences && absences[empId]) || {};
-    
+
     // 1. From confirmed absences
     Object.entries(empAbsences).forEach(([dateStr, entry]) => {
       if (!dateStr.startsWith(String(year))) return;
       const type = typeof entry === 'object' ? entry.type : entry;
       const status = typeof entry === 'object' ? entry.status : 'confirmed';
-      
+
       if (status === 'rejected') return;
-      
+
       if (type === 'U' || type === 'V') {
         const { holiday } = getSpecialDayInfo(dateStr);
         const d = new Date(dateStr);
@@ -397,9 +397,9 @@ const App = () => {
     });
 
     // 2. From pending requests (not yet in absences)
-    requests.filter(r => 
-      r.empId === empId && 
-      r.status.startsWith('pending') && 
+    requests.filter(r =>
+      r.empId === empId &&
+      r.status.startsWith('pending') &&
       (r.type === 'U' || r.type === 'V')
     ).forEach(r => {
       r.dates.forEach(dateStr => {
@@ -421,8 +421,8 @@ const App = () => {
     const statsToUpdate = currentStats || appData.vacationStats;
     const targetRequests = requests || appData.requests;
     const newStats = { ...statsToUpdate };
-    const year = new Date().getFullYear(); 
-    
+    const year = new Date().getFullYear();
+
     targetEmployees.forEach(emp => {
       const used = calculateVacationUsed(emp.id, newAbsences, year, targetRequests);
       const currentQuota = emp.vacationQuota ?? (statsToUpdate[emp.id]?.quota ?? 30);
@@ -440,10 +440,10 @@ const App = () => {
     // Keep all pending/approved, but filter old rejected/cancelled
     let filtered = reqs.filter(r => {
       if (r.status === 'pending' || r.status === 'approved' || r.status === 'pending_vertreter') return true;
-      
+
       const stampDate = r.stamps?.admin?.at || r.stamps?.submitted?.at;
       if (!stampDate) return true; // Keep if no date info
-      
+
       const date = new Date(stampDate);
       return date >= ninetyDaysAgo;
     });
@@ -465,29 +465,29 @@ const App = () => {
     setIsLoading(true);
     try {
       const { absences, requests, ...rest } = newData;
-      
+
       // 1. Save Employees and Config to JSONBin
       const jsonbinPayload = {
         ...rest,
         // We set empty state/requests in JSONBin to avoid the size limit 
         // while maintaining the structure if needed
-        state: {}, 
+        state: {},
         requests: []
       };
 
       if (jsonbinPayload.employees) {
         jsonbinPayload.employees = jsonbinPayload.employees.filter(e => !e._isCrossProfile);
       }
-      
+
       await apiService.save(binId, auth.masterKey, jsonbinPayload);
-      
+
       // 2. Save Absences to Firestore (Only updated ones usually, but here we do bulk for simple integration)
       // Note: In a real high-perf app we'd only save the changed employee.
       // For now, to keep the existing save logic working:
-      const savePromises = Object.entries(absences).map(([eid, dates]) => 
+      const savePromises = Object.entries(absences).map(([eid, dates]) =>
         firestoreService.saveAbsence(planerType, eid, dates)
       );
-      
+
       // 3. Save Requests to Firestore
       const reqPromises = requests.map(req => firestoreService.saveRequest(planerType, req));
 
@@ -506,15 +506,15 @@ const App = () => {
   const handleSaveAbsence = async (newAbsences) => {
     if (!isAdmin) return;
     let nextDataToSave = null;
-    
+
     setAppData(prev => {
       let finalAbsences = newAbsences || { ...prev.absences };
-      
+
       // Detect if this is formData from AbsenceModal (single update) or a full object
       if (newAbsences && typeof newAbsences === 'object' && newAbsences.startDate && newAbsences.employeeId) {
         const formData = newAbsences;
         finalAbsences = { ...prev.absences };
-        
+
         const dates = [];
         let curr = new Date(formData.startDate);
         const end = new Date(formData.endDate);
@@ -557,7 +557,7 @@ const App = () => {
 
       // 2. Firestore (Absences)
       // Optimization: Only update the changed employee if possible, but here we keep and use bulk save for safety
-      const promises = Object.entries(absences).map(([eid, dates]) => 
+      const promises = Object.entries(absences).map(([eid, dates]) =>
         firestoreService.saveAbsence(planerType, eid, dates)
       );
       await Promise.all(promises);
@@ -572,7 +572,7 @@ const App = () => {
 
   const handleSubmitRequest = async (request) => {
     let updatedAbsences = appData.absences;
-    
+
     // If request is pre-approved (direct Admin entry), also update absences
     if (request.status === 'approved') {
       updatedAbsences = { ...appData.absences };
@@ -590,10 +590,10 @@ const App = () => {
 
     const updatedRequests = [...appData.requests, request];
     const updatedStats = updateVacationStats(updatedAbsences);
-    
-    await saveAllData({ 
-      ...appData, 
-      requests: updatedRequests, 
+
+    await saveAllData({
+      ...appData,
+      requests: updatedRequests,
       absences: updatedAbsences,
       vacationStats: updatedStats
     });
@@ -604,41 +604,67 @@ const App = () => {
     const reqIndex = appData.requests.findIndex(r => r.id === reqId);
     if (reqIndex === -1) return;
 
-    const request = { ...appData.requests[reqIndex] };
-    const updatedRequests = [...appData.requests];
+    setIsLoading(true);
+    try {
+      const request = { ...appData.requests[reqIndex] };
+      const updatedRequests = [...appData.requests];
 
-    if (byType === 'vertreter') {
-      request.status = 'pending_admin';
-      request.stamps = { ...request.stamps, vertreter: makeStamp(auth.user) };
-      updatedRequests[reqIndex] = request;
-      await saveAllData({ ...appData, requests: updatedRequests });
-    } else if (byType === 'admin') {
-      request.status = 'approved';
-      request.stamps = { ...request.stamps, admin: makeStamp(auth.user) };
-      
-      // Also add to absences
-      const newAbsences = { ...appData.absences };
-      if (!newAbsences[request.empId]) newAbsences[request.empId] = {};
-      request.dates.forEach(date => {
-        newAbsences[request.empId][date] = {
-          type: request.type,
-          text: request.text,
-          vertreter: request.vertreter,
-          vertreterId: request.vertreterId,
-          status: 'confirmed',
-          uid: request.id,
-          updatedAt: new Date().toISOString()
+      if (byType === 'vertreter') {
+        request.status = 'pending_admin';
+        request.stamps = { ...request.stamps, vertreter: makeStamp(auth.user) };
+        updatedRequests[reqIndex] = request;
+
+        const nextAppData = { ...appData, requests: updatedRequests };
+        await firestoreService.saveRequest(planerType, request);
+        setAppData(nextAppData);
+
+      } else if (byType === 'admin') {
+        request.status = 'approved';
+        request.stamps = { ...request.stamps, admin: makeStamp(auth.user) };
+
+        const newAbsences = { ...appData.absences };
+        if (!newAbsences[request.empId]) newAbsences[request.empId] = {};
+        request.dates.forEach(date => {
+          newAbsences[request.empId][date] = {
+            type: request.type,
+            text: request.text,
+            vertreter: request.vertreter,
+            vertreterId: request.vertreterId,
+            status: 'confirmed',
+            uid: request.id,
+            updatedAt: new Date().toISOString()
+          };
+        });
+
+        updatedRequests[reqIndex] = request;
+        const updatedStats = updateVacationStats(newAbsences);
+        
+        const nextAppData = {
+          ...appData,
+          requests: updatedRequests,
+          absences: newAbsences,
+          vacationStats: updatedStats
         };
-      });
-      
-      updatedRequests[reqIndex] = request;
-      const updatedStats = updateVacationStats(newAbsences);
-      await saveAllData({ 
-        ...appData, 
-        requests: updatedRequests, 
-        absences: newAbsences,
-        vacationStats: updatedStats
-      });
+
+        const promises = [
+          firestoreService.saveRequest(planerType, request),
+          firestoreService.saveAbsence(planerType, request.empId, newAbsences[request.empId])
+        ];
+        
+        const jsonbinPayload = { ...nextAppData, state: {}, requests: [] };
+        if (jsonbinPayload.employees) {
+          jsonbinPayload.employees = jsonbinPayload.employees.filter(e => !e._isCrossProfile);
+        }
+        promises.push(apiService.save(binId, auth.masterKey, jsonbinPayload));
+
+        await Promise.all(promises);
+        setAppData(nextAppData);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Speichern fehlgeschlagen: ' + err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -646,41 +672,60 @@ const App = () => {
     const reqIndex = appData.requests.findIndex(r => r.id === reqId);
     if (reqIndex === -1) return;
 
-    const request = { ...appData.requests[reqIndex] };
-    request.status = 'rejected';
-    request.rejectedBy = byType;
-    request.rejectionNote = note;
-    request.stamps = { ...request.stamps, rejected: makeStamp(auth.user) };
+    setIsLoading(true);
+    try {
+      const request = { ...appData.requests[reqIndex] };
+      request.status = 'rejected';
+      request.rejectedBy = byType;
+      request.rejectionNote = note;
+      request.stamps = { ...request.stamps, rejected: makeStamp(auth.user) };
 
-    const updatedRequests = [...appData.requests];
-    updatedRequests[reqIndex] = request;
-    await saveAllData({ ...appData, requests: updatedRequests });
+      const updatedRequests = [...appData.requests];
+      updatedRequests[reqIndex] = request;
+      
+      const nextAppData = { ...appData, requests: updatedRequests };
+
+      await firestoreService.saveRequest(planerType, request);
+      setAppData(nextAppData);
+    } catch (err) {
+      console.error(err);
+      alert('Speichern fehlgeschlagen: ' + err.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleDeleteRequest = async (reqId) => {
-    const updatedRequests = appData.requests.filter(r => r.id !== reqId);
-    await firestoreService.deleteRequest(reqId);
-    setAppData({ ...appData, requests: updatedRequests });
+    setIsLoading(true);
+    try {
+      const updatedRequests = appData.requests.filter(r => r.id !== reqId);
+      await firestoreService.deleteRequest(reqId);
+      setAppData({ ...appData, requests: updatedRequests });
+    } catch (err) {
+      console.error(err);
+      alert('Speichern fehlgeschlagen: ' + err.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
   const handleMarkPODone = async (reqId, checked, shortcut) => {
-    let nextDataToSave = null;
-    
-    setAppData(prev => {
-      const reqIndex = prev.requests.findIndex(r => r.id === reqId);
-      if (reqIndex === -1) return prev;
+    const reqIndex = appData.requests.findIndex(r => r.id === reqId);
+    if (reqIndex === -1) return;
 
-      const updatedRequests = [...prev.requests];
+    setIsLoading(true);
+    try {
+      const updatedRequests = [...appData.requests];
       const request = { ...updatedRequests[reqIndex] };
 
       if (checked) {
-        request.stamps = { 
-          ...request.stamps, 
-          po: { 
-            at: new Date().toISOString(), 
-            by: auth.user.id, 
-            name: auth.user.name, 
-            shortcut: shortcut 
-          } 
+        request.stamps = {
+          ...request.stamps,
+          po: {
+            at: new Date().toISOString(),
+            by: auth.user.id,
+            name: auth.user.name,
+            shortcut: shortcut
+          }
         };
       } else {
         if (request.stamps) {
@@ -690,12 +735,15 @@ const App = () => {
       }
 
       updatedRequests[reqIndex] = request;
-      nextDataToSave = { ...prev, requests: updatedRequests };
-      return nextDataToSave;
-    });
+      
+      await firestoreService.saveRequest(planerType, request);
+      setAppData(prev => ({ ...prev, requests: updatedRequests }));
 
-    if (nextDataToSave) {
-      await saveAllData(nextDataToSave);
+    } catch (err) {
+      console.error(err);
+      alert('Speichern fehlgeschlagen: ' + err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -742,7 +790,7 @@ const App = () => {
     canSeePOKarte: isFullAdmin || isSekretariat,
     canShowCalendarEntry: !isSekretariat,
     canDeleteRequests: isFullAdmin,
-    canApproveRequests: isFullAdmin || isSpokesperson
+    canApproveRequests: isFullAdmin
   };
 
 
@@ -805,9 +853,9 @@ const App = () => {
     switch (activeTab) {
       case 'calendar':
         return (
-          <CalendarView 
+          <CalendarView
             planerType={planerType}
-            employees={appData.employees} 
+            employees={appData.employees}
             absences={appData.absences}
             requests={appData.requests}
             onSaveAbsences={handleSaveAbsence}
@@ -827,7 +875,7 @@ const App = () => {
         );
       case 'requests':
         return (
-          <RequestsView 
+          <RequestsView
             requests={appData.requests}
             employees={appData.employees}
             currentUser={resolvedUser}
@@ -845,20 +893,20 @@ const App = () => {
       case 'summary':
         return (
           <div style={{ flex: 1, overflow: 'auto', padding: '24px', background: 'transparent' }}>
-            <AbsenceSummary 
-              employees={appData.employees} 
-              absences={appData.absences} 
-              status={appData.status} 
+            <AbsenceSummary
+              employees={appData.employees}
+              absences={appData.absences}
+              status={appData.status}
             />
           </div>
         );
       case 'employees':
         return (
           <div style={{ flex: 1, overflow: 'auto', padding: '24px', background: 'transparent' }}>
-            <EmployeeAdmin 
-              employees={appData.employees} 
-              skills={appData.skills} 
-              onSave={(newList) => handleUpdateAdminData({ employees: newList })} 
+            <EmployeeAdmin
+              employees={appData.employees}
+              skills={appData.skills}
+              onSave={(newList) => handleUpdateAdminData({ employees: newList })}
               perms={perms}
             />
 
@@ -867,14 +915,14 @@ const App = () => {
       case 'skills':
         return (
           <div style={{ flex: 1, overflow: 'auto', padding: '24px', background: 'transparent' }}>
-            <CategoryAdmin 
+            <CategoryAdmin
               title="Skills verwalten"
               type="skills"
-              items={appData.skills} 
-              employees={appData.employees} 
+              items={appData.skills}
+              employees={appData.employees}
               groupColors={appData.groupColors}
               palette={LEGACY_PALETTE}
-              onSave={(newData) => handleUpdateAdminData(newData)} 
+              onSave={(newData) => handleUpdateAdminData(newData)}
             />
           </div>
         );
@@ -883,17 +931,17 @@ const App = () => {
 
         return (
           <div style={{ flex: 1, overflow: 'auto', padding: '24px', background: 'transparent' }}>
-            <CategoryAdmin 
+            <CategoryAdmin
               title="Rotationsbereiche verwalten"
               type="areas"
               canEdit={false}
               items={(appData.areaOrder || MONTH_AREA_ORDER).map(id => ({ id, name: MONTH_AREA_MAPPING[id] || id }))}
               groupColors={appData.groupColors}
               palette={LEGACY_PALETTE}
-              onSave={(newData) => handleUpdateAdminData({ 
+              onSave={(newData) => handleUpdateAdminData({
                 groupColors: newData.groupColors,
-                areaOrder: newData.areaOrder 
-              })} 
+                areaOrder: newData.areaOrder
+              })}
             />
           </div>
         );
@@ -902,13 +950,13 @@ const App = () => {
           <div style={{ flex: 1, overflow: 'auto', padding: '40px', background: 'transparent' }}>
             <h2 style={{ marginBottom: '24px' }}>Einstellungen</h2>
             <div style={{ padding: '24px', border: '1px solid var(--border)', borderRadius: '12px', background: '#f8fafc' }}>
-               <p>Hier können Sie globale Einstellungen für den Planer vornehmen.</p>
-               <button 
-                 onClick={handleLogout}
-                 style={{ padding: '10px 20px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, marginTop: '20px' }}
-               >
-                 Abmelden
-               </button>
+              <p>Hier können Sie globale Einstellungen für den Planer vornehmen.</p>
+              <button
+                onClick={handleLogout}
+                style={{ padding: '10px 20px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, marginTop: '20px' }}
+              >
+                Abmelden
+              </button>
             </div>
           </div>
         )
@@ -920,9 +968,9 @@ const App = () => {
 
   return (
     <div className="app-shell" style={{ '--primary': profile.primaryColor }}>
-      <Sidebar 
-        activeTab={activeTab} 
-        onTabChange={setActiveTab} 
+      <Sidebar
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
         planerType={planerType}
         onPlanerSwitch={togglePlaner}
         isAdmin={isAdmin}
@@ -936,19 +984,19 @@ const App = () => {
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         isSaving={isSaving}
       />
-      
+
       <main className="main-content">
         <Header user={auth.user} onLogout={handleLogout} isSaving={isSaving} />
-        
+
         <div className="view-container">
           {error ? (
             <div className="error-banner">{error} <button onClick={() => loadData(auth.masterKey)}>Erneut versuchen</button></div>
           ) : renderContent()}
         </div>
 
-        <MobileNav 
-          activeTab={activeTab} 
-          onTabChange={setActiveTab} 
+        <MobileNav
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
           badgeCount={actionRequiredCount}
           isAdmin={isAdmin}
           perms={perms}
@@ -958,8 +1006,8 @@ const App = () => {
         <InstallPrompt />
       </main>
       {/* Modals & Overlays */}
-      <ICalExportModal 
-        isOpen={isICalModalOpen} 
+      <ICalExportModal
+        isOpen={isICalModalOpen}
         onClose={() => setIsICalModalOpen(false)}
         absences={appData.absences}
         employees={appData.employees}
@@ -967,9 +1015,9 @@ const App = () => {
         onSaveAbsences={handleSaveAbsence}
         perms={perms}
       />
-      <LegalModal 
-        isOpen={isLegalModalOpen} 
-        onClose={() => setIsLegalModalOpen(false)} 
+      <LegalModal
+        isOpen={isLegalModalOpen}
+        onClose={() => setIsLegalModalOpen(false)}
       />
     </div>
   );

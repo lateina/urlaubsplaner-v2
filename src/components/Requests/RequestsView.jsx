@@ -88,10 +88,12 @@ const RequestsView = ({
 
 
   const renderCard = (req) => {
-    const isPendingVertreterForMe = req.vertreterId === cuId && req.status === 'pending_vertreter';
-    const isPendingAdmin = perms.canApproveRequests && req.status === 'pending_admin';
+    // Fix for stuck status: if stamps.vertreter exists but status is pending_vertreter, treat as pending_admin
+    const effectiveStatus = (req.status === 'pending_vertreter' && req.stamps?.vertreter) ? 'pending_admin' : req.status;
+    const isPendingVertreterForMe = req.vertreterId === cuId && effectiveStatus === 'pending_vertreter';
+    const isPendingAdmin = perms.canApproveRequests && effectiveStatus === 'pending_admin';
     const canApprove = isPendingVertreterForMe || isPendingAdmin;
-    const showPOCheckbox = (subTab === 'po_transfer' || (isAdmin && req.status === 'approved')) && req.type !== 'D';
+    const showPOCheckbox = (subTab === 'po_transfer' || (isAdmin && effectiveStatus === 'approved')) && req.type !== 'D';
 
     return (
       <div key={req.id} className="request-card">
@@ -100,8 +102,8 @@ const RequestsView = ({
             <User size={16} />
             <span>{getEmpName(req.empId)}</span>
           </div>
-          <span className="request-card-status" style={{ backgroundColor: `${statusColor[req.status]}15`, color: statusColor[req.status] }}>
-            {statusLabel[req.status]}
+          <span className="request-card-status" style={{ backgroundColor: `${statusColor[effectiveStatus]}15`, color: statusColor[effectiveStatus] }}>
+            {statusLabel[effectiveStatus]}
           </span>
         </div>
 
@@ -184,7 +186,7 @@ const RequestsView = ({
             </>
           )}
           
-          {(req.status === 'approved' || req.status === 'pending_admin') && (
+          {(effectiveStatus === 'approved' || effectiveStatus === 'pending_admin') && (
 
             <button 
               className="btn-pdf" 
