@@ -614,9 +614,13 @@ const App = () => {
         request.stamps = { ...request.stamps, vertreter: makeStamp(auth.user) };
         updatedRequests[reqIndex] = request;
 
-        const nextAppData = { ...appData, requests: updatedRequests };
         await firestoreService.saveRequest(planerType, request);
-        setAppData(nextAppData);
+        setAppData(prev => {
+          const newRequests = [...prev.requests];
+          const idx = newRequests.findIndex(r => r.id === reqId);
+          if (idx !== -1) newRequests[idx] = request;
+          return { ...prev, requests: newRequests };
+        });
 
       } else if (byType === 'admin') {
         request.status = 'approved';
@@ -639,26 +643,34 @@ const App = () => {
         updatedRequests[reqIndex] = request;
         const updatedStats = updateVacationStats(newAbsences);
         
-        const nextAppData = {
-          ...appData,
-          requests: updatedRequests,
-          absences: newAbsences,
-          vacationStats: updatedStats
-        };
-
         const promises = [
           firestoreService.saveRequest(planerType, request),
           firestoreService.saveAbsence(planerType, request.empId, newAbsences[request.empId])
         ];
         
-        const jsonbinPayload = { ...nextAppData, state: {}, requests: [] };
-        if (jsonbinPayload.employees) {
-          jsonbinPayload.employees = jsonbinPayload.employees.filter(e => !e._isCrossProfile);
-        }
-        promises.push(apiService.save(binId, auth.masterKey, jsonbinPayload));
-
         await Promise.all(promises);
-        setAppData(nextAppData);
+
+        setAppData(prev => {
+          const newRequests = [...prev.requests];
+          const idx = newRequests.findIndex(r => r.id === reqId);
+          if (idx !== -1) newRequests[idx] = request;
+          
+          const nextAppData = {
+            ...prev,
+            requests: newRequests,
+            absences: { ...prev.absences, [request.empId]: newAbsences[request.empId] }
+          };
+          nextAppData.vacationStats = updateVacationStats(nextAppData.absences, prev.employees, prev.vacationStats, nextAppData.requests);
+          
+          // Hybrid save background sync
+          const jsonbinPayload = { ...nextAppData, state: {}, requests: [] };
+          if (jsonbinPayload.employees) {
+            jsonbinPayload.employees = jsonbinPayload.employees.filter(e => !e._isCrossProfile);
+          }
+          apiService.save(binId, auth.masterKey, jsonbinPayload).catch(e => console.error("Background save failed:", e));
+
+          return nextAppData;
+        });
       }
     } catch (err) {
       console.error(err);
@@ -683,10 +695,13 @@ const App = () => {
       const updatedRequests = [...appData.requests];
       updatedRequests[reqIndex] = request;
       
-      const nextAppData = { ...appData, requests: updatedRequests };
-
       await firestoreService.saveRequest(planerType, request);
-      setAppData(nextAppData);
+      setAppData(prev => {
+        const newRequests = [...prev.requests];
+        const idx = newRequests.findIndex(r => r.id === reqId);
+        if (idx !== -1) newRequests[idx] = request;
+        return { ...prev, requests: newRequests };
+      });
     } catch (err) {
       console.error(err);
       alert('Speichern fehlgeschlagen: ' + err.message);
@@ -698,9 +713,11 @@ const App = () => {
   const handleDeleteRequest = async (reqId) => {
     setIsLoading(true);
     try {
-      const updatedRequests = appData.requests.filter(r => r.id !== reqId);
       await firestoreService.deleteRequest(reqId);
-      setAppData({ ...appData, requests: updatedRequests });
+      setAppData(prev => ({
+        ...prev,
+        requests: prev.requests.filter(r => r.id !== reqId)
+      }));
     } catch (err) {
       console.error(err);
       alert('Speichern fehlgeschlagen: ' + err.message);
@@ -734,10 +751,13 @@ const App = () => {
         }
       }
 
-      updatedRequests[reqIndex] = request;
-      
       await firestoreService.saveRequest(planerType, request);
-      setAppData(prev => ({ ...prev, requests: updatedRequests }));
+      setAppData(prev => {
+        const newRequests = [...prev.requests];
+        const idx = newRequests.findIndex(r => r.id === reqId);
+        if (idx !== -1) newRequests[idx] = request;
+        return { ...prev, requests: newRequests };
+      });
 
     } catch (err) {
       console.error(err);
