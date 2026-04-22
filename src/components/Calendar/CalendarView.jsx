@@ -286,6 +286,7 @@ const CalendarView = ({
       if (emp.id === 'admin' || emp.id === 'sekretariat' || emp.id === 'assistentensprecher') return false;
       if (emp.name?.toLowerCase().includes('administrator') || emp.name?.toLowerCase().includes('assistentensprecher')) return false;
       if (emp.active === false) return false;
+      if (planerType === 'ass' && emp._isCrossProfileOa) return false;
       
       // Filter by entry/exit dates relative to the loaded calendar days range
       if (days.length > 0) {
@@ -632,7 +633,7 @@ const CalendarView = ({
         onClose={() => setIsModalOpen(false)} 
         onSave={onSaveAbsences}
         onSubmitRequest={onSubmitRequest}
-        employees={employees.filter(e => !e._isCrossProfile)}
+        employees={employees}
         isAdmin={isAdmin}
         perms={perms}
         currentUser={currentUser}
@@ -1247,7 +1248,9 @@ const CalendarView = ({
                           return (t === 'U' || t === 'V') ? 'status-vacation' : t === 'D' ? 'status-trip' : t === 'F' ? 'status-training' : 'status-custom';
                         }
                         if (pendingReq) {
-                          return pendingReq.status === 'pending_vertreter' ? 'status-pending-vertreter' : 'status-pending-admin';
+                          if (pendingReq.status === 'pending_vertreter') return 'status-pending-vertreter';
+                          if (pendingReq.status === 'pending_supervisor') return 'status-pending-supervisor';
+                          return 'status-pending-admin';
                         }
                         return '';
                       })()}`} 

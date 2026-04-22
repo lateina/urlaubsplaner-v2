@@ -246,19 +246,26 @@ const App = () => {
       let status = data.status || data.__STATUS__ || absences.__STATUS__ || {};
       let areaOrder = data.areaOrder || null;
 
-      // Process FOAs if this is the Resident Planner and we have OA data
+      // Process OAs/FOAs if this is the Resident Planner and we have OA data
       if (planerType === 'ass' && oaData) {
         try {
-          const foas = (oaData.employees || []).filter(emp => {
-            const grps = Array.isArray(emp.groups) ? emp.groups : (emp.group ? [emp.group] : []);
-            return grps.some(g => g && String(g).toLowerCase().includes('funktionsoberarzt'));
-          }).map(f => ({
-            ...f,
-            groups: ['skill_funktionsoberarzt'],
-            _isCrossProfile: true
-          }));
+          const crossEmps = (oaData.employees || []).filter(emp => {
+            if (emp.id === 'admin' || emp.id === 'sekretariat' || emp.id === 'assistentensprecher') return false;
+            if (emp.name && (emp.name.toLowerCase().includes('administrator') || emp.name.toLowerCase().includes('sekretariat'))) return false;
+            return true;
+          }).map(f => {
+            const grps = Array.isArray(f.groups) ? f.groups : (f.group ? [f.group] : []);
+            const isFoa = grps.some(g => g && String(g).toLowerCase().includes('funktionsoberarzt'));
+            return {
+              ...f,
+              groups: isFoa ? ['skill_funktionsoberarzt'] : grps,
+              _isCrossProfile: true,
+              _isCrossProfileFoa: isFoa,
+              _isCrossProfileOa: !isFoa
+            };
+          });
 
-          foas.forEach(f => {
+          crossEmps.forEach(f => {
             if (!employees.find(e => e.id === f.id)) {
               employees.push(f);
               const oaAbsenceEntry = fsOAAbsences[f.id] || oaData.state?.[f.id];
@@ -610,8 +617,13 @@ const App = () => {
       const updatedRequests = [...appData.requests];
 
       if (byType === 'vertreter') {
-        request.status = 'pending_admin';
+        request.status = request.supervisorId ? 'pending_supervisor' : 'pending_admin';
         request.stamps = { ...request.stamps, vertreter: makeStamp(auth.user) };
+        updatedRequests[reqIndex] = request;
+
+      } else if (byType === 'supervisor') {
+        request.status = 'pending_admin';
+        request.stamps = { ...request.stamps, supervisor: makeStamp(auth.user) };
         updatedRequests[reqIndex] = request;
 
         await firestoreService.saveRequest(planerType, request);

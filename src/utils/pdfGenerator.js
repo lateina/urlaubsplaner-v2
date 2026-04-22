@@ -88,6 +88,11 @@ export async function generateAndDownloadPDF(req, employees = []) {
         const vText = fmtStampText(req.stamps?.vertreter, req.vertreter || 'Vertreter', 'Zustimmung');
         firstPage.drawText(vText, { x: rect.x, y: rect.y - 18, size: 10, color: rgb(1,0,0) }); // red
         
+        if (req.stamps?.supervisor) {
+          const sText = fmtStampText(req.stamps.supervisor, req.supervisor || 'Vorgesetzter', 'Freigabe Vorgesetzter');
+          firstPage.drawText(sText, { x: rect.x, y: rect.y - 45, size: 10, color: rgb(0, 0.5, 0) }); // dark green
+        }
+        
         if (isUrlaub) {
           const aText = fmtStampText(req.stamps?.admin, 'Leitender OA Wagner', 'Genehmigung');
           firstPage.drawText(aText, { x: rect.x, y: rect.y - 75, size: 10, color: rgb(1,0,0) });

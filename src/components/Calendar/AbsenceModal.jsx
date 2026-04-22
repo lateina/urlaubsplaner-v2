@@ -9,6 +9,8 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
     type: 'U',
     vertreter: '',
     vertreterId: '',
+    supervisor: '',
+    supervisorId: '',
     remarks: '',
     employeeId: currentUser?.id || ''
   });
@@ -130,6 +132,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
                       e.name?.toLowerCase().includes('assistentensprecher');
     
     if (isSelf || isSpecial || e.active === false) return false;
+    if (planerType === 'ass' && e._isCrossProfileOa) return false;
     
     // Check if representative is active during the requested time
     if (formData.startDate) {
@@ -319,8 +322,10 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
       text: formData.remarks,
       vertreter: formData.vertreter,
       vertreterId: formData.vertreterId,
+      supervisor: formData.supervisor,
+      supervisorId: formData.supervisorId,
       dates: dates,
-      status: isDirect ? 'approved' : (formData.vertreterId ? 'pending_vertreter' : 'pending_admin'),
+      status: isDirect ? 'approved' : (formData.vertreterId ? 'pending_vertreter' : (formData.supervisorId ? 'pending_supervisor' : 'pending_admin')),
       createdAt: new Date().toISOString().split('T')[0],
       stamps: {
         submitted: {
@@ -358,6 +363,8 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
       type: 'U',
       vertreter: '',
       vertreterId: '',
+      supervisor: '',
+      supervisorId: '',
       remarks: '',
       employeeId: currentUser?.id || ''
     });
@@ -388,7 +395,8 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
                 e.id !== 'sekretariat' && 
                 e.id !== 'assistentensprecher' &&
                 !e.name?.toLowerCase().includes('administrator') &&
-                !e.name?.toLowerCase().includes('assistentensprecher')
+                !e.name?.toLowerCase().includes('assistentensprecher') &&
+                !e._isCrossProfile
               ).map(emp => (
                 <option key={emp.id} value={emp.id}>{emp.name}</option>
               ))}
@@ -551,6 +559,30 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
               )}
             </div>
           )}
+        </div>
+
+        <div className="form-group" style={{ position: 'relative', maxWidth: 320 }}>
+          <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 6, color: '#000000' }}>
+            Unmittelbarer Vorgesetzter (Optional)
+          </label>
+          <select 
+            name="supervisorId" 
+            value={formData.supervisorId || ''} 
+            onChange={(e) => {
+              const sup = [...employees].find(c => c.id === e.target.value);
+              setFormData(prev => ({ 
+                ...prev, 
+                supervisorId: e.target.value,
+                supervisor: sup ? sup.name : ''
+              }));
+            }}
+            style={{ width: '100%', padding: '12px 16px', borderRadius: 14, border: '2px solid rgba(0, 0, 0, 0.4)', background: 'white', color: '#000000', fontWeight: 500, fontSize: '1rem', boxSizing: 'border-box' }}
+          >
+            <option value="">Keiner ausgewählt</option>
+            {employees.filter(e => e._isCrossProfile).map(emp => (
+              <option key={emp.id} value={emp.id}>{emp.name}</option>
+            ))}
+          </select>
         </div>
 
         <div className="form-group">

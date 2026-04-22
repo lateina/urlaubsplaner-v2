@@ -161,6 +161,19 @@ async function run() {
                 }
             }
 
+            // 1.5 Pending Supervisor -> Individual Email
+            if (req.status === 'pending_supervisor' && !notified.pending_supervisor) {
+                const sup = allEmployees.find(e => e.id === req.supervisorId);
+                if (sup?.email) {
+                    await sendEmail(sup.email, 
+                        `Freigabeanfrage von ${empName}`,
+                        `Hallo ${sup.name},\n\n${empName} beantragt ${typeLabel} (${datesStr}). Der Vertreter hat bereits zugestimmt.\nBitte logge dich ein und gib den Antrag als unmittelbarer Vorgesetzter frei.${link}`
+                    );
+                    notified.pending_supervisor = true;
+                    updates.notified = notified;
+                }
+            }
+
             // 2. Pending Admin -> Add to Admin Digest
             if (req.status === 'pending_admin' && !notified.pending_admin) {
                 adminDigest.push(`• ${empName} | ${typeLabel} | ${datesStr}${req.vertreter ? ` | Vertreter: ${req.vertreter}` : ''}\n  → ${appUrl}`);

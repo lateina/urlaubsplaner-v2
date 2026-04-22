@@ -49,12 +49,13 @@ const Login = ({ onLogin, initialMasterKey, binId, planerType }) => {
       if (oaRes && oaRes.ok) {
         try {
           const oaData = await oaRes.json();
-          const foas = (oaData.record.employees || []).filter(emp => {
-            const grps = Array.isArray(emp.groups) ? emp.groups : (emp.group ? [emp.group] : []);
-            return grps.some(g => g && String(g).toLowerCase().includes('funktionsoberarzt'));
+          const crossEmps = (oaData.record.employees || []).filter(emp => {
+            if (emp.id === 'admin' || emp.id === 'sekretariat' || emp.id === 'assistentensprecher') return false;
+            if (emp.name && (emp.name.toLowerCase().includes('administrator') || emp.name.toLowerCase().includes('sekretariat'))) return false;
+            return true;
           }).map(f => ({ ...f, _isCrossProfile: true }));
 
-          foas.forEach(f => {
+          crossEmps.forEach(f => {
             if (!emps.find(e => e.id === f.id)) emps.push(f);
           });
         } catch (e) {

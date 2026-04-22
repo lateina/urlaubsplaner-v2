@@ -243,6 +243,12 @@ body.planer-oa .modal-card textarea {
   color: #1d4ed8 !important;
 }
 
+.status-pending-supervisor {
+  background: repeating-linear-gradient(45deg, #dcfce7, #dcfce7 6px, #ffffff 6px, #ffffff 12px) !important;
+  border: 1px solid #22c55e !important;
+  color: #166534 !important;
+}
+
 .status-pending-admin {
   background: repeating-linear-gradient(45deg, #fef3c7, #fef3c7 6px, #ffffff 6px, #ffffff 12px) !important;
   border: 1px solid #f59e0b !important;

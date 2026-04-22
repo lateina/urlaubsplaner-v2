@@ -29,6 +29,7 @@ const RequestsView = ({
   const typeLabel = { U: 'Urlaub', FZA: 'Freizeitausgleich', D: 'Dienstreise', F: 'Fortbildung', S: 'Sonstiges' };
   const statusLabel = {
     pending_vertreter: 'Vertreter-Zustimmung ausstehend',
+    pending_supervisor: 'Vorgesetzten-Zustimmung ausstehend',
     pending_admin: 'Leitender OA-Freigabe ausstehend',
     approved: 'Genehmigt',
     rejected: 'Abgelehnt'
@@ -36,6 +37,7 @@ const RequestsView = ({
 
   const statusColor = {
     pending_vertreter: '#f59e0b',
+    pending_supervisor: '#22c55e',
     pending_admin: '#6366f1',
     approved: '#10b981',
     rejected: '#ef4444'
@@ -52,7 +54,10 @@ const RequestsView = ({
   const cuId = currentUser?.id;
   
   // Tab logic for non-admins
-  const vertreterReqs = requests.filter(r => r.vertreterId === cuId && (r.status === 'pending_vertreter' || r.status === 'pending_admin' || r.status === 'approved'));
+  const vertreterReqs = requests.filter(r => 
+    (r.vertreterId === cuId && (r.status === 'pending_vertreter' || r.status === 'pending_supervisor' || r.status === 'pending_admin' || r.status === 'approved')) ||
+    (r.supervisorId === cuId && (r.status === 'pending_supervisor' || r.status === 'pending_admin' || r.status === 'approved'))
+  );
   const meineReqs = requests.filter(r => r.empId === cuId);
   const poPendingReqs = requests.filter(r => r.status === 'approved' && !r.stamps?.po && r.type !== 'D');
 
@@ -89,10 +94,14 @@ const RequestsView = ({
 
   const renderCard = (req) => {
     // Fix for stuck status: if stamps.vertreter exists but status is pending_vertreter, treat as pending_admin
-    const effectiveStatus = (req.status === 'pending_vertreter' && req.stamps?.vertreter) ? 'pending_admin' : req.status;
+    const effectiveStatus = (req.status === 'pending_vertreter' && req.stamps?.vertreter) 
+      ? (req.supervisorId ? 'pending_supervisor' : 'pending_admin') 
+      : (req.status === 'pending_supervisor' && req.stamps?.supervisor) ? 'pending_admin' : req.status;
+
     const isPendingVertreterForMe = req.vertreterId === cuId && effectiveStatus === 'pending_vertreter';
+    const isPendingSupervisorForMe = req.supervisorId === cuId && effectiveStatus === 'pending_supervisor';
     const isPendingAdmin = perms.canApproveRequests && effectiveStatus === 'pending_admin';
-    const canApprove = isPendingVertreterForMe || isPendingAdmin;
+    const canApprove = isPendingVertreterForMe || isPendingSupervisorForMe || isPendingAdmin;
     const showPOCheckbox = (subTab === 'po_transfer' || (isAdmin && effectiveStatus === 'approved')) && req.type !== 'D';
 
     return (
@@ -142,6 +151,12 @@ const RequestsView = ({
                 <span>Vertretung zugestimmt von {req.stamps.vertreter.name} am {formatDate(req.stamps.vertreter.at.split('T')[0])} {req.stamps.vertreter.isAuto ? '(Autom.)' : ''}</span>
               </div>
             )}
+            {req.stamps?.supervisor && (
+              <div style={{ fontSize: '0.75rem', color: '#22c55e', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Check size={12} />
+                <span>Vorgesetzter zugestimmt von {req.stamps.supervisor.name} am {formatDate(req.stamps.supervisor.at.split('T')[0])}</span>
+              </div>
+            )}
             {req.stamps?.admin && (
               <div style={{ fontSize: '0.75rem', color: '#8b5cf6', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Check size={12} />
@@ -168,16 +183,16 @@ const RequestsView = ({
             <>
               <button 
                 className="btn-approve" 
-                onClick={() => onApprove(req.id, isPendingVertreterForMe ? 'vertreter' : 'admin')}
+                onClick={() => onApprove(req.id, isPendingVertreterForMe ? 'vertreter' : (isPendingSupervisorForMe ? 'supervisor' : 'admin'))}
               >
                 <Check size={16} />
-                <span>{isPendingVertreterForMe ? 'Zustimmen' : 'Genehmigen'}</span>
+                <span>{isPendingVertreterForMe ? 'Zustimmen' : (isPendingSupervisorForMe ? 'Freigeben' : 'Genehmigen')}</span>
               </button>
               <button 
                 className="btn-reject" 
                 onClick={() => {
                   const note = prompt('Grund für Ablehnung?');
-                  if (note !== null) onReject(req.id, isPendingVertreterForMe ? 'vertreter' : 'admin', note);
+                  if (note !== null) onReject(req.id, isPendingVertreterForMe ? 'vertreter' : (isPendingSupervisorForMe ? 'supervisor' : 'admin'), note);
                 }}
               >
                 <X size={16} />
@@ -287,8 +302,8 @@ const RequestsView = ({
                 onClick={() => setSubTab('vertreter')}
                 style={{ padding: '8px 16px', borderRadius: '10px' }}
               >
-                Vertretungen {vertreterReqs.filter(r => r.status === 'pending_vertreter').length > 0 && (
-                  <span className="tab-badge">{vertreterReqs.filter(r => r.status === 'pending_vertreter').length}</span>
+                Vertretungen/Freigaben {vertreterReqs.filter(r => (r.status === 'pending_vertreter' && r.vertreterId === cuId) || (r.status === 'pending_supervisor' && r.supervisorId === cuId)).length > 0 && (
+                  <span className="tab-badge">{vertreterReqs.filter(r => (r.status === 'pending_vertreter' && r.vertreterId === cuId) || (r.status === 'pending_supervisor' && r.supervisorId === cuId)).length}</span>
                 )}
               </button>
             </>
