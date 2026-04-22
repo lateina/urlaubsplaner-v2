@@ -258,7 +258,7 @@ const App = () => {
             const isFoa = grps.some(g => g && String(g).toLowerCase().includes('funktionsoberarzt'));
             return {
               ...f,
-              groups: isFoa ? ['skill_funktionsoberarzt'] : grps,
+              groups: isFoa ? Array.from(new Set([...grps, 'skill_funktionsoberarzt'])) : grps,
               _isCrossProfile: true,
               _isCrossProfileFoa: isFoa,
               _isCrossProfileOa: !isFoa
