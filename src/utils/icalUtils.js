@@ -132,7 +132,13 @@ export const generateICalBlob = (absencesByEmp, employees, startDate, endDate, s
     
     let description = `Mitarbeiter: ${ev.empName}\\nArt: ${typeLabels[ev.type] || 'Abwesenheit'}`;
     if (ev.text) description += `\\nBeschreibung: ${ev.text}`;
-    if (ev.vertreter) description += `\\nVertreter: ${ev.vertreter}`;
+    if (ev.vertreter) {
+      if (ev.vertreter === 'Kein Vertreter nötig') {
+        description += `\\nKein Vertreter nötig`;
+      } else {
+        description += `\\nVertreter: ${ev.vertreter}`;
+      }
+    }
     icsContent += `DESCRIPTION:${description}\r\n`;
     
     icsContent += "END:VEVENT\r\n";

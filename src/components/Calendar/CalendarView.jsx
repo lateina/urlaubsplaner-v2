@@ -595,7 +595,11 @@ const CalendarView = ({
 
         
         if (target.vertreter) {
-          lines.push(`Vertreter: ${target.vertreter}`);
+          if (target.vertreter === 'Kein Vertreter nötig') {
+            lines.push('Kein Vertreter nötig');
+          } else {
+            lines.push(`Vertreter: ${target.vertreter}`);
+          }
         }
         lines.push('---');
       }

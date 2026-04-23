@@ -320,7 +320,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
       empId: formData.employeeId,
       type: formData.type,
       text: formData.remarks,
-      vertreter: formData.vertreter,
+      vertreter: (!isVertreterRequired && !formData.vertreterId) ? 'Kein Vertreter nötig' : formData.vertreter,
       vertreterId: formData.vertreterId,
       supervisor: formData.supervisor,
       supervisorId: formData.supervisorId,

@@ -85,8 +85,9 @@ export async function generateAndDownloadPDF(req, employees = []) {
         const uText = fmtStampText(req.stamps?.submitted, emp ? emp.name : req.empId, 'Beantragt', false);
         firstPage.drawText(uText, { x: rect.x + rect.width + 10, y: rect.y, size: 10, color: rgb(0,0,1) }); // blue
         
-        const vText = fmtStampText(req.stamps?.vertreter, req.vertreter || 'Vertreter', 'Zustimmung');
-        firstPage.drawText(vText, { x: rect.x, y: rect.y - 18, size: 10, color: rgb(1,0,0) }); // red
+        const vText = req.vertreter === 'Kein Vertreter nötig' ? 'Kein Vertreter nötig' : fmtStampText(req.stamps?.vertreter, req.vertreter || 'Vertreter', 'Zustimmung');
+        const vColor = req.vertreter === 'Kein Vertreter nötig' ? rgb(0.4, 0.4, 0.4) : rgb(1,0,0);
+        firstPage.drawText(vText, { x: rect.x, y: rect.y - 18, size: 10, color: vColor });
         
         if (req.stamps?.supervisor) {
           const sText = fmtStampText(req.stamps.supervisor, req.supervisor || 'Vorgesetzter', 'Freigabe Vorgesetzter');

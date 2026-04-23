@@ -128,7 +128,9 @@ const RequestsView = ({
           {req.vertreter && (
             <div className="request-info-row">
               <User size={14} />
-              <span>Vertreter: {req.vertreter}</span>
+              <span style={req.vertreter === 'Kein Vertreter nötig' ? { color: '#64748b' } : {}}>
+                {req.vertreter === 'Kein Vertreter nötig' ? 'Kein Vertreter nötig' : `Vertreter: ${req.vertreter}`}
+              </span>
             </div>
           )}
           {req.rejectionNote && (
@@ -145,12 +147,17 @@ const RequestsView = ({
                 <span>Beantragt von {req.stamps.submitted.name} am {formatDate(req.stamps.submitted.at.split('T')[0])}</span>
               </div>
             )}
-            {req.stamps?.vertreter && (
+            {req.vertreter === 'Kein Vertreter nötig' ? (
+              <div style={{ fontSize: '0.75rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Check size={12} />
+                <span>Kein Vertreter nötig</span>
+              </div>
+            ) : req.stamps?.vertreter ? (
               <div style={{ fontSize: '0.75rem', color: '#0ea5e9', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Check size={12} />
                 <span>Vertretung zugestimmt von {req.stamps.vertreter.name} am {formatDate(req.stamps.vertreter.at.split('T')[0])} {req.stamps.vertreter.isAuto ? '(Autom.)' : ''}</span>
               </div>
-            )}
+            ) : null}
             {req.stamps?.supervisor && (
               <div style={{ fontSize: '0.75rem', color: '#22c55e', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Check size={12} />
