@@ -229,6 +229,11 @@ const App = () => {
       };
       let areaOrder = sourceData.areaOrder || [];
       
+      // Dynamic Skill Order per profile
+      const storedOrder = sourceData[`${planerType}_skillOrder`] || [];
+      const defaultOrder = profile.displayOrder || [];
+      const skillOrder = storedOrder.length > 0 ? storedOrder : defaultOrder;
+      
       // Merge absences and requests (Requests prefer Firestore)
       let absences = { ...(data.state || {}), ...fsAbsences };
       let requests = fsRequests.length > 0 ? fsRequests : (data.requests || data.__REQUESTS__ || []);
@@ -303,9 +308,23 @@ const App = () => {
 
       // Skill Filtering: Show skills for this profile OR shared ones
       const profileSkillIds = new Set(profile.defaultSkills.map(s => s.id));
-      let skills = allSkills.filter(s => {
+      let filteredSkills = allSkills.filter(s => {
         const sType = s.planerType || 'shared';
         return sType === 'shared' || sType === planerType || profileSkillIds.has(s.id);
+      });
+
+      // Sort by skillOrder
+      const skills = filteredSkills.sort((a, b) => {
+        const nameA = typeof a === 'object' ? a.name : a;
+        const nameB = typeof b === 'object' ? b.name : b;
+        const idA = typeof a === 'object' ? a.id : a;
+        const idB = typeof b === 'object' ? b.id : b;
+        
+        const idxA = skillOrder.indexOf(idA) !== -1 ? skillOrder.indexOf(idA) : 
+                     (skillOrder.indexOf(nameA) !== -1 ? skillOrder.indexOf(nameA) : 999);
+        const idxB = skillOrder.indexOf(idB) !== -1 ? skillOrder.indexOf(idB) : 
+                     (skillOrder.indexOf(nameB) !== -1 ? skillOrder.indexOf(nameB) : 999);
+        return idxA - idxB;
       });
 
       // 3. Migration Logic (for IDs)
@@ -880,8 +899,10 @@ const App = () => {
       
       // CRITICAL FIX: appData.skills must stay filtered to the current profile
       finalData.skills = currentAndShared; 
-      // The full list (for Firestore) gets everything
-      finalData.fullSkillList = [...currentAndShared, ...otherSkills];
+      // The full list (for Firestore) gets everything (unsorted pool)
+      finalData.fullSkillList = Array.from(skillMap.values());
+      // Save the order specifically for this profile
+      finalData[`${planerType}_skillOrder`] = currentAndShared.map(s => s.id);
     }
 
     const nextAppData = { ...appData, ...finalData };
