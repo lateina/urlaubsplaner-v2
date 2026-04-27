@@ -323,7 +323,7 @@ const App = () => {
       });
 
       // Apply type-correction to the full pool
-      const correctedFullSkillPool = Array.from(fullSkillPoolMap.values()).map(s => {
+      const fullSkillPoolRaw = Array.from(fullSkillPoolMap.values()).map(s => {
         const id = s.id;
         let t = s.planerType;
         if (SHARED_SKILL_IDS.has(id)) t = 'shared';
@@ -331,6 +331,13 @@ const App = () => {
         else if (ASS_ONLY_IDS.has(id)) t = 'ass';
         else if (!t) t = 'shared';
         return { ...s, planerType: t };
+      });
+      // Deduplicate by ID (safety net for shared skills appearing in both profile defaults)
+      const seenPool = new Set();
+      const correctedFullSkillPool = fullSkillPoolRaw.filter(s => {
+        if (seenPool.has(s.id)) return false;
+        seenPool.add(s.id);
+        return true;
       });
 
       // Build PROFILE-SPECIFIC view: only db skills relevant to this profile
@@ -362,8 +369,8 @@ const App = () => {
         return idxA - idxB;
       });
 
-      // 3. Type-Correction on display skills
-      const migratedSkills = sortedSkills.map(s => {
+      // 3. Type-Correction on display skills + deduplicate
+      const migratedSkillsRaw = sortedSkills.map(s => {
         const id = s.id;
         let targetType = s.planerType;
         if (SHARED_SKILL_IDS.has(id)) targetType = 'shared';
@@ -371,6 +378,12 @@ const App = () => {
         else if (ASS_ONLY_IDS.has(id)) targetType = 'ass';
         else if (!targetType) targetType = planerType;
         return { ...s, planerType: targetType };
+      });
+      const seenDisplay = new Set();
+      const migratedSkills = migratedSkillsRaw.filter(s => {
+        if (seenDisplay.has(s.id)) return false;
+        seenDisplay.add(s.id);
+        return true;
       });
 
       const migratedEmployees = employees.map(emp => {
