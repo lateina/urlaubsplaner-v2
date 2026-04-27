@@ -479,19 +479,29 @@ const App = () => {
     try {
       const { absences, requests } = dataToSave;
 
-      // 1. Save Employees and Config to Firestore
-      const configPayload = {
-        employees: dedupe(dataToSave.employees || appData.fullEmployeeList),
-        skills: dedupe(dataToSave.skills || appData.fullSkillList),
+      // 1. Save Employees and Config to Firestore (MUST BE FULL LIST)
+      const firestorePayload = {
+        employees: dedupe(dataToSave.fullEmployeeList || dataToSave.employees || []),
+        skills: dedupe(dataToSave.fullSkillList || dataToSave.skills || []),
         groupColors: dataToSave.groupColors || appData.groupColors,
         areaOrder: dataToSave.areaOrder || appData.areaOrder || [],
         settings: dataToSave.settings || appData.settings
       };
       
-      await firestoreService.saveConfig(configPayload);
+      await firestoreService.saveConfig(firestorePayload);
 
-      // 2. Parallel backup save to JSONBin (optional, can be removed later)
-      apiService.save(binId, auth.masterKey, { ...configPayload, state: {}, requests: [] })
+      // 2. Parallel backup save to JSONBin (FILTERED to avoid leakage)
+      const jsonbinPayload = {
+        ...firestorePayload,
+        employees: firestorePayload.employees.filter(emp => {
+            const isFOA = Array.isArray(emp.groups) && emp.groups.includes('skill_funktionsoberarzt');
+            if (planerType === 'oa') return emp.role === 'Oberarzt' || isFOA;
+            return emp.role !== 'Oberarzt' || isFOA;
+        }),
+        state: {},
+        requests: []
+      };
+      apiService.save(binId, auth.masterKey, jsonbinPayload)
         .catch(e => console.warn('JSONBin backup failed', e));
 
       // 3. Save Absences to Firestore
@@ -856,13 +866,16 @@ const App = () => {
           return { ...existing, ...s };
       });
       
-      // Keep other planner's skills at the END so current sorting is preserved
+      // Keep other planner's skills separate for the FULL list
       const otherSkills = Array.from(skillMap.values()).filter(s => {
           const sType = s.planerType || 'shared';
           return sType !== 'shared' && sType !== planerType;
       });
       
-      finalData.skills = [...currentAndShared, ...otherSkills];
+      // CRITICAL FIX: appData.skills must stay filtered to the current profile
+      finalData.skills = currentAndShared; 
+      // The full list (for Firestore) gets everything
+      finalData.fullSkillList = [...currentAndShared, ...otherSkills];
     }
 
     const nextAppData = { ...appData, ...finalData };
