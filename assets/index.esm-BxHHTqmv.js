@@ -1,1 +1,0 @@
-import{B as e,R as t,u as n}from"./index.esm-gstzQEMF.js";export{t as doc,n as getDoc,e as getFirestore};
