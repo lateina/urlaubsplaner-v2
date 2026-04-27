@@ -59,6 +59,9 @@ const OA_ONLY_IDS = new Set([
 const ASS_ONLY_IDS = new Set([
   'skill_station5052', 'skill_intermits', 'skill_notaufnahme', 'skill_fremdrotation', 'skill_kardiologie'
 ]);
+const SHARED_SKILL_IDS = new Set([
+  'skill_funktionsoberarzt', 'skill_keinvertreternotig'
+]);
 
 const App = () => {
   const [activeTab, setActiveTab] = useState('calendar');
@@ -850,12 +853,15 @@ const App = () => {
       // Update or add skills from the current editor
       newData.skills.forEach(s => {
         const existing = skillMap.get(s.id);
+        const isShared = SHARED_SKILL_IDS.has(s.id) || (existing && existing.planerType === 'shared');
+        
         skillMap.set(s.id, {
-          ...existing, // Keep old tags (planerType)
+          ...existing, // Keep old tags
           ...s,        // Apply new name/order
-          // If it's a brand new skill, tag it with the current planerType
-          planerType: (existing && existing.planerType) ? existing.planerType : 
-                     (OA_ONLY_IDS.has(s.id) ? 'oa' : (ASS_ONLY_IDS.has(s.id) ? 'ass' : planerType))
+          // Shared skills stay shared; others get tagged if new
+          planerType: isShared ? 'shared' : 
+                     ((existing && existing.planerType) ? existing.planerType : 
+                      (OA_ONLY_IDS.has(s.id) ? 'oa' : (ASS_ONLY_IDS.has(s.id) ? 'ass' : planerType)))
         });
       });
 
