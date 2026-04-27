@@ -57,7 +57,7 @@ const OA_ONLY_IDS = new Set([
   'skill_interventionellesecho'
 ]);
 const ASS_ONLY_IDS = new Set([
-  'skill_station5052', 'skill_intermits', 'skill_notaufnahme', 'skill_fremdrotation', 'skill_kardiologie'
+  'skill_intermits', 'skill_notaufnahme', 'skill_fremdrotation', 'skill_kardiologie'
 ]);
 const SHARED_SKILL_IDS = new Set([
   'skill_funktionsoberarzt', 'skill_keinvertreternotig'

@@ -10,7 +10,6 @@ export const PLANER_PROFILES = {
     icon: 'Users',
     defaultSkills: [
       { id: 'skill_funktionsoberarzt', name: 'Funktionsoberarzt' },
-      { id: 'skill_station5052', name: 'Station 50-52' },
       { id: 'skill_intermits', name: 'Interm/ITS' },
       { id: 'skill_notaufnahme', name: 'Notaufnahme' },
       { id: 'skill_fremdrotation', name: 'Fremdrotation' },
@@ -18,7 +17,6 @@ export const PLANER_PROFILES = {
       { id: 'skill_keinvertreternotig', name: 'Kein Vertreter nötig' }
     ],
     defaultColors: {
-      'Station 50-52': '#3b82f6',
       'Interm/ITS': '#6366f1',
       'Notaufnahme': '#14b8a6',
       'Fremdrotation': '#8b5cf6',
@@ -29,7 +27,6 @@ export const PLANER_PROFILES = {
       'Kein Vertreter nötig': '#6b7280'
     },
     displayOrder: [
-      'Station 50-52',
       'Interm/ITS',
       'Notaufnahme',
       'Fremdrotation',
@@ -38,7 +35,7 @@ export const PLANER_PROFILES = {
       'Kein Vertreter nötig'
     ],
     areaOrder: [
-      'Station 50-52', 'Interm/ITS', 'Notaufnahme', 'Fremdrotation', 'Kardiologie'
+      'Interm/ITS', 'Notaufnahme', 'Fremdrotation', 'Kardiologie'
     ]
   },
   oa: {
