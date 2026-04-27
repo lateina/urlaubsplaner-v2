@@ -305,10 +305,25 @@ const App = () => {
       });
       let employees = Array.from(employeeMap.values());
 
-      // 2. Skill Logic: Merge DB skills with defaults to ensure nothing is missing
+      // 2. Skill Logic: Build fullSkillList from ALL profiles + DB to never lose cross-profile skills
       const dbSkills = Array.isArray(sourceData.skills) ? sourceData.skills : [];
       const profileDefaults = profile.defaultSkills || [];
+      // Include defaults from BOTH profiles so fullSkillList is complete
+      const allProfileDefaults = [
+        ...Object.values(PLANER_PROFILES).flatMap(p => p.defaultSkills || [])
+      ];
       
+      // Build full pool: all profile defaults + all DB skills
+      const fullSkillPoolMap = new Map();
+      [...allProfileDefaults, ...dbSkills].forEach(s => {
+        if (!s) return;
+        const skillObj = typeof s === 'object' ? s : { name: String(s) };
+        const id = skillObj.id || `skill_${String(skillObj.name).toLowerCase().trim().replace(/[^a-z0-9]/g, '')}`;
+        fullSkillPoolMap.set(id, { ...skillObj, id });
+      });
+      const fullSkillPool = Array.from(fullSkillPoolMap.values());
+
+      // Build current-profile view: profile defaults + DB skills
       const skillMap = new Map();
       [...profileDefaults, ...dbSkills].forEach(s => {
         if (!s) return;
@@ -320,6 +335,17 @@ const App = () => {
       });
 
       const allSkills = Array.from(skillMap.values());
+      
+      // Apply type-correction to the full pool for safe saving later
+      const correctedFullSkillPool = fullSkillPool.map(s => {
+        const id = s.id;
+        let t = s.planerType;
+        if (SHARED_SKILL_IDS.has(id)) t = 'shared';
+        else if (OA_ONLY_IDS.has(id)) t = 'oa';
+        else if (ASS_ONLY_IDS.has(id)) t = 'ass';
+        else if (!t) t = 'shared'; // unknown = shared
+        return { ...s, planerType: t };
+      });
 
       // Skill Filtering: Show skills for this profile OR shared ones
       const profileSkillIds = new Set(profile.defaultSkills.map(s => s.id));
@@ -379,7 +405,7 @@ const App = () => {
       setAppData({
         employees: migratedEmployees,
         fullEmployeeList: allEmployees,
-        fullSkillList: allSkills,
+        fullSkillList: correctedFullSkillPool,
         absences,
         requests,
         skills: migratedSkills,
