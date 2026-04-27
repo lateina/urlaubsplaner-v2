@@ -965,11 +965,22 @@ const App = () => {
 
     const nextAppData = { ...appData, ...finalData };
     if (finalData.employees) {
-        // Important: Update full list as well
+        // Update the current filtered view AND the full list
+        nextAppData.employees = finalData.employees.filter(emp => {
+            // Re-filter to only show current profile's employees in the calendar
+            if (planerType === 'oa') {
+                return emp.role === 'Oberarzt' || emp.id === 'admin' || emp.id === 'sekretariat' || emp.id === 'maier' || emp.isOberarzt === true;
+            } else {
+                const groups = Array.isArray(emp.groups) ? emp.groups : [];
+                const isFOA = groups.includes('skill_funktionsoberarzt');
+                return (emp.role !== 'Oberarzt' && emp.id !== 'maier' && !emp.isOberarzt) || isFOA;
+            }
+        });
         nextAppData.fullEmployeeList = finalData.employees;
     }
-    if (finalData.skills) {
-        nextAppData.fullSkillList = finalData.skills;
+    if (finalData.fullSkillList) {
+        // Use the complete cross-profile pool, not the filtered view
+        nextAppData.fullSkillList = finalData.fullSkillList;
     }
 
     if (finalData.employees || finalData.absences) {
