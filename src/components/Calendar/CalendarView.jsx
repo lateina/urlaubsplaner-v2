@@ -256,17 +256,17 @@ const CalendarView = ({
     grps.forEach(g => {
       const sName = getSkillName(g);
       
-      // 1. Try hardcoded displayOrder (HTML/Config based)
-      let idx = displayOrder.indexOf(sName);
+      // 1. Try dynamic skills list index (from Skillverwaltung)
+      let idx = skills.findIndex(s => {
+        const sId = typeof s === 'object' ? s.id : s;
+        const sObjName = typeof s === 'object' ? s.name : s;
+        return sId === g || sObjName === g;
+      });
       
-      // 2. Fallback to dynamic skills list index
+      // 2. Fallback to hardcoded displayOrder if not in Skillverwaltung
       if (idx === -1) {
-        idx = skills.findIndex(s => {
-          const sId = typeof s === 'object' ? s.id : s;
-          const sObjName = typeof s === 'object' ? s.name : s;
-          return sId === g || sObjName === g;
-        });
-        if (idx !== -1) idx += 100; // Put dynamic skills after hardcoded ones
+        idx = displayOrder.indexOf(sName);
+        if (idx !== -1) idx += 500; // Put after dynamic skills
       }
 
       if (idx !== -1 && idx < minIdx) {
