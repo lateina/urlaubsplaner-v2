@@ -221,7 +221,6 @@ const App = () => {
       });
       const allEmployees = Array.from(uniqueRawMap.values());
 
-      const allSkills = (sourceData.skills && sourceData.skills.length > 0) ? sourceData.skills : (profile.defaultSkills || []);
       let groupColors = {
         ...DEFAULT_GROUP_COLORS,
         ...(profile.defaultColors || {}),
@@ -306,19 +305,41 @@ const App = () => {
       });
       let employees = Array.from(employeeMap.values());
 
+      // 2. Skill Logic: Merge DB skills with defaults to ensure nothing is missing
+      const dbSkills = Array.isArray(sourceData.skills) ? sourceData.skills : [];
+      const profileDefaults = profile.defaultSkills || [];
+      
+      const skillMap = new Map();
+      [...profileDefaults, ...dbSkills].forEach(s => {
+        if (!s) return;
+        const skillObj = typeof s === 'object' ? s : { name: String(s) };
+        const id = skillObj.id || `skill_${String(skillObj.name).toLowerCase().trim().replace(/[^a-z0-9]/g, '')}`;
+        
+        // Merge: DB version wins, but ensure ID is set
+        skillMap.set(id, { ...skillObj, id });
+      });
+
+      const allSkills = Array.from(skillMap.values());
+
       // Skill Filtering: Show skills for this profile OR shared ones
       const profileSkillIds = new Set(profile.defaultSkills.map(s => s.id));
       let filteredSkills = allSkills.filter(s => {
+        const id = s.id;
         const sType = s.planerType || 'shared';
-        return sType === 'shared' || sType === planerType || profileSkillIds.has(s.id);
+        
+        // Forced visibility for profile-specific skills
+        if (planerType === 'oa' && OA_ONLY_IDS.has(id)) return true;
+        if (planerType === 'ass' && ASS_ONLY_IDS.has(id)) return true;
+        
+        return sType === 'shared' || sType === planerType || profileSkillIds.has(id);
       });
 
       // Sort by skillOrder
-      const skills = filteredSkills.sort((a, b) => {
-        const nameA = typeof a === 'object' ? a.name : a;
-        const nameB = typeof b === 'object' ? b.name : b;
-        const idA = typeof a === 'object' ? a.id : a;
-        const idB = typeof b === 'object' ? b.id : b;
+      const sortedSkills = filteredSkills.sort((a, b) => {
+        const idA = a.id;
+        const idB = b.id;
+        const nameA = a.name;
+        const nameB = b.name;
         
         const idxA = skillOrder.indexOf(idA) !== -1 ? skillOrder.indexOf(idA) : 
                      (skillOrder.indexOf(nameA) !== -1 ? skillOrder.indexOf(nameA) : 999);
@@ -327,22 +348,19 @@ const App = () => {
         return idxA - idxB;
       });
 
-      // 3. Migration Logic (for IDs)
-      const migratedSkills = skills.map(s => {
-        if (typeof s === 'object' && s.id) return s;
-        
-        const name = String(s);
-        const id = `skill_${name.toLowerCase().trim().replace(/[^a-z0-9]/g, '')}`;
-        
-        // Correctly tag legacy strings during migration
-        let targetType = planerType;
+      // 3. Migration & Type-Correction Logic
+      const migratedSkills = sortedSkills.map(s => {
+        const id = s.id;
+        let targetType = s.planerType;
+
+        // Force correct tagging based on ID lists
         if (SHARED_SKILL_IDS.has(id)) targetType = 'shared';
         else if (OA_ONLY_IDS.has(id)) targetType = 'oa';
         else if (ASS_ONLY_IDS.has(id)) targetType = 'ass';
+        else if (!targetType) targetType = planerType;
 
         return {
-          id: id,
-          name: name,
+          ...s,
           planerType: targetType
         };
       });
