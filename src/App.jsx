@@ -379,6 +379,8 @@ const App = () => {
         status: sourceData.status,
         ass_areaOrder: ass_areaOrder.length > 0 ? ass_areaOrder : PLANER_PROFILES.ass.areaOrder,
         oa_areaOrder: oa_areaOrder.length > 0 ? oa_areaOrder : PLANER_PROFILES.oa.areaOrder,
+        ass_skillOrder: sourceData.ass_skillOrder || [],
+        oa_skillOrder: sourceData.oa_skillOrder || [],
         settings: sourceData.settings || {},
         vacationStats: updateVacationStats(absences, migratedEmployees, data?.vacationStats || {}, requests)
       });
