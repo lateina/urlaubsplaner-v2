@@ -226,7 +226,8 @@ const App = () => {
         ...(profile.defaultColors || {}),
         ...(sourceData.groupColors || {})
       };
-      let areaOrder = sourceData.areaOrder || [];
+      let ass_areaOrder = sourceData.ass_areaOrder || [];
+      let oa_areaOrder = sourceData.oa_areaOrder || [];
       
       // Dynamic Skill Order per profile
       const storedOrder = sourceData[`${planerType}_skillOrder`] || [];
@@ -373,10 +374,9 @@ const App = () => {
         skills: correctedFullSkillPool,  // ALL skills, tagged oa/ass/shared
         absences,
         requests,
-        groupColors,
-        rotationData: rotations || [],
         status: sourceData.status,
-        areaOrder: areaOrder,
+        ass_areaOrder: ass_areaOrder.length > 0 ? ass_areaOrder : planerConfig.ass.areaOrder,
+        oa_areaOrder: oa_areaOrder.length > 0 ? oa_areaOrder : planerConfig.oa.areaOrder,
         settings: sourceData.settings || {},
         vacationStats: updateVacationStats(absences, migratedEmployees, data.vacationStats || {}, requests)
       });
@@ -522,9 +522,9 @@ const App = () => {
       // 1. Save Employees and Config to Firestore (MUST BE FULL LIST)
       const firestorePayload = {
         employees: dedupe(dataToSave.fullEmployeeList || dataToSave.employees || []),
-        skills: dedupe(dataToSave.skills || []),  // Full tagged list
         groupColors: dataToSave.groupColors || appData.groupColors,
-        areaOrder: dataToSave.areaOrder || appData.areaOrder || [],
+        ass_areaOrder: dataToSave.ass_areaOrder || appData.ass_areaOrder || [],
+        oa_areaOrder: dataToSave.oa_areaOrder || appData.oa_areaOrder || [],
         settings: dataToSave.settings || appData.settings,
         ass_skillOrder: dataToSave.ass_skillOrder || appData.ass_skillOrder || [],
         oa_skillOrder: dataToSave.oa_skillOrder || appData.oa_skillOrder || [],
@@ -1055,7 +1055,7 @@ const App = () => {
             groupColors={appData.groupColors}
             rotationData={appData.rotationData}
             skills={profileSkills}
-            areaOrder={appData.areaOrder}
+            areaOrder={appData[`${planerType}_areaOrder`]}
             displayOrder={profile.displayOrder || []}
             actionRequiredCount={actionRequiredCount}
             vacationStats={appData.vacationStats}
@@ -1126,12 +1126,12 @@ const App = () => {
               title="Rotationsbereiche verwalten"
               type="areas"
               canEdit={false}
-              items={(appData.areaOrder || MONTH_AREA_ORDER).map(id => ({ id, name: MONTH_AREA_MAPPING[id] || id }))}
+              items={(appData[`${planerType}_areaOrder`] || MONTH_AREA_ORDER).map(id => ({ id, name: MONTH_AREA_MAPPING[id] || id }))}
               groupColors={appData.groupColors}
               palette={LEGACY_PALETTE}
               onSave={(newData) => handleUpdateAdminData({
                 groupColors: newData.groupColors,
-                areaOrder: newData.areaOrder
+                [`${planerType}_areaOrder`]: newData.areaOrder
               })}
             />
           </div>

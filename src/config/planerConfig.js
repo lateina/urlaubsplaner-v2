@@ -1,3 +1,5 @@
+import { MONTH_AREA_ORDER } from './rotationConfig';
+
 /**
  * Profiles for different versions of the Urlaubsplaner
  */
@@ -34,9 +36,7 @@ export const PLANER_PROFILES = {
       'Funktionsoberarzt',
       'Kein Vertreter nötig'
     ],
-    areaOrder: [
-      'Interm/ITS', 'Notaufnahme', 'Fremdrotation', 'Kardiologie'
-    ]
+    areaOrder: MONTH_AREA_ORDER
   },
   oa: {
     id: 'oa',
