@@ -466,8 +466,13 @@ const App = () => {
     
     // Final safety deduplication for EVERYTHING we save to config
     const dedupe = (list) => {
+        if (!Array.isArray(list)) return [];
         const map = new Map();
-        list.forEach(item => { if (item && item.id) map.set(item.id, item); });
+        list.forEach(item => { 
+            if (!item) return;
+            const id = item.id || (typeof item === 'string' ? item : null);
+            if (id) map.set(id, item); 
+        });
         return Array.from(map.values());
     };
 
@@ -479,7 +484,7 @@ const App = () => {
         employees: dedupe(dataToSave.employees || appData.fullEmployeeList),
         skills: dedupe(dataToSave.skills || appData.fullSkillList),
         groupColors: dataToSave.groupColors || appData.groupColors,
-        areaOrder: dataToSave.areaOrder || appData.areaOrder,
+        areaOrder: dataToSave.areaOrder || appData.areaOrder || [],
         settings: dataToSave.settings || appData.settings
       };
       
@@ -846,15 +851,18 @@ const App = () => {
 
       // To preserve the user's intended order for the CURRENT profile, 
       // we need to construct a list that respects the new order but keeps other skills.
-      // Strategy: Keep all 'other' skills at the top/bottom, and put edited skills in between.
+      const currentAndShared = newData.skills.map(s => {
+          const existing = skillMap.get(s.id) || {};
+          return { ...existing, ...s };
+      });
+      
+      // Keep other planner's skills at the END so current sorting is preserved
       const otherSkills = Array.from(skillMap.values()).filter(s => {
           const sType = s.planerType || 'shared';
           return sType !== 'shared' && sType !== planerType;
       });
       
-      const currentAndShared = newData.skills.map(s => skillMap.get(s.id));
-      
-      finalData.skills = [...otherSkills, ...currentAndShared];
+      finalData.skills = [...currentAndShared, ...otherSkills];
     }
 
     const nextAppData = { ...appData, ...finalData };
