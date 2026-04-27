@@ -305,60 +305,44 @@ const App = () => {
       });
       let employees = Array.from(employeeMap.values());
 
-      // 2. Skill Logic: Build fullSkillList from ALL profiles + DB to never lose cross-profile skills
+      // 2. Skill Logic
       const dbSkills = Array.isArray(sourceData.skills) ? sourceData.skills : [];
       const profileDefaults = profile.defaultSkills || [];
-      const profileDefaultIds = new Set(profileDefaults.map(s => s.id));
-
-      // Include defaults from BOTH profiles so fullSkillList is complete
-      const allProfileDefaults = Object.values(PLANER_PROFILES).flatMap(p => p.defaultSkills || []);
       
-      // Build full pool: all profile defaults + all DB skills (for saving)
-      const fullSkillPoolMap = new Map();
-      [...allProfileDefaults, ...dbSkills].forEach(s => {
-        if (!s) return;
-        const skillObj = typeof s === 'object' ? s : { name: String(s) };
-        const id = skillObj.id || `skill_${String(skillObj.name).toLowerCase().trim().replace(/[^a-z0-9]/g, '')}`;
-        fullSkillPoolMap.set(id, { ...skillObj, id });
-      });
+      // Use DB skills if available, fall back to defaults only on first run (empty DB)
+      const hasDbSkills = dbSkills.length > 0;
+      const rawSkillSource = hasDbSkills ? dbSkills : profileDefaults;
 
-      // Apply type-correction to the full pool
-      const fullSkillPoolRaw = Array.from(fullSkillPoolMap.values()).map(s => {
-        const id = s.id;
-        let t = s.planerType;
-        if (SHARED_SKILL_IDS.has(id)) t = 'shared';
-        else if (OA_ONLY_IDS.has(id)) t = 'oa';
-        else if (ASS_ONLY_IDS.has(id)) t = 'ass';
-        else if (!t) t = 'shared';
-        return { ...s, planerType: t };
-      });
-      // Deduplicate by ID (safety net for shared skills appearing in both profile defaults)
-      const seenPool = new Set();
-      const correctedFullSkillPool = fullSkillPoolRaw.filter(s => {
-        if (seenPool.has(s.id)) return false;
-        seenPool.add(s.id);
-        return true;
-      });
+      // Apply type-correction + dedup to ALL skills in DB
+      const skillIdsSeen = new Set();
+      const correctedFullSkillPool = rawSkillSource
+        .filter(s => s && (s.id || s.name))
+        .map(s => {
+          const skillObj = typeof s === 'object' ? s : { name: String(s) };
+          const id = skillObj.id || `skill_${String(skillObj.name).toLowerCase().trim().replace(/[^a-z0-9]/g, '')}`;
+          let t = skillObj.planerType;
+          if (SHARED_SKILL_IDS.has(id)) t = 'shared';
+          else if (OA_ONLY_IDS.has(id)) t = 'oa';
+          else if (ASS_ONLY_IDS.has(id)) t = 'ass';
+          else if (!t) t = planerType;
+          return { ...skillObj, id, planerType: t };
+        })
+        .filter(s => {
+          if (skillIdsSeen.has(s.id)) return false;
+          skillIdsSeen.add(s.id);
+          return true;
+        });
 
-      // Build PROFILE-SPECIFIC view: only db skills relevant to this profile
-      const profileDbSkills = dbSkills.filter(s => {
-        if (!s || !s.id) return false;
+      // Profile-specific view (filter to current profile)
+      const profileDefaultIds = new Set(profileDefaults.map(s => s.id));
+      const allSkills = correctedFullSkillPool.filter(s => {
         const id = s.id;
-        const sType = s.planerType || '';
+        const t = s.planerType;
         if (SHARED_SKILL_IDS.has(id)) return true;
         if (planerType === 'oa' && OA_ONLY_IDS.has(id)) return true;
         if (planerType === 'ass' && ASS_ONLY_IDS.has(id)) return true;
-        return sType === planerType || profileDefaultIds.has(id);
+        return t === planerType || (!hasDbSkills && profileDefaultIds.has(id));
       });
-
-      const skillViewMap = new Map();
-      [...profileDefaults, ...profileDbSkills].forEach(s => {
-        if (!s) return;
-        const skillObj = typeof s === 'object' ? s : { name: String(s) };
-        const id = skillObj.id || `skill_${String(skillObj.name).toLowerCase().trim().replace(/[^a-z0-9]/g, '')}`;
-        skillViewMap.set(id, { ...skillObj, id });
-      });
-      const allSkills = Array.from(skillViewMap.values());
 
       // Sort by skillOrder
       const sortedSkills = allSkills.sort((a, b) => {
@@ -369,22 +353,8 @@ const App = () => {
         return idxA - idxB;
       });
 
-      // 3. Type-Correction on display skills + deduplicate
-      const migratedSkillsRaw = sortedSkills.map(s => {
-        const id = s.id;
-        let targetType = s.planerType;
-        if (SHARED_SKILL_IDS.has(id)) targetType = 'shared';
-        else if (OA_ONLY_IDS.has(id)) targetType = 'oa';
-        else if (ASS_ONLY_IDS.has(id)) targetType = 'ass';
-        else if (!targetType) targetType = planerType;
-        return { ...s, planerType: targetType };
-      });
-      const seenDisplay = new Set();
-      const migratedSkills = migratedSkillsRaw.filter(s => {
-        if (seenDisplay.has(s.id)) return false;
-        seenDisplay.add(s.id);
-        return true;
-      });
+      // Already type-corrected and deduped above
+      const migratedSkills = sortedSkills;
 
       const migratedEmployees = employees.map(emp => {
         const groups = Array.isArray(emp.groups) ? emp.groups : (emp.group ? [emp.group] : []);
@@ -917,52 +887,42 @@ const App = () => {
 
     // Same for skills
     if (newData.skills) {
+      // The new skill list from the editor = source of truth for this profile
+      const newSkillIds = new Set(newData.skills.map(s => s.id));
+
       // Use a Map of the FULL list to maintain all skills and their tags
       const skillMap = new Map();
       appData.fullSkillList.forEach(s => skillMap.set(s.id, { ...s }));
+
+      // Remove current-profile skills that were deleted by the user
+      skillMap.forEach((s, id) => {
+        const t = s.planerType || 'shared';
+        const belongsToThisProfile = t === planerType || 
+          (planerType === 'oa' && OA_ONLY_IDS.has(id)) || 
+          (planerType === 'ass' && ASS_ONLY_IDS.has(id));
+        if (belongsToThisProfile && !SHARED_SKILL_IDS.has(id) && !newSkillIds.has(id)) {
+          skillMap.delete(id);
+        }
+      });
 
       // Update or add skills from the current editor
       newData.skills.forEach(s => {
         const existing = skillMap.get(s.id);
         const isShared = SHARED_SKILL_IDS.has(s.id) || (existing && existing.planerType === 'shared');
         
-        // Determine the permanent planerType
-        let finalType = planerType; // Default to current
-        if (isShared) {
-          finalType = 'shared';
-        } else if (existing && existing.planerType) {
-          finalType = existing.planerType; // Preserve existing!
-        } else if (OA_ONLY_IDS.has(s.id)) {
-          finalType = 'oa';
-        } else if (ASS_ONLY_IDS.has(s.id)) {
-          finalType = 'ass';
-        }
+        let finalType = planerType;
+        if (isShared) finalType = 'shared';
+        else if (existing && existing.planerType) finalType = existing.planerType;
+        else if (OA_ONLY_IDS.has(s.id)) finalType = 'oa';
+        else if (ASS_ONLY_IDS.has(s.id)) finalType = 'ass';
 
-        skillMap.set(s.id, {
-          ...existing, 
-          ...s,        
-          planerType: finalType
-        });
+        skillMap.set(s.id, { ...existing, ...s, planerType: finalType });
       });
 
-      // To preserve the user's intended order for the CURRENT profile, 
-      // we need to construct a list that respects the new order but keeps other skills.
-      const currentAndShared = newData.skills.map(s => {
-          const existing = skillMap.get(s.id) || {};
-          return { ...existing, ...s };
-      });
+      const currentAndShared = newData.skills.map(s => skillMap.get(s.id) || s);
       
-      // Keep other planner's skills separate for the FULL list
-      const otherSkills = Array.from(skillMap.values()).filter(s => {
-          const sType = s.planerType || 'shared';
-          return sType !== 'shared' && sType !== planerType;
-      });
-      
-      // CRITICAL FIX: appData.skills must stay filtered to the current profile
-      finalData.skills = currentAndShared; 
-      // The full list (for Firestore) gets everything (unsorted pool)
+      finalData.skills = currentAndShared;
       finalData.fullSkillList = Array.from(skillMap.values());
-      // Save the order specifically for this profile
       finalData[`${planerType}_skillOrder`] = currentAndShared.map(s => s.id);
     }
 
