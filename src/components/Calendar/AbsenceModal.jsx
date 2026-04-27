@@ -579,7 +579,17 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
             style={{ width: '100%', padding: '12px 16px', borderRadius: 14, border: '2px solid rgba(0, 0, 0, 0.4)', background: 'white', color: '#000000', fontWeight: 500, fontSize: '1rem', boxSizing: 'border-box' }}
           >
             <option value="">Keiner ausgewählt</option>
-            {employees.filter(e => e._isCrossProfile).map(emp => (
+            {employees.filter(e => {
+              const isSpecial = ['admin', 'sekretariat', 'assistentensprecher'].includes(e.id) || 
+                                e.name?.toLowerCase().includes('administrator') ||
+                                e.name?.toLowerCase().includes('sekretariat');
+              const isFOA = Array.isArray(e.groups) && e.groups.includes('skill_funktionsoberarzt');
+              const isOA = e.role === 'Oberarzt';
+              const isSelf = e.id === formData.employeeId;
+              
+              // Only OAs or FOAs can be supervisors, and they must not be the requester or a special role
+              return (isOA || isFOA) && !isSpecial && !isSelf && e.active !== false;
+            }).map(emp => (
               <option key={emp.id} value={emp.id}>{emp.name}</option>
             ))}
           </select>
