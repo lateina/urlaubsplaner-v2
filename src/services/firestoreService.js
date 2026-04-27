@@ -97,5 +97,32 @@ export const firestoreService = {
       console.error('Error deleting request from Firestore:', error);
       throw error;
     }
+  },
+
+  /**
+   * Global Config (Employees, Skills, Settings)
+   */
+  async loadConfig() {
+    try {
+      const docSnap = await getDocs(query(collection(db, 'up_config')));
+      // We use a single document 'main' for the whole project
+      const mainDoc = docSnap.docs.find(d => d.id === 'main');
+      return mainDoc ? mainDoc.data() : null;
+    } catch (error) {
+      console.error('Error loading config from Firestore:', error);
+      return null;
+    }
+  },
+
+  async saveConfig(config) {
+    try {
+      await setDoc(doc(db, 'up_config', 'main'), {
+        ...config,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+    } catch (error) {
+      console.error('Error saving config to Firestore:', error);
+      throw error;
+    }
   }
 };

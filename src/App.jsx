@@ -171,16 +171,18 @@ const App = () => {
 
     try {
       // 1. Parallel Fetches
+      const firestoreConfigFetch = firestoreService.loadConfig(); // TRY FIRESTORE FIRST
       const mainFetch = apiService.load(binId, key);
       const rotationFetch = apiService.load(ROTATION_BIN_ID, key);
       const firestoreAbsencesFetch = firestoreService.loadAbsences(planerType);
       const firestoreRequestsFetch = firestoreService.loadRequests(planerType);
-      // Fetch OA absences from Firestore specifically if we are in Assistant Planner (for FOA sync)
+      
       const firestoreOAAbsencesFetch = (planerType === 'ass')
         ? firestoreService.loadAbsences('oa')
         : Promise.resolve({});
 
-      const [data, rotations, fsAbsences, fsRequests, fsOAAbsences] = await Promise.all([
+      const [fsConfig, data, rotations, fsAbsences, fsRequests, fsOAAbsences] = await Promise.all([
+        firestoreConfigFetch.catch(e => { console.warn("Firestore config fetch failed", e); return null; }),
         mainFetch,
         rotationFetch.catch(e => { console.warn("Rotation fetch failed", e); return null; }),
         firestoreAbsencesFetch.catch(e => { console.error("Firestore absences fetch failed", e); return {}; }),
@@ -188,32 +190,48 @@ const App = () => {
         firestoreOAAbsencesFetch.catch(e => { console.error("Firestore OA absences fetch failed", e); return {}; })
       ]);
 
-      // 2. Data Processing
-      let allEmployees = data.employees || [];
-      let allSkills = (data.skills && data.skills.length > 0) ? data.skills : (profile.defaultSkills || []);
+      // 2. Determine source of truth for Employees/Skills/Settings
+      let sourceData = fsConfig || data;
+      let allEmployees = sourceData.employees || [];
+      let allSkills = (sourceData.skills && sourceData.skills.length > 0) ? sourceData.skills : (profile.defaultSkills || []);
+      let groupColors = {
+        ...DEFAULT_GROUP_COLORS,
+        ...(profile.defaultColors || {}),
+        ...(sourceData.groupColors || {})
+      };
+      let areaOrder = sourceData.areaOrder || [];
+      
+      // Merge absences and requests (Requests prefer Firestore)
       let absences = { ...(data.state || {}), ...fsAbsences };
       let requests = fsRequests.length > 0 ? fsRequests : (data.requests || data.__REQUESTS__ || []);
+
+      // If we loaded from JSONBin but Firestore was empty, we'll want to migrate on next save
+      if (!fsConfig && auth.user?.role === 'Administrator') {
+        console.log('[Migration] Firestore config empty. Will migrate on next admin change.');
+      }
 
       let profileEmployees = [];
       let crossEmployees = [];
 
       if (planerType === 'oa') {
         profileEmployees = allEmployees.filter(emp => 
-          emp.isOberarzt === true || 
+          emp.role === 'Oberarzt' || 
           emp.id === 'admin' || 
           emp.id === 'sekretariat' ||
-          emp.id === 'maier'
+          emp.id === 'maier' ||
+          emp.isOberarzt === true // legacy flag
         );
       } else {
         // Assistant Planner
         profileEmployees = allEmployees.filter(emp => 
-          !emp.isOberarzt && 
-          emp.id !== 'maier'
+          emp.role !== 'Oberarzt' && 
+          emp.id !== 'maier' &&
+          !emp.isOberarzt // legacy flag
         );
 
         // OAs as Cross-Profile
         crossEmployees = allEmployees.filter(emp => 
-          emp.isOberarzt === true || emp.id === 'maier'
+          emp.role === 'Oberarzt' || emp.id === 'maier' || emp.isOberarzt === true
         ).map(f => {
           const grps = Array.isArray(f.groups) ? f.groups : (f.group ? [f.group] : []);
           const isFoa = grps.some(g => g && String(g).toLowerCase().includes('funktionsoberarzt'));
@@ -260,12 +278,6 @@ const App = () => {
         return { ...emp, groups: migratedGroups };
       });
 
-      const groupColors = {
-        ...DEFAULT_GROUP_COLORS,
-        ...(profile.defaultColors || {}),
-        ...(data.groupColors || {})
-      };
-
       // 4. Update State
       setAppData({
         employees: migratedEmployees,
@@ -276,8 +288,9 @@ const App = () => {
         skills: migratedSkills,
         groupColors,
         rotationData: rotations || [],
-        status: data.status,
-        areaOrder: data.areaOrder,
+        status: sourceData.status,
+        areaOrder: areaOrder,
+        settings: sourceData.settings || {},
         vacationStats: updateVacationStats(absences, migratedEmployees, data.vacationStats || {}, requests)
       });
     } catch (err) {
@@ -406,37 +419,35 @@ const App = () => {
     try {
       const { absences, requests, ...rest } = newData;
 
-      // 1. Save Employees and Config to JSONBin
-      const jsonbinPayload = {
-        ...rest,
-        // We set empty state/requests in JSONBin to avoid the size limit 
-        // while maintaining the structure if needed
-        state: {},
-        requests: []
+      // 1. Save Employees and Config to Firestore
+      const configPayload = {
+        employees: (rest.fullEmployeeList || rest.employees || []).filter(e => !e._isCrossProfile),
+        skills: rest.fullSkillList || rest.skills || [],
+        groupColors: rest.groupColors,
+        areaOrder: rest.areaOrder || [],
+        settings: rest.settings || {}
       };
+      
+      await firestoreService.saveConfig(configPayload);
 
-      if (jsonbinPayload.employees) {
-        jsonbinPayload.employees = jsonbinPayload.employees.filter(e => !e._isCrossProfile);
-      }
+      // 2. Parallel backup save to JSONBin (optional, can be removed later)
+      apiService.save(binId, auth.masterKey, { ...configPayload, state: {}, requests: [] })
+        .catch(e => console.warn('JSONBin backup failed', e));
 
-      await apiService.save(binId, auth.masterKey, jsonbinPayload);
-
-      // 2. Save Absences to Firestore (Only updated ones usually, but here we do bulk for simple integration)
-      // Note: In a real high-perf app we'd only save the changed employee.
-      // For now, to keep the existing save logic working:
+      // 3. Save Absences to Firestore
       const savePromises = Object.entries(absences).map(([eid, dates]) =>
         firestoreService.saveAbsence(planerType, eid, dates)
       );
 
-      // 3. Save Requests to Firestore
+      // 4. Save Requests to Firestore
       const reqPromises = requests.map(req => firestoreService.saveRequest(planerType, req));
 
       await Promise.all([...savePromises, ...reqPromises]);
 
-      console.log('[Hybrid Save] JSONBin (Employees) and Firestore (Calendar/Requests) updated.');
+      console.log('[Unified Save] Firestore (Config/Calendar/Requests) updated.');
       setAppData(newData);
     } catch (err) {
-      console.error('[Hybrid Save Error]:', err);
+      console.error('[Unified Save Error]:', err);
       alert(`Speichern fehlgeschlagen! (${err.message})`);
     } finally {
       setIsLoading(false);

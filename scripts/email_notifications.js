@@ -16,12 +16,22 @@ const BINS = {
 
 const TYPE_LABELS = { U: 'Urlaub', D: 'Dienstreise', F: 'Fortbildung', S: 'Sonstiges', FZA: 'Freizeitausgleich' };
 
-async function fetchBin(binId) {
-    const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
-        headers: { 'X-Master-Key': JSONBIN_KEY }
+let AUTH_TOKEN = null;
+
+async function getAuthToken() {
+    if (AUTH_TOKEN) return AUTH_TOKEN;
+    const url = `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FIREBASE_API_KEY}`;
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ returnSecureToken: true })
     });
     const data = await res.json();
-    return data.record;
+    if (data.idToken) {
+        AUTH_TOKEN = data.idToken;
+        return AUTH_TOKEN;
+    }
+    throw new Error('Authentication failed');
 }
 
 // Helper to convert Firestore's "Value" format back to plain JS
@@ -29,7 +39,7 @@ function fromFirestore(fields) {
     const res = {};
     for (const [key, value] of Object.entries(fields)) {
         if (value.stringValue !== undefined) res[key] = value.stringValue;
-        else if (value.arrayValue !== undefined) res[key] = (value.arrayValue.values || []).map(v => v.stringValue || fromFirestore(v.mapValue.fields));
+        else if (value.arrayValue !== undefined) res[key] = (value.arrayValue.values || []).map(v => v.stringValue || (v.mapValue ? fromFirestore(v.mapValue.fields) : v));
         else if (value.mapValue !== undefined) res[key] = fromFirestore(value.mapValue.fields);
         else if (value.booleanValue !== undefined) res[key] = value.booleanValue;
         else if (value.integerValue !== undefined) res[key] = parseInt(value.integerValue, 10);
@@ -38,7 +48,7 @@ function fromFirestore(fields) {
     return res;
 }
 
-// Convert plain JS back to Firestore "Value" format (Simplified for our needs)
+// Convert plain JS back to Firestore "Value" format
 function toFirestore(obj) {
     const fields = {};
     for (const [key, value] of Object.entries(obj)) {
@@ -50,9 +60,23 @@ function toFirestore(obj) {
     return fields;
 }
 
+async function fetchFirestoreDocument(path) {
+    const token = await getAuthToken();
+    const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/${path}`;
+    const res = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return fromFirestore(data.fields);
+}
+
 async function fetchFirestoreCollection(collectionId) {
-    const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/${collectionId}?key=${FIREBASE_API_KEY}&pageSize=1000`;
-    const res = await fetch(url);
+    const token = await getAuthToken();
+    const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/${collectionId}?pageSize=1000`;
+    const res = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
     if (!res.ok) return [];
     const data = await res.json();
     return (data.documents || []).map(doc => ({
@@ -62,14 +86,22 @@ async function fetchFirestoreCollection(collectionId) {
 }
 
 async function updateFirestoreDocument(collectionId, docId, fieldsToUpdate) {
+    const token = await getAuthToken();
     const updateMask = Object.keys(fieldsToUpdate).map(k => `updateMask.fieldPaths=${k}`).join('&');
-    const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/${collectionId}/${docId}?${updateMask}&key=${FIREBASE_API_KEY}`;
+    const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/${collectionId}/${docId}?${updateMask}`;
     
-    await fetch(url, {
+    const res = await fetch(url, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ fields: toFirestore(fieldsToUpdate) })
     });
+    if (!res.ok) {
+        const err = await res.text();
+        console.error(`Error updating document ${docId}:`, err);
+    }
 }
 
 const transporter = nodemailer.createTransport({
@@ -100,26 +132,23 @@ function fmtDates(dates) {
 }
 
 async function run() {
-    console.log('--- Starting Daily Email Notifications (Hybrid Firestore Mode) ---');
+    console.log('--- Starting Daily Email Notifications (Unified Firestore Mode) ---');
     
-    if (!JSONBIN_KEY || !FIREBASE_API_KEY || !FIREBASE_PROJECT_ID || !GMAIL_PASSWORD || !GMAIL_USER || !ADMIN_EMAIL || !SEKRETARIAT_EMAIL) {
+    if (!FIREBASE_API_KEY || !FIREBASE_PROJECT_ID || !GMAIL_PASSWORD || !GMAIL_USER || !ADMIN_EMAIL || !SEKRETARIAT_EMAIL) {
         console.error('Missing environment variables!');
-        console.error('Check: JSONBIN_KEY, FIREBASE_API_KEY, FIREBASE_PROJECT_ID, GMAIL_APP_PASSWORD, GMAIL_USER, ADMIN_EMAIL, SEKRETARIAT_EMAIL');
+        console.error('Check: FIREBASE_API_KEY, FIREBASE_PROJECT_ID, GMAIL_APP_PASSWORD, GMAIL_USER, ADMIN_EMAIL, SEKRETARIAT_EMAIL');
         process.exit(1);
     }
 
-    // 1. Fetch employees from JSONBin
-    const allEmployees = [];
-    const binIds = Object.keys(BINS);
-    for (const binId of binIds) {
-        try {
-            console.log(`Fetching Employees from Bin ${binId}...`);
-            const data = await fetchBin(binId);
-            if (data.employees) allEmployees.push(...data.employees);
-        } catch (err) {
-            console.error(`Error fetching bin ${binId}:`, err);
-        }
+    // 1. Fetch configuration (Employees) from Firestore
+    console.log('Fetching Config from Firestore...');
+    const configData = await fetchFirestoreDocument('up_config/main');
+    if (!configData || !configData.employees) {
+        console.error('Could not load employees from Firestore up_config/main');
+        process.exit(1);
     }
+    const allEmployees = configData.employees;
+    console.log(`Loaded ${allEmployees.length} employees.`);
 
     // 2. Fetch all requests from Firestore
     console.log('Fetching Requests from Firestore...');
