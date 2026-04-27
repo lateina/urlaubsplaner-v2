@@ -208,8 +208,6 @@ const App = () => {
         // Assistant Planner
         profileEmployees = allEmployees.filter(emp => 
           !emp.isOberarzt && 
-          emp.id !== 'admin' && 
-          emp.id !== 'sekretariat' &&
           emp.id !== 'maier'
         );
 
