@@ -505,7 +505,7 @@ const App = () => {
       await Promise.all([...savePromises, ...reqPromises]);
 
       console.log('[Unified Save] Firestore (Config/Calendar/Requests) updated.');
-      setAppData(newData);
+      setAppData(dataToSave);
     } catch (err) {
       console.error('[Unified Save Error]:', err);
       alert(`Speichern fehlgeschlagen! (${err.message})`);
