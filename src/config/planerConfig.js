@@ -27,7 +27,19 @@ export const PLANER_PROFILES = {
       'Chef': '#ef4444',
       'Privat': '#84cc16',
       'Kein Vertreter nötig': '#6b7280'
-    }
+    },
+    displayOrder: [
+      'Funktionsoberarzt',
+      'Station 50-52',
+      'Interm/ITS',
+      'Notaufnahme',
+      'Fremdrotation',
+      'Kardiologie',
+      'Kein Vertreter nötig'
+    ],
+    areaOrder: [
+      'Station 50-52', 'Interm/ITS', 'Notaufnahme', 'Fremdrotation', 'Kardiologie'
+    ]
   },
   oa: {
     id: 'oa',
@@ -62,7 +74,14 @@ export const PLANER_PROFILES = {
       'Ambulanz': '#84cc16',
       'Funktionsoberarzt': '#475569',
       'Kein Vertreter nötig': '#6b7280'
-    }
+    },
+    displayOrder: [
+      'Chef', 'Privat', 'Funktionsoberarzt', 'TAVI', 'TEER', 'Herzkatheter', 
+      'Echo', 'EPU', 'Intensiv', 'Pneumo', 'Ambulanz', 'Kein Vertreter nötig'
+    ],
+    areaOrder: [
+      'HKL', 'EPU', 'Echo', 'TAVI', 'TEER', 'Intensiv', 'Pneumo', 'Ambulanz', 'Notaufnahme'
+    ]
   }
 };
 

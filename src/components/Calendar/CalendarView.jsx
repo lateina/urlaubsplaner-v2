@@ -21,6 +21,7 @@ const CalendarView = ({
   rotationData = [], 
   skills = [], 
   areaOrder = null,
+  displayOrder = [],
   actionRequiredCount = 0,
   vacationStats = {},
   onUpdateAdminData,
@@ -253,11 +254,21 @@ const CalendarView = ({
     let bestSkillId = 'none';
     
     grps.forEach(g => {
-      const idx = skills.findIndex(s => {
-        const sId = typeof s === 'object' ? s.id : s;
-        const sName = typeof s === 'object' ? s.name : s;
-        return sId === g || sName === g;
-      });
+      const sName = getSkillName(g);
+      
+      // 1. Try hardcoded displayOrder (HTML/Config based)
+      let idx = displayOrder.indexOf(sName);
+      
+      // 2. Fallback to dynamic skills list index
+      if (idx === -1) {
+        idx = skills.findIndex(s => {
+          const sId = typeof s === 'object' ? s.id : s;
+          const sObjName = typeof s === 'object' ? s.name : s;
+          return sId === g || sObjName === g;
+        });
+        if (idx !== -1) idx += 100; // Put dynamic skills after hardcoded ones
+      }
+
       if (idx !== -1 && idx < minIdx) {
         minIdx = idx;
         bestSkillId = g;
@@ -304,8 +315,18 @@ const CalendarView = ({
       return baseFiltered.sort((a, b) => {
         const areaA = getEmpArea(a.id);
         const areaB = getEmpArea(b.id);
-        const idxA = effectiveAreaOrder.indexOf(areaA) === -1 ? 999 : effectiveAreaOrder.indexOf(areaA);
-        const idxB = effectiveAreaOrder.indexOf(areaB) === -1 ? 999 : effectiveAreaOrder.indexOf(areaB);
+        
+        // Priority order: displayOrder (hardcoded) > areaOrder (dynamic) > alphabetical
+        const getIdx = (area) => {
+           let idx = displayOrder.indexOf(area);
+           if (idx !== -1) return idx;
+           idx = effectiveAreaOrder.indexOf(area);
+           if (idx !== -1) return idx + 100;
+           return 999;
+        };
+
+        const idxA = getIdx(areaA);
+        const idxB = getIdx(areaB);
         
         if (idxA !== idxB) return idxA - idxB;
         return getSortName(a.name).localeCompare(getSortName(b.name));

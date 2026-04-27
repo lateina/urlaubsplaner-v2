@@ -979,6 +979,7 @@ const App = () => {
             rotationData={appData.rotationData}
             skills={appData.skills}
             areaOrder={appData.areaOrder}
+            displayOrder={profile.displayOrder || []}
             actionRequiredCount={actionRequiredCount}
             vacationStats={appData.vacationStats}
             onUpdateAdminData={handleUpdateAdminData}
