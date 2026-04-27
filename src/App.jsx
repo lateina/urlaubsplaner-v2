@@ -1055,6 +1055,7 @@ const App = () => {
             groupColors={appData.groupColors}
             rotationData={appData.rotationData}
             skills={profileSkills}
+            allSkills={appData.skills}
             areaOrder={appData[`${planerType}_areaOrder`]}
             displayOrder={profile.displayOrder || []}
             actionRequiredCount={actionRequiredCount}

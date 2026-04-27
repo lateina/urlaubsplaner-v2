@@ -20,6 +20,7 @@ const CalendarView = ({
   groupColors = {}, 
   rotationData = [], 
   skills = [], 
+  allSkills = [],
   areaOrder = null,
   displayOrder = [],
   actionRequiredCount = 0,
@@ -215,7 +216,7 @@ const CalendarView = ({
 
   const getSkillName = (id) => {
     if (!id) return '';
-    const skillObj = skills.find(s => s.id === id);
+    const skillObj = skills.find(s => s.id === id) || allSkills.find(s => s.id === id);
     return skillObj ? skillObj.name : id;
   };
 
@@ -269,6 +270,11 @@ const CalendarView = ({
         if (idx !== -1) idx += 500; // Put after dynamic skills
       }
 
+      // 3. Ultimate fallback so we at least pick this skill for color resolution
+      if (idx === -1) {
+        idx = 800;
+      }
+
       if (idx !== -1 && idx < minIdx) {
         minIdx = idx;
         bestSkillId = g;
@@ -316,19 +322,18 @@ const CalendarView = ({
         const areaA = getEmpArea(a.id);
         const areaB = getEmpArea(b.id);
         
-        // Priority order for rotations: 
-        // 1. MONTH_AREA_ORDER (Hardcoded IDs like 'station18a')
+        // 1. areaOrder (Dynamic from DB)
         // 2. displayOrder (Hardcoded names like 'Station 50-52')
-        // 3. areaOrder (Dynamic from DB)
+        // 3. MONTH_AREA_ORDER (Hardcoded IDs like 'station18a')
         // 4. Alphabetical
         const getIdx = (area) => {
-           let idx = MONTH_AREA_ORDER.indexOf(area);
+           let idx = (areaOrder || []).indexOf(area);
            if (idx !== -1) return idx;
            
            idx = displayOrder.indexOf(area);
            if (idx !== -1) return idx + 100;
 
-           idx = (areaOrder || []).indexOf(area);
+           idx = MONTH_AREA_ORDER.indexOf(area);
            if (idx !== -1) return idx + 200;
 
            return 999;
