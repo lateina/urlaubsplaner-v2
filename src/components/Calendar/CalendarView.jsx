@@ -255,29 +255,41 @@ const CalendarView = ({
     let bestSkillId = 'none';
     
     grps.forEach(g => {
-      const sName = getSkillName(g);
+      let foundId = g;
       
       // 1. Try dynamic skills list index (from Skillverwaltung)
       let idx = skills.findIndex(s => {
         const sId = typeof s === 'object' ? s.id : s;
         const sObjName = typeof s === 'object' ? s.name : s;
-        return sId === g || sObjName === g;
+        if (sId === g || sObjName === g) {
+          foundId = sId;
+          return true;
+        }
+        return false;
       });
       
-      // 2. Fallback to hardcoded displayOrder if not in Skillverwaltung
+      // 2. Fallback to allSkills if not in current profile, just to resolve the true ID
+      if (idx === -1) {
+        const fallbackSkill = allSkills.find(s => s.id === g || s.name === g);
+        if (fallbackSkill) foundId = fallbackSkill.id;
+      }
+      
+      const sName = getSkillName(foundId);
+
+      // 3. Fallback to hardcoded displayOrder if not in Skillverwaltung
       if (idx === -1) {
         idx = displayOrder.indexOf(sName);
         if (idx !== -1) idx += 500; // Put after dynamic skills
       }
 
-      // 3. Ultimate fallback so we at least pick this skill for color resolution
+      // 4. Ultimate fallback so we at least pick this skill for color resolution
       if (idx === -1) {
         idx = 800;
       }
 
       if (idx !== -1 && idx < minIdx) {
         minIdx = idx;
-        bestSkillId = g;
+        bestSkillId = foundId;
       }
     });
     return { idx: minIdx, id: bestSkillId };
