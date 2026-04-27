@@ -522,6 +522,7 @@ const App = () => {
       // 1. Save Employees and Config to Firestore (MUST BE FULL LIST)
       const firestorePayload = {
         employees: dedupe(dataToSave.fullEmployeeList || dataToSave.employees || []),
+        skills: dataToSave.skills || appData.skills || [],
         groupColors: dataToSave.groupColors || appData.groupColors,
         ass_areaOrder: dataToSave.ass_areaOrder || appData.ass_areaOrder || [],
         oa_areaOrder: dataToSave.oa_areaOrder || appData.oa_areaOrder || [],
