@@ -621,6 +621,14 @@ const App = () => {
         request.stamps = { ...request.stamps, vertreter: makeStamp(auth.user) };
         updatedRequests[reqIndex] = request;
 
+        await firestoreService.saveRequest(planerType, request);
+        setAppData(prev => {
+          const newRequests = [...prev.requests];
+          const idx = newRequests.findIndex(r => r.id === reqId);
+          if (idx !== -1) newRequests[idx] = request;
+          return { ...prev, requests: newRequests };
+        });
+
       } else if (byType === 'supervisor') {
         request.status = 'pending_admin';
         request.stamps = { ...request.stamps, supervisor: makeStamp(auth.user) };
