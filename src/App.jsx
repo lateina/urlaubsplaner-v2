@@ -200,9 +200,25 @@ const App = () => {
       ]);
 
       // 2. Determine source of truth for Employees/Skills/Settings
-      let sourceData = fsConfig || data;
-      let allEmployees = sourceData.employees || [];
-      let allSkills = (sourceData.skills && sourceData.skills.length > 0) ? sourceData.skills : (profile.defaultSkills || []);
+      const sourceData = fsConfig || data || {};
+      
+      // 1. Aggressive Deduplication of all source employees
+      const rawEmployees = sourceData.employees || sourceData.mitarbeiter || [];
+      const uniqueRawMap = new Map();
+      rawEmployees.forEach(emp => {
+        if (!emp || !emp.id) return;
+        if (!uniqueRawMap.has(emp.id)) {
+            uniqueRawMap.set(emp.id, emp);
+        } else {
+            // Merge if duplicate found in source
+            const existing = uniqueRawMap.get(emp.id);
+            if (emp.groups) existing.groups = Array.from(new Set([...(existing.groups || []), ...(emp.groups || [])]));
+            if (emp.role === 'Oberarzt') existing.role = 'Oberarzt';
+        }
+      });
+      const allEmployees = Array.from(uniqueRawMap.values());
+
+      const allSkills = (sourceData.skills && sourceData.skills.length > 0) ? sourceData.skills : (profile.defaultSkills || []);
       let groupColors = {
         ...DEFAULT_GROUP_COLORS,
         ...(profile.defaultColors || {}),
@@ -443,18 +459,26 @@ const App = () => {
     return filtered;
   };
 
-  const saveAllData = async (newData) => {
+  const saveAllData = async (dataToSave) => {
     setIsLoading(true);
+    
+    // Final safety deduplication for EVERYTHING we save to config
+    const dedupe = (list) => {
+        const map = new Map();
+        list.forEach(item => { if (item && item.id) map.set(item.id, item); });
+        return Array.from(map.values());
+    };
+
     try {
-      const { absences, requests, ...rest } = newData;
+      const { absences, requests } = dataToSave;
 
       // 1. Save Employees and Config to Firestore
       const configPayload = {
-        employees: (rest.fullEmployeeList || rest.employees || []).filter(e => !e._isCrossProfile),
-        skills: rest.fullSkillList || rest.skills || [],
-        groupColors: rest.groupColors,
-        areaOrder: rest.areaOrder || [],
-        settings: rest.settings || {}
+        employees: dedupe(dataToSave.employees || appData.fullEmployeeList),
+        skills: dedupe(dataToSave.skills || appData.fullSkillList),
+        groupColors: dataToSave.groupColors || appData.groupColors,
+        areaOrder: dataToSave.areaOrder || appData.areaOrder,
+        settings: dataToSave.settings || appData.settings
       };
       
       await firestoreService.saveConfig(configPayload);
