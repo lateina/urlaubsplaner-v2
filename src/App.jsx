@@ -375,8 +375,8 @@ const App = () => {
         absences,
         requests,
         status: sourceData.status,
-        ass_areaOrder: ass_areaOrder.length > 0 ? ass_areaOrder : planerConfig.ass.areaOrder,
-        oa_areaOrder: oa_areaOrder.length > 0 ? oa_areaOrder : planerConfig.oa.areaOrder,
+        ass_areaOrder: ass_areaOrder.length > 0 ? ass_areaOrder : PLANER_PROFILES.ass.areaOrder,
+        oa_areaOrder: oa_areaOrder.length > 0 ? oa_areaOrder : PLANER_PROFILES.oa.areaOrder,
         settings: sourceData.settings || {},
         vacationStats: updateVacationStats(absences, migratedEmployees, data.vacationStats || {}, requests)
       });
