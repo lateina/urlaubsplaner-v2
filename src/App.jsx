@@ -330,10 +330,20 @@ const App = () => {
       // 3. Migration Logic (for IDs)
       const migratedSkills = skills.map(s => {
         if (typeof s === 'object' && s.id) return s;
+        
+        const name = String(s);
+        const id = `skill_${name.toLowerCase().trim().replace(/[^a-z0-9]/g, '')}`;
+        
+        // Correctly tag legacy strings during migration
+        let targetType = planerType;
+        if (SHARED_SKILL_IDS.has(id)) targetType = 'shared';
+        else if (OA_ONLY_IDS.has(id)) targetType = 'oa';
+        else if (ASS_ONLY_IDS.has(id)) targetType = 'ass';
+
         return {
-          id: `skill_${String(s).toLowerCase().trim().replace(/[^a-z0-9]/g, '')}`,
-          name: String(s),
-          planerType: planerType // Tag legacy strings
+          id: id,
+          name: name,
+          planerType: targetType
         };
       });
 
@@ -874,13 +884,22 @@ const App = () => {
         const existing = skillMap.get(s.id);
         const isShared = SHARED_SKILL_IDS.has(s.id) || (existing && existing.planerType === 'shared');
         
+        // Determine the permanent planerType
+        let finalType = planerType; // Default to current
+        if (isShared) {
+          finalType = 'shared';
+        } else if (existing && existing.planerType) {
+          finalType = existing.planerType; // Preserve existing!
+        } else if (OA_ONLY_IDS.has(s.id)) {
+          finalType = 'oa';
+        } else if (ASS_ONLY_IDS.has(s.id)) {
+          finalType = 'ass';
+        }
+
         skillMap.set(s.id, {
-          ...existing, // Keep old tags
-          ...s,        // Apply new name/order
-          // Shared skills stay shared; others get tagged if new
-          planerType: isShared ? 'shared' : 
-                     ((existing && existing.planerType) ? existing.planerType : 
-                      (OA_ONLY_IDS.has(s.id) ? 'oa' : (ASS_ONLY_IDS.has(s.id) ? 'ass' : planerType)))
+          ...existing, 
+          ...s,        
+          planerType: finalType
         });
       });
 
