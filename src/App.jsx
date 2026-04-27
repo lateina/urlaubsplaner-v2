@@ -195,7 +195,7 @@ const App = () => {
 
       const [fsConfig, data, rotations, fsAbsences, fsRequests, fsOAAbsences] = await Promise.all([
         firestoreConfigFetch.catch(e => { console.warn("Firestore config fetch failed", e); return null; }),
-        mainFetch,
+        mainFetch.catch(e => { console.warn("JSONBin main fetch failed (likely API down). Falling back to Firestore.", e); return null; }),
         rotationFetch.catch(e => { console.warn("Rotation fetch failed", e); return null; }),
         firestoreAbsencesFetch.catch(e => { console.error("Firestore absences fetch failed", e); return {}; }),
         firestoreRequestsFetch.catch(e => { console.error("Firestore requests fetch failed", e); return []; }),
@@ -235,8 +235,8 @@ const App = () => {
       const skillOrder = storedOrder.length > 0 ? storedOrder : defaultOrder;
       
       // Merge absences and requests (Requests prefer Firestore)
-      let absences = { ...(data.state || {}), ...fsAbsences };
-      let requests = fsRequests.length > 0 ? fsRequests : (data.requests || data.__REQUESTS__ || []);
+      let absences = { ...(data?.state || {}), ...fsAbsences };
+      let requests = fsRequests.length > 0 ? fsRequests : (data?.requests || data?.__REQUESTS__ || []);
 
       // If we loaded from JSONBin but Firestore was empty, we'll want to migrate on next save
       if (!fsConfig && auth.user?.role === 'Administrator') {
@@ -380,7 +380,7 @@ const App = () => {
         ass_areaOrder: ass_areaOrder.length > 0 ? ass_areaOrder : PLANER_PROFILES.ass.areaOrder,
         oa_areaOrder: oa_areaOrder.length > 0 ? oa_areaOrder : PLANER_PROFILES.oa.areaOrder,
         settings: sourceData.settings || {},
-        vacationStats: updateVacationStats(absences, migratedEmployees, data.vacationStats || {}, requests)
+        vacationStats: updateVacationStats(absences, migratedEmployees, data?.vacationStats || {}, requests)
       });
     } catch (err) {
       console.error(err);
