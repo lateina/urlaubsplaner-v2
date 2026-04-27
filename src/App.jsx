@@ -374,6 +374,8 @@ const App = () => {
         skills: correctedFullSkillPool,  // ALL skills, tagged oa/ass/shared
         absences,
         requests,
+        groupColors,
+        rotationData: (Array.isArray(rotations) ? rotations : rotations?.rotations) || sourceData.rotationData || data?.rotations || [],
         status: sourceData.status,
         ass_areaOrder: ass_areaOrder.length > 0 ? ass_areaOrder : PLANER_PROFILES.ass.areaOrder,
         oa_areaOrder: oa_areaOrder.length > 0 ? oa_areaOrder : PLANER_PROFILES.oa.areaOrder,
