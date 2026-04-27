@@ -802,19 +802,33 @@ const App = () => {
 
     // Same for skills
     if (newData.skills) {
-      // 1. Tag current skills with the active planerType if not already set
-      const updatedSkills = newData.skills.map(s => ({
-        ...s,
-        planerType: s.planerType || (OA_ONLY_IDS.has(s.id) ? 'oa' : (ASS_ONLY_IDS.has(s.id) ? 'ass' : planerType))
-      }));
+      // Use a Map of the FULL list to maintain all skills and their tags
+      const skillMap = new Map();
+      appData.fullSkillList.forEach(s => skillMap.set(s.id, { ...s }));
 
-      // 2. Keep skills from other planners
-      const otherSkills = appData.fullSkillList.filter(s => {
-        const sType = s.planerType || 'shared';
-        return sType !== 'shared' && sType !== planerType;
+      // Update or add skills from the current editor
+      newData.skills.forEach(s => {
+        const existing = skillMap.get(s.id);
+        skillMap.set(s.id, {
+          ...existing, // Keep old tags (planerType)
+          ...s,        // Apply new name/order
+          // If it's a brand new skill, tag it with the current planerType
+          planerType: (existing && existing.planerType) ? existing.planerType : 
+                     (OA_ONLY_IDS.has(s.id) ? 'oa' : (ASS_ONLY_IDS.has(s.id) ? 'ass' : planerType))
+        });
       });
 
-      finalData.skills = [...otherSkills, ...updatedSkills];
+      // To preserve the user's intended order for the CURRENT profile, 
+      // we need to construct a list that respects the new order but keeps other skills.
+      // Strategy: Keep all 'other' skills at the top/bottom, and put edited skills in between.
+      const otherSkills = Array.from(skillMap.values()).filter(s => {
+          const sType = s.planerType || 'shared';
+          return sType !== 'shared' && sType !== planerType;
+      });
+      
+      const currentAndShared = newData.skills.map(s => skillMap.get(s.id));
+      
+      finalData.skills = [...otherSkills, ...currentAndShared];
     }
 
     const nextAppData = { ...appData, ...finalData };
