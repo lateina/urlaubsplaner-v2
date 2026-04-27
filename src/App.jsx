@@ -86,6 +86,8 @@ const App = () => {
 
   const [appData, setAppData] = useState({
     employees: [],
+    fullEmployeeList: [], // NEW: Store everything from JSONBin
+    fullSkillList: [],    // NEW: Store everything from JSONBin
     absences: {},
     requests: [],
     skills: [],
@@ -168,130 +170,80 @@ const App = () => {
     const profile = PLANER_PROFILES[planerType];
 
     try {
-      // 1. Define all parallel fetches
+      // 1. Parallel Fetches
       const mainFetch = apiService.load(binId, key);
-      const oaFetch = (planerType === 'ass') ? apiService.load(APP_CONFIG.OA_BIN_ID, key) : Promise.resolve(null);
       const rotationFetch = apiService.load(ROTATION_BIN_ID, key);
       const firestoreAbsencesFetch = firestoreService.loadAbsences(planerType);
       const firestoreRequestsFetch = firestoreService.loadRequests(planerType);
-
       // Fetch OA absences from Firestore specifically if we are in Assistant Planner (for FOA sync)
       const firestoreOAAbsencesFetch = (planerType === 'ass')
         ? firestoreService.loadAbsences('oa')
         : Promise.resolve({});
 
-      // 2. Execute parallel
-      const [data, oaData, rotations, fsAbsences, fsRequests, fsOAAbsences] = await Promise.all([
+      const [data, rotations, fsAbsences, fsRequests, fsOAAbsences] = await Promise.all([
         mainFetch,
-        oaFetch.catch(e => { console.warn("OA fetch failed", e); return null; }),
         rotationFetch.catch(e => { console.warn("Rotation fetch failed", e); return null; }),
         firestoreAbsencesFetch.catch(e => { console.error("Firestore absences fetch failed", e); return {}; }),
         firestoreRequestsFetch.catch(e => { console.error("Firestore requests fetch failed", e); return []; }),
         firestoreOAAbsencesFetch.catch(e => { console.error("Firestore OA absences fetch failed", e); return {}; })
       ]);
 
-      let employees = data.employees || [];
-      // Combine JSONBin state with Firestore absences (Firestore takes precedence)
+      // 2. Data Processing
+      let allEmployees = data.employees || [];
+      let allSkills = (data.skills && data.skills.length > 0) ? data.skills : (profile.defaultSkills || []);
       let absences = { ...(data.state || {}), ...fsAbsences };
-
-      // --- Healing Logic: Detect if absences was overwritten by a single formData object ---
-      if (absences && absences.startDate && absences.employeeId) {
-        console.warn('Absences data was corrupted (overwritten by a form). Healing...');
-        const formData = absences;
-        const healed = {};
-        const dates = [];
-        let curr = new Date(formData.startDate);
-        const end = new Date(formData.endDate);
-        while (curr <= end) {
-          dates.push(curr.toISOString().split('T')[0]);
-          curr.setDate(curr.getDate() + 1);
-        }
-        healed[formData.employeeId] = {};
-        dates.forEach(d => {
-          healed[formData.employeeId][d] = {
-            type: formData.type || 'U',
-            text: formData.remarks || '',
-            status: 'confirmed'
-          };
-        });
-        absences = healed;
-      }
-      // --- End Healing Logic ---
-
-      // Combine JSONBin requests with Firestore requests
       let requests = fsRequests.length > 0 ? fsRequests : (data.requests || data.__REQUESTS__ || []);
 
-      // --- UID Sync/Healing Logic: Link existing approved requests to absences ---
-      (requests || []).forEach(req => {
-        if (req.status === 'approved' && req.id && req.empId && req.dates) {
-          if (!absences[req.empId]) return;
-          req.dates.forEach(d => {
-            const entry = absences[req.empId][d];
-            // If entry exists, matches type, and has no UID yet, link it
-            if (entry && entry.type === req.type && !entry.uid) {
-              entry.uid = req.id;
-              // Set a default updatedAt if missing so delta logic works
-              if (!entry.updatedAt) entry.updatedAt = req.stamps?.admin?.at || new Date().toISOString();
-            }
-          });
-        }
-      });
-      // --- End UID Sync Logic ---
-      let skills = (data.skills && data.skills.length > 0) ? data.skills : (profile.defaultSkills || []);
-      let groupColors = {
-        ...DEFAULT_GROUP_COLORS,
-        ...(profile.defaultColors || {}),
-        ...(data.groupColors || {})
-      };
-      let status = data.status || data.__STATUS__ || absences.__STATUS__ || {};
-      let areaOrder = data.areaOrder || null;
+      let profileEmployees = [];
+      let crossEmployees = [];
 
-      // Process OAs/FOAs if this is the Resident Planner and we have OA data
-      if (planerType === 'ass' && oaData) {
-        try {
-          const crossEmps = (oaData.employees || []).filter(emp => {
-            if (emp.id === 'admin' || emp.id === 'sekretariat' || emp.id === 'assistentensprecher') return false;
-            if (emp.name && (emp.name.toLowerCase().includes('administrator') || emp.name.toLowerCase().includes('sekretariat'))) return false;
-            return true;
-          }).map(f => {
-            const grps = Array.isArray(f.groups) ? f.groups : (f.group ? [f.group] : []);
-            const isFoa = grps.some(g => g && String(g).toLowerCase().includes('funktionsoberarzt'));
-            return {
-              ...f,
-              groups: isFoa ? Array.from(new Set([...grps, 'skill_funktionsoberarzt'])) : grps,
-              _isCrossProfile: true,
-              _isCrossProfileFoa: isFoa,
-              _isCrossProfileOa: !isFoa
-            };
-          });
+      if (planerType === 'oa') {
+        profileEmployees = allEmployees.filter(emp => 
+          emp.isOberarzt === true || 
+          emp.id === 'admin' || 
+          emp.id === 'sekretariat' ||
+          emp.id === 'maier'
+        );
+      } else {
+        // Assistant Planner
+        profileEmployees = allEmployees.filter(emp => 
+          !emp.isOberarzt && 
+          emp.id !== 'admin' && 
+          emp.id !== 'sekretariat' &&
+          emp.id !== 'maier'
+        );
 
-          crossEmps.forEach(f => {
-            if (!employees.find(e => e.id === f.id)) {
-              employees.push(f);
-              const oaAbsenceEntry = fsOAAbsences[f.id] || oaData.state?.[f.id];
-              if (oaAbsenceEntry) {
-                absences[f.id] = oaAbsenceEntry;
-              }
-            }
-          });
+        // OAs as Cross-Profile
+        crossEmployees = allEmployees.filter(emp => 
+          emp.isOberarzt === true || emp.id === 'maier'
+        ).map(f => {
+          const grps = Array.isArray(f.groups) ? f.groups : (f.group ? [f.group] : []);
+          const isFoa = grps.some(g => g && String(g).toLowerCase().includes('funktionsoberarzt'));
+          return {
+            ...f,
+            groups: isFoa ? Array.from(new Set([...grps, 'skill_funktionsoberarzt'])) : grps,
+            _isCrossProfile: true,
+            _isCrossProfileFoa: isFoa,
+            _isCrossProfileOa: !isFoa
+          };
+        });
 
-          const foaIdx = skills.findIndex(s => {
-            const name = typeof s === 'object' ? s.name : s;
-            return name && String(name).toLowerCase().includes('funktionsoberarzt');
-          });
-
-          if (foaIdx === -1) {
-            skills.unshift({ id: 'skill_funktionsoberarzt', name: 'Funktionsoberarzt' });
-          } else if (foaIdx > 0) {
-            const [item] = skills.splice(foaIdx, 1);
-            skills.unshift(item);
+        // Merge Absence data for cross-profile
+        crossEmployees.forEach(f => {
+          const oaAbsenceEntry = fsOAAbsences[f.id] || data.state?.[f.id];
+          if (oaAbsenceEntry) {
+            absences[f.id] = oaAbsenceEntry;
           }
-        } catch (e) {
-          console.warn("FOA processing failed", e);
-        }
+        });
       }
 
+      let employees = [...profileEmployees, ...crossEmployees];
 
+      // Skill Filtering
+      const profileSkillIds = new Set(profile.defaultSkills.map(s => s.id));
+      let skills = allSkills.filter(s => profileSkillIds.has(s.id));
+
+      // 3. Migration Logic (for IDs)
       const migratedSkills = skills.map(s => {
         if (typeof s === 'object' && s.id) return s;
         return {
@@ -307,50 +259,33 @@ const App = () => {
           const skillObj = migratedSkills.find(s => s.name === g);
           return skillObj ? skillObj.id : g;
         });
-        return { ...emp, groups: migratedGroups, group: undefined };
+        return { ...emp, groups: migratedGroups };
       });
 
-      const migratedColors = {};
-      const combinedGroupColors = { ...DEFAULT_GROUP_COLORS, ...groupColors };
-      Object.entries(combinedGroupColors).forEach(([key, color]) => {
-        if (key.startsWith('skill_') || key.startsWith('station')) {
-          migratedColors[key] = color;
-        } else {
-          const skillObj = migratedSkills.find(s => s.name === key);
-          if (skillObj) {
-            migratedColors[skillObj.id] = color;
-          } else {
-            migratedColors[key] = color;
-          }
-        }
-      });
+      const groupColors = {
+        ...DEFAULT_GROUP_COLORS,
+        ...(profile.defaultColors || {}),
+        ...(data.groupColors || {})
+      };
 
-      let finalStats = updateVacationStats(absences, migratedEmployees, data.vacationStats || {}, requests);
-
-      // Sync FOA stats from OA bin if this is the Resident Planner
-      if (planerType === 'ass' && oaData && oaData.vacationStats) {
-        Object.entries(oaData.vacationStats).forEach(([empId, stats]) => {
-          if (migratedEmployees.find(e => e.id === empId && e._isCrossProfile)) {
-            finalStats[empId] = stats;
-          }
-        });
-      }
-
+      // 4. Update State
       setAppData({
         employees: migratedEmployees,
-        absences: absences,
-        requests: requests,
+        fullEmployeeList: allEmployees,
+        fullSkillList: allSkills,
+        absences,
+        requests,
         skills: migratedSkills,
-        groupColors: migratedColors,
+        groupColors,
         rotationData: rotations || [],
-        areaOrder: areaOrder,
-        status: status,
-        vacationStats: finalStats
+        status: data.status,
+        areaOrder: data.areaOrder,
+        vacationStats: updateVacationStats(absences, migratedEmployees, data.vacationStats || {}, requests)
       });
     } catch (err) {
       console.error(err);
       setError('Fehler beim Laden der Daten.');
-      setAuth(prev => ({ ...prev, isAuthenticated: false }));
+      // setAuth(prev => ({ ...prev, isAuthenticated: false })); // Don't logout on data fetch error
     } finally {
       setIsLoading(false);
     }
@@ -800,9 +735,39 @@ const App = () => {
   };
 
   const handleUpdateAdminData = async (newData) => {
-    const nextAppData = { ...appData, ...newData };
-    if (newData.employees || newData.absences) {
-      nextAppData.vacationStats = updateVacationStats(nextAppData.absences, nextAppData.employees, nextAppData.vacationStats);
+    let finalData = { ...newData };
+
+    // If we are updating employees, merge subset into fullEmployeeList
+    if (newData.employees) {
+      const updatedIds = new Set(newData.employees.map(e => e.id));
+      const otherEmps = appData.fullEmployeeList.filter(emp => {
+        // Keep employees that were NOT in the current view's subset
+        const isOA = emp.isOberarzt === true || emp.id === 'admin' || emp.id === 'sekretariat' || emp.id === 'maier';
+        return planerType === 'oa' ? !isOA : isOA;
+      });
+      // Filter out cross-profile flags before saving to full list
+      const cleanNewEmployees = newData.employees.filter(e => !e._isCrossProfile);
+      finalData.employees = [...otherEmps, ...cleanNewEmployees];
+    }
+
+    // Same for skills
+    if (newData.skills) {
+      const profileSkillIds = new Set(profile.defaultSkills.map(s => s.id));
+      const otherSkills = appData.fullSkillList.filter(s => !profileSkillIds.has(s.id));
+      finalData.skills = [...otherSkills, ...newData.skills];
+    }
+
+    const nextAppData = { ...appData, ...finalData };
+    if (finalData.employees) {
+        // Important: Update full list as well
+        nextAppData.fullEmployeeList = finalData.employees;
+    }
+    if (finalData.skills) {
+        nextAppData.fullSkillList = finalData.skills;
+    }
+
+    if (finalData.employees || finalData.absences) {
+      nextAppData.vacationStats = updateVacationStats(nextAppData.absences, nextAppData.fullEmployeeList, nextAppData.vacationStats);
     }
     await saveAllData(nextAppData);
     alert('Erfolgreich gespeichert!');

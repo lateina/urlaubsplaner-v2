@@ -132,7 +132,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
                       e.name?.toLowerCase().includes('assistentensprecher');
     
     if (isSelf || isSpecial || e.active === false) return false;
-    if (planerType === 'ass' && e._isCrossProfileOa) return false;
+    if (planerType === 'ass' && e._isCrossProfileOa && !e._isCrossProfileFoa) return false;
     
     // Check if representative is active during the requested time
     if (formData.startDate) {
@@ -169,7 +169,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
       const isHigherOrEqual = theirBestIdx <= myBestIdx;
 
       // Rule 3: FOA Special Rule (Assistants represent FOAs)
-      const isFoaSpecial = myEmp.isExternal && !e.isExternal;
+      const isFoaSpecial = myEmp._isCrossProfileFoa && !e._isCrossProfile;
 
       if (!hasMatchingSkill && !isHigherOrEqual && !isFoaSpecial) return false;
     }

@@ -9,12 +9,12 @@ export const PLANER_PROFILES = {
     secondaryColor: '#eff6ff',
     icon: 'Users',
     defaultSkills: [
+      { id: 'skill_funktionsoberarzt', name: 'Funktionsoberarzt' },
       { id: 'skill_station5052', name: 'Station 50-52' },
       { id: 'skill_intermits', name: 'Interm/ITS' },
       { id: 'skill_notaufnahme', name: 'Notaufnahme' },
       { id: 'skill_fremdrotation', name: 'Fremdrotation' },
       { id: 'skill_kardiologie', name: 'Kardiologie' },
-      { id: 'skill_funktionsoberarzt', name: 'Funktionsoberarzt' },
       { id: 'skill_keinvertreternotig', name: 'Kein Vertreter nötig' }
     ],
     defaultColors: {
@@ -36,6 +36,7 @@ export const PLANER_PROFILES = {
     secondaryColor: '#f5f3ff',
     icon: 'ShieldCheck',
     defaultSkills: [
+      { id: 'skill_funktionsoberarzt', name: 'Funktionsoberarzt' },
       { id: 'skill_chef', name: 'Chef' },
       { id: 'skill_privat', name: 'Privat' },
       { id: 'skill_tavi', name: 'TAVI' },
@@ -46,7 +47,6 @@ export const PLANER_PROFILES = {
       { id: 'skill_intensiv', name: 'Intensiv' },
       { id: 'skill_pneumo', name: 'Pneumo' },
       { id: 'skill_ambulanz', name: 'Ambulanz' },
-      { id: 'skill_funktionsoberarzt', name: 'Funktionsoberarzt' },
       { id: 'skill_keinvertreternotig', name: 'Kein Vertreter nötig' }
     ],
     defaultColors: {

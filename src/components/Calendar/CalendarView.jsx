@@ -286,7 +286,7 @@ const CalendarView = ({
       if (emp.id === 'admin' || emp.id === 'sekretariat' || emp.id === 'assistentensprecher') return false;
       if (emp.name?.toLowerCase().includes('administrator') || emp.name?.toLowerCase().includes('assistentensprecher')) return false;
       if (emp.active === false) return false;
-      if (planerType === 'ass' && emp._isCrossProfileOa) return false;
+      if (planerType === 'ass' && emp._isCrossProfileOa && !emp._isCrossProfileFoa) return false;
       
       // Filter by entry/exit dates relative to the loaded calendar days range
       if (days.length > 0) {
