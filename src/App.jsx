@@ -248,11 +248,13 @@ const App = () => {
         );
       } else {
         // Assistant Planner
-        profileEmployees = allEmployees.filter(emp => 
-          emp.role !== 'Oberarzt' && 
-          emp.id !== 'maier' &&
-          !emp.isOberarzt // legacy flag
-        );
+        profileEmployees = allEmployees.filter(emp => {
+          const groups = Array.isArray(emp.groups) ? emp.groups : [];
+          const isFOA = groups.includes('skill_funktionsoberarzt');
+          
+          // Show if NOT an OA, OR if it's a FOA (who should be in both)
+          return (emp.role !== 'Oberarzt' && emp.id !== 'maier' && !emp.isOberarzt) || isFOA;
+        });
 
         // OAs as Cross-Profile
         crossEmployees = allEmployees.filter(emp => 
