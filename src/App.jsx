@@ -308,12 +308,12 @@ const App = () => {
       // 2. Skill Logic: Build fullSkillList from ALL profiles + DB to never lose cross-profile skills
       const dbSkills = Array.isArray(sourceData.skills) ? sourceData.skills : [];
       const profileDefaults = profile.defaultSkills || [];
+      const profileDefaultIds = new Set(profileDefaults.map(s => s.id));
+
       // Include defaults from BOTH profiles so fullSkillList is complete
-      const allProfileDefaults = [
-        ...Object.values(PLANER_PROFILES).flatMap(p => p.defaultSkills || [])
-      ];
+      const allProfileDefaults = Object.values(PLANER_PROFILES).flatMap(p => p.defaultSkills || []);
       
-      // Build full pool: all profile defaults + all DB skills
+      // Build full pool: all profile defaults + all DB skills (for saving)
       const fullSkillPoolMap = new Map();
       [...allProfileDefaults, ...dbSkills].forEach(s => {
         if (!s) return;
@@ -321,74 +321,56 @@ const App = () => {
         const id = skillObj.id || `skill_${String(skillObj.name).toLowerCase().trim().replace(/[^a-z0-9]/g, '')}`;
         fullSkillPoolMap.set(id, { ...skillObj, id });
       });
-      const fullSkillPool = Array.from(fullSkillPoolMap.values());
 
-      // Build current-profile view: profile defaults + DB skills
-      const skillMap = new Map();
-      [...profileDefaults, ...dbSkills].forEach(s => {
-        if (!s) return;
-        const skillObj = typeof s === 'object' ? s : { name: String(s) };
-        const id = skillObj.id || `skill_${String(skillObj.name).toLowerCase().trim().replace(/[^a-z0-9]/g, '')}`;
-        
-        // Merge: DB version wins, but ensure ID is set
-        skillMap.set(id, { ...skillObj, id });
-      });
-
-      const allSkills = Array.from(skillMap.values());
-      
-      // Apply type-correction to the full pool for safe saving later
-      const correctedFullSkillPool = fullSkillPool.map(s => {
+      // Apply type-correction to the full pool
+      const correctedFullSkillPool = Array.from(fullSkillPoolMap.values()).map(s => {
         const id = s.id;
         let t = s.planerType;
         if (SHARED_SKILL_IDS.has(id)) t = 'shared';
         else if (OA_ONLY_IDS.has(id)) t = 'oa';
         else if (ASS_ONLY_IDS.has(id)) t = 'ass';
-        else if (!t) t = 'shared'; // unknown = shared
+        else if (!t) t = 'shared';
         return { ...s, planerType: t };
       });
 
-      // Skill Filtering: Show skills for this profile OR shared ones
-      const profileSkillIds = new Set(profile.defaultSkills.map(s => s.id));
-      let filteredSkills = allSkills.filter(s => {
+      // Build PROFILE-SPECIFIC view: only db skills relevant to this profile
+      const profileDbSkills = dbSkills.filter(s => {
+        if (!s || !s.id) return false;
         const id = s.id;
-        const sType = s.planerType || 'shared';
-        
-        // Forced visibility for profile-specific skills
+        const sType = s.planerType || '';
+        if (SHARED_SKILL_IDS.has(id)) return true;
         if (planerType === 'oa' && OA_ONLY_IDS.has(id)) return true;
         if (planerType === 'ass' && ASS_ONLY_IDS.has(id)) return true;
-        
-        return sType === 'shared' || sType === planerType || profileSkillIds.has(id);
+        return sType === planerType || profileDefaultIds.has(id);
       });
 
+      const skillViewMap = new Map();
+      [...profileDefaults, ...profileDbSkills].forEach(s => {
+        if (!s) return;
+        const skillObj = typeof s === 'object' ? s : { name: String(s) };
+        const id = skillObj.id || `skill_${String(skillObj.name).toLowerCase().trim().replace(/[^a-z0-9]/g, '')}`;
+        skillViewMap.set(id, { ...skillObj, id });
+      });
+      const allSkills = Array.from(skillViewMap.values());
+
       // Sort by skillOrder
-      const sortedSkills = filteredSkills.sort((a, b) => {
-        const idA = a.id;
-        const idB = b.id;
-        const nameA = a.name;
-        const nameB = b.name;
-        
-        const idxA = skillOrder.indexOf(idA) !== -1 ? skillOrder.indexOf(idA) : 
-                     (skillOrder.indexOf(nameA) !== -1 ? skillOrder.indexOf(nameA) : 999);
-        const idxB = skillOrder.indexOf(idB) !== -1 ? skillOrder.indexOf(idB) : 
-                     (skillOrder.indexOf(nameB) !== -1 ? skillOrder.indexOf(nameB) : 999);
+      const sortedSkills = allSkills.sort((a, b) => {
+        const idxA = skillOrder.indexOf(a.id) !== -1 ? skillOrder.indexOf(a.id) :
+                     (skillOrder.indexOf(a.name) !== -1 ? skillOrder.indexOf(a.name) : 999);
+        const idxB = skillOrder.indexOf(b.id) !== -1 ? skillOrder.indexOf(b.id) :
+                     (skillOrder.indexOf(b.name) !== -1 ? skillOrder.indexOf(b.name) : 999);
         return idxA - idxB;
       });
 
-      // 3. Migration & Type-Correction Logic
+      // 3. Type-Correction on display skills
       const migratedSkills = sortedSkills.map(s => {
         const id = s.id;
         let targetType = s.planerType;
-
-        // Force correct tagging based on ID lists
         if (SHARED_SKILL_IDS.has(id)) targetType = 'shared';
         else if (OA_ONLY_IDS.has(id)) targetType = 'oa';
         else if (ASS_ONLY_IDS.has(id)) targetType = 'ass';
         else if (!targetType) targetType = planerType;
-
-        return {
-          ...s,
-          planerType: targetType
-        };
+        return { ...s, planerType: targetType };
       });
 
       const migratedEmployees = employees.map(emp => {
