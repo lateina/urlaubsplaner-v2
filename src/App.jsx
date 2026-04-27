@@ -262,7 +262,23 @@ const App = () => {
         });
       }
 
-      let employees = [...profileEmployees, ...crossEmployees];
+      // Combine and deduplicate by ID to prevent UI duplicates
+      const employeeMap = new Map();
+      [...profileEmployees, ...crossEmployees].forEach(emp => {
+        if (!emp.id) return;
+        if (!employeeMap.has(emp.id)) {
+          employeeMap.set(emp.id, emp);
+        } else {
+          // Merge cross-profile flags into existing entry
+          const existing = employeeMap.get(emp.id);
+          if (emp._isCrossProfile) {
+            existing._isCrossProfile = true;
+            if (emp._isCrossProfileOa) existing._isCrossProfileOa = true;
+            if (emp._isCrossProfileFoa) existing._isCrossProfileFoa = true;
+          }
+        }
+      });
+      let employees = Array.from(employeeMap.values());
 
       // Skill Filtering: Show skills for this profile OR shared ones
       const profileSkillIds = new Set(profile.defaultSkills.map(s => s.id));
@@ -761,15 +777,27 @@ const App = () => {
 
     // If we are updating employees, merge subset into fullEmployeeList
     if (newData.employees) {
-      const updatedIds = new Set(newData.employees.map(e => e.id));
       const otherEmps = appData.fullEmployeeList.filter(emp => {
         // Keep employees that were NOT in the current view's subset
-        const isOA = emp.isOberarzt === true || emp.id === 'admin' || emp.id === 'sekretariat' || emp.id === 'maier';
-        return planerType === 'oa' ? !isOA : isOA;
+        return !newData.employees.some(ne => ne.id === emp.id);
       });
-      // Filter out cross-profile flags before saving to full list
-      const cleanNewEmployees = newData.employees.filter(e => !e._isCrossProfile);
-      finalData.employees = [...otherEmps, ...cleanNewEmployees];
+      
+      // Filter out cross-profile flags before saving
+      const cleanNewEmployees = newData.employees.map(e => {
+          const { _isCrossProfile, _isCrossProfileOa, _isCrossProfileFoa, ...clean } = e;
+          return clean;
+      });
+
+      // Final Deduplication
+      const merged = [...otherEmps, ...cleanNewEmployees];
+      const uniqueMerged = [];
+      const seenIds = new Set();
+      for (const e of merged) {
+        if (!e.id || seenIds.has(e.id)) continue;
+        seenIds.add(e.id);
+        uniqueMerged.push(e);
+      }
+      finalData.employees = uniqueMerged;
     }
 
     // Same for skills
