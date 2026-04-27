@@ -370,10 +370,9 @@ const App = () => {
       setAppData({
         employees: migratedEmployees,
         fullEmployeeList: allEmployees,
-        fullSkillList: correctedFullSkillPool,
+        skills: correctedFullSkillPool,  // ALL skills, tagged oa/ass/shared
         absences,
         requests,
-        skills: migratedSkills,
         groupColors,
         rotationData: rotations || [],
         status: sourceData.status,
@@ -523,11 +522,10 @@ const App = () => {
       // 1. Save Employees and Config to Firestore (MUST BE FULL LIST)
       const firestorePayload = {
         employees: dedupe(dataToSave.fullEmployeeList || dataToSave.employees || []),
-        skills: dedupe(dataToSave.fullSkillList || dataToSave.skills || []),
+        skills: dedupe(dataToSave.skills || []),  // Full tagged list
         groupColors: dataToSave.groupColors || appData.groupColors,
         areaOrder: dataToSave.areaOrder || appData.areaOrder || [],
         settings: dataToSave.settings || appData.settings,
-        // Persist profile-specific skill ordering
         ass_skillOrder: dataToSave.ass_skillOrder || appData.ass_skillOrder || [],
         oa_skillOrder: dataToSave.oa_skillOrder || appData.oa_skillOrder || [],
       };
@@ -887,50 +885,43 @@ const App = () => {
 
     // Same for skills
     if (newData.skills) {
-      // The new skill list from the editor = source of truth for this profile
+      // newData.skills = editor list for THIS profile only
       const newSkillIds = new Set(newData.skills.map(s => s.id));
 
-      // Use a Map of the FULL list to maintain all skills and their tags
+      // Start from full tagged list
       const skillMap = new Map();
-      appData.fullSkillList.forEach(s => skillMap.set(s.id, { ...s }));
+      appData.skills.forEach(s => skillMap.set(s.id, { ...s }));
 
-      // Remove current-profile skills that were deleted by the user
+      // Remove skills of this profile that the user deleted
       skillMap.forEach((s, id) => {
         const t = s.planerType || 'shared';
-        const belongsToThisProfile = t === planerType || 
-          (planerType === 'oa' && OA_ONLY_IDS.has(id)) || 
+        const belongsToThisProfile = t === planerType ||
+          (planerType === 'oa' && OA_ONLY_IDS.has(id)) ||
           (planerType === 'ass' && ASS_ONLY_IDS.has(id));
         if (belongsToThisProfile && !SHARED_SKILL_IDS.has(id) && !newSkillIds.has(id)) {
           skillMap.delete(id);
         }
       });
 
-      // Update or add skills from the current editor
+      // Update or add skills from editor
       newData.skills.forEach(s => {
         const existing = skillMap.get(s.id);
-        const isShared = SHARED_SKILL_IDS.has(s.id) || (existing && existing.planerType === 'shared');
-        
+        const isShared = SHARED_SKILL_IDS.has(s.id) || (existing?.planerType === 'shared');
         let finalType = planerType;
         if (isShared) finalType = 'shared';
-        else if (existing && existing.planerType) finalType = existing.planerType;
+        else if (existing?.planerType) finalType = existing.planerType;
         else if (OA_ONLY_IDS.has(s.id)) finalType = 'oa';
         else if (ASS_ONLY_IDS.has(s.id)) finalType = 'ass';
-
         skillMap.set(s.id, { ...existing, ...s, planerType: finalType });
       });
 
-      const currentAndShared = newData.skills.map(s => skillMap.get(s.id) || s);
-      
-      finalData.skills = currentAndShared;
-      finalData.fullSkillList = Array.from(skillMap.values());
-      finalData[`${planerType}_skillOrder`] = currentAndShared.map(s => s.id);
+      finalData.skills = Array.from(skillMap.values()); // Full tagged list
+      finalData[`${planerType}_skillOrder`] = newData.skills.map(s => s.id);
     }
 
     const nextAppData = { ...appData, ...finalData };
     if (finalData.employees) {
-        // Update the current filtered view AND the full list
         nextAppData.employees = finalData.employees.filter(emp => {
-            // Re-filter to only show current profile's employees in the calendar
             if (planerType === 'oa') {
                 return emp.role === 'Oberarzt' || emp.id === 'admin' || emp.id === 'sekretariat' || emp.id === 'maier' || emp.isOberarzt === true;
             } else {
@@ -941,10 +932,7 @@ const App = () => {
         });
         nextAppData.fullEmployeeList = finalData.employees;
     }
-    if (finalData.fullSkillList) {
-        // Use the complete cross-profile pool, not the filtered view
-        nextAppData.fullSkillList = finalData.fullSkillList;
-    }
+    // No fullSkillList needed anymore – appData.skills is the full tagged list
 
     if (finalData.employees || finalData.absences) {
       nextAppData.vacationStats = updateVacationStats(nextAppData.absences, nextAppData.fullEmployeeList, nextAppData.vacationStats);
@@ -1035,6 +1023,23 @@ const App = () => {
       );
     }
 
+    // Filter full tagged skill list to current profile's skills
+    const skillOrder = appData[`${planerType}_skillOrder`] || [];
+    const profileSkills = (appData.skills || [])
+      .filter(s => {
+        const id = s.id;
+        const t = s.planerType;
+        if (SHARED_SKILL_IDS.has(id)) return true;
+        if (planerType === 'oa' && OA_ONLY_IDS.has(id)) return true;
+        if (planerType === 'ass' && ASS_ONLY_IDS.has(id)) return true;
+        return t === planerType;
+      })
+      .sort((a, b) => {
+        const iA = skillOrder.indexOf(a.id) !== -1 ? skillOrder.indexOf(a.id) : 999;
+        const iB = skillOrder.indexOf(b.id) !== -1 ? skillOrder.indexOf(b.id) : 999;
+        return iA - iB;
+      });
+
     switch (activeTab) {
       case 'calendar':
         return (
@@ -1049,7 +1054,7 @@ const App = () => {
             currentUser={resolvedUser}
             groupColors={appData.groupColors}
             rotationData={appData.rotationData}
-            skills={appData.skills}
+            skills={profileSkills}
             areaOrder={appData.areaOrder}
             displayOrder={profile.displayOrder || []}
             actionRequiredCount={actionRequiredCount}
@@ -1091,7 +1096,7 @@ const App = () => {
           <div style={{ flex: 1, overflow: 'auto', padding: '24px', background: 'transparent' }}>
             <EmployeeAdmin
               employees={appData.employees}
-              skills={appData.skills}
+              skills={profileSkills}
               onSave={(newList) => handleUpdateAdminData({ employees: newList })}
               perms={perms}
             />
@@ -1104,7 +1109,7 @@ const App = () => {
             <CategoryAdmin
               title="Skills verwalten"
               type="skills"
-              items={appData.skills}
+              items={profileSkills}
               employees={appData.employees}
               groupColors={appData.groupColors}
               palette={LEGACY_PALETTE}
