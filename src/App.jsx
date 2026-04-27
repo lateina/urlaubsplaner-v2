@@ -1019,6 +1019,7 @@ const App = () => {
         requests={appData.requests}
         onSaveAbsences={handleSaveAbsence}
         perms={perms}
+        planerType={planerType}
       />
       <LegalModal
         isOpen={isLegalModalOpen}

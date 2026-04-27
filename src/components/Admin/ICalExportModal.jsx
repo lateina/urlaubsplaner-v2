@@ -3,7 +3,7 @@ import Modal from '../UI/Modal';
 import { generateICalBlob, downloadBlob } from '../../utils/icalUtils';
 import { Calendar, Users, Download, CheckSquare, Square } from 'lucide-react';
 
-const ICalExportModal = ({ isOpen, onClose, absences, employees, requests, onSaveAbsences }) => {
+const ICalExportModal = ({ isOpen, onClose, absences, employees, requests, onSaveAbsences, planerType }) => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [selectedIds, setSelectedIds] = useState([]);
@@ -11,23 +11,47 @@ const ICalExportModal = ({ isOpen, onClose, absences, employees, requests, onSav
   const [onlyPo, setOnlyPo] = useState(false);
   const [markAsExported, setMarkAsExported] = useState(true);
 
+  // Filter employees by last name for better usability, excluding admin roles
+  // ALSO: If in Assistant planner, exclude cross-profile OAs/FOAs
+  const sortedEmployees = employees
+    .filter(emp => {
+      const isSpecial = emp.id === 'admin' || 
+                        emp.id === 'sekretariat' || 
+                        emp.id === 'assistentensprecher' ||
+                        emp.name?.toLowerCase().includes('administrator') ||
+                        emp.name?.toLowerCase().includes('assistentensprecher');
+      
+      if (isSpecial) return false;
+
+      // Filter out cross-profile employees in Assistant planner
+      if (planerType === 'ass' && emp._isCrossProfile) return false;
+
+      return true;
+    })
+    .sort((a, b) => {
+      const lastA = (a.name || '').split(' ').pop();
+      const lastB = (b.name || '').split(' ').pop();
+      return lastA.localeCompare(lastB, 'de');
+    });
+
   // Default date range: current year
   useEffect(() => {
+    if (!isOpen) return;
     const year = new Date().getFullYear();
     setStartDate(`${year}-01-01`);
     setEndDate(`${year}-12-31`);
     
-    // Default: all active employees
-    setSelectedIds(employees.filter(e => e.active !== false).map(e => e.id));
-  }, [isOpen, employees]);
+    // Default: all active employees in the FILTERED list
+    setSelectedIds(sortedEmployees.filter(e => e.active !== false).map(e => e.id));
+  }, [isOpen, sortedEmployees.length]);
 
   if (!isOpen) return null;
 
   const handleToggleAll = () => {
-    if (selectedIds.length === employees.length) {
+    if (selectedIds.length === sortedEmployees.length) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(employees.map(e => e.id));
+      setSelectedIds(sortedEmployees.map(e => e.id));
     }
   };
 
@@ -90,21 +114,6 @@ const ICalExportModal = ({ isOpen, onClose, absences, employees, requests, onSav
     downloadBlob(blob, `export_${startDate}_bis_${endDate}.ics`);
     onClose();
   };
-
-  // Sort employees by last name for better usability, excluding admin roles
-  const sortedEmployees = employees
-    .filter(emp => 
-      emp.id !== 'admin' && 
-      emp.id !== 'sekretariat' && 
-      emp.id !== 'assistentensprecher' &&
-      !emp.name?.toLowerCase().includes('administrator') &&
-      !emp.name?.toLowerCase().includes('assistentensprecher')
-    )
-    .sort((a, b) => {
-      const lastA = (a.name || '').split(' ').pop();
-      const lastB = (b.name || '').split(' ').pop();
-      return lastA.localeCompare(lastB, 'de');
-    });
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="iCal Kalenderexport">
