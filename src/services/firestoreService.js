@@ -116,10 +116,12 @@ export const firestoreService = {
 
   async saveConfig(config) {
     try {
-      await setDoc(doc(db, 'up_config', 'main'), {
+      // Firestore does not accept undefined values – sanitize before writing
+      const clean = JSON.parse(JSON.stringify({
         ...config,
         updatedAt: new Date().toISOString()
-      }, { merge: true });
+      }));
+      await setDoc(doc(db, 'up_config', 'main'), clean, { merge: true });
     } catch (error) {
       console.error('Error saving config to Firestore:', error);
       throw error;
