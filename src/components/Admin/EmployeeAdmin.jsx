@@ -124,6 +124,7 @@ const EmployeeAdmin = ({ employees, skills, onSave, perms = {} }) => {
                 Name {sortBy === 'name' && '↓'}
               </th>
               <th style={{ padding: '12px 16px', fontWeight: 700 }}>Signatur (Alias)</th>
+              <th style={{ padding: '12px 16px', fontWeight: 700 }}>Email</th>
               <th style={{ padding: '12px 16px', fontWeight: 700 }}>PIN</th>
               <th style={{ padding: '12px 16px', fontWeight: 700 }}>Eintritt</th>
               <th style={{ padding: '12px 16px', fontWeight: 700 }}>Austritt</th>
@@ -167,7 +168,19 @@ const EmployeeAdmin = ({ employees, skills, onSave, perms = {} }) => {
                     onChange={(e) => handleAddField(emp.id, 'stampAlias', e.target.value)}
                     placeholder="Stempel-Alias..."
                     style={{ 
-                      width: '180px', padding: '6px 10px', border: '1px solid var(--glass-border)', borderRadius: '8px',
+                      width: '120px', padding: '6px 10px', border: '1px solid var(--glass-border)', borderRadius: '8px',
+                      fontSize: '0.85rem', background: 'rgba(255, 255, 255, 0.5)'
+                    }}
+                  />
+                </td>
+                <td style={{ padding: '8px 16px' }}>
+                  <input 
+                    type="email" 
+                    value={emp.email || ''} 
+                    onChange={(e) => handleAddField(emp.id, 'email', e.target.value)}
+                    placeholder="email@beispiel.de"
+                    style={{ 
+                      width: '200px', padding: '6px 10px', border: '1px solid var(--glass-border)', borderRadius: '8px',
                       fontSize: '0.85rem', background: 'rgba(255, 255, 255, 0.5)'
                     }}
                   />
