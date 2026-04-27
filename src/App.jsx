@@ -556,7 +556,10 @@ const App = () => {
         skills: dedupe(dataToSave.fullSkillList || dataToSave.skills || []),
         groupColors: dataToSave.groupColors || appData.groupColors,
         areaOrder: dataToSave.areaOrder || appData.areaOrder || [],
-        settings: dataToSave.settings || appData.settings
+        settings: dataToSave.settings || appData.settings,
+        // Persist profile-specific skill ordering
+        ass_skillOrder: dataToSave.ass_skillOrder || appData.ass_skillOrder || [],
+        oa_skillOrder: dataToSave.oa_skillOrder || appData.oa_skillOrder || [],
       };
       
       await firestoreService.saveConfig(firestorePayload);
