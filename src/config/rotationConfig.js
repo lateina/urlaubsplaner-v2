@@ -28,7 +28,35 @@ export const MONTH_AREA_MAPPING = {
   'elternzeit': 'Elternzeit'
 };
 
-export const MONTH_AREA_ORDER = Object.keys(MONTH_AREA_MAPPING);
+export const MONTH_AREA_ORDER = [
+  'station18a',
+  'station18b',
+  'station19a',
+  'station19b',
+  'station46',
+  'echolabor',
+  'kardambulanz',
+  'hfambulanz',
+  'phambulanz',
+  'pneumambulanz',
+  'studienambulanz',
+  'station93',
+  'cpu',
+  'hfu',
+  'sm',
+  'icd',
+  'epu',
+  'hkl',
+  'med1',
+  'med3',
+  'bronchoskopie',
+  'ict',
+  'mrtct',
+  'schlaflabor',
+  'donaustauf',
+  'labor',
+  'elternzeit'
+];
 
 export const ROTATION_BIN_ID = '699c40edae596e708f42284d';
 

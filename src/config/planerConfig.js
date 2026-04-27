@@ -29,12 +29,12 @@ export const PLANER_PROFILES = {
       'Kein Vertreter nötig': '#6b7280'
     },
     displayOrder: [
-      'Funktionsoberarzt',
       'Station 50-52',
       'Interm/ITS',
       'Notaufnahme',
       'Fremdrotation',
       'Kardiologie',
+      'Funktionsoberarzt',
       'Kein Vertreter nötig'
     ],
     areaOrder: [
@@ -48,7 +48,6 @@ export const PLANER_PROFILES = {
     secondaryColor: '#f5f3ff',
     icon: 'ShieldCheck',
     defaultSkills: [
-      { id: 'skill_funktionsoberarzt', name: 'Funktionsoberarzt' },
       { id: 'skill_chef', name: 'Chef' },
       { id: 'skill_privat', name: 'Privat' },
       { id: 'skill_tavi', name: 'TAVI' },
@@ -59,6 +58,7 @@ export const PLANER_PROFILES = {
       { id: 'skill_intensiv', name: 'Intensiv' },
       { id: 'skill_pneumo', name: 'Pneumo' },
       { id: 'skill_ambulanz', name: 'Ambulanz' },
+      { id: 'skill_funktionsoberarzt', name: 'Funktionsoberarzt' },
       { id: 'skill_keinvertreternotig', name: 'Kein Vertreter nötig' }
     ],
     defaultColors: {
@@ -76,8 +76,8 @@ export const PLANER_PROFILES = {
       'Kein Vertreter nötig': '#6b7280'
     },
     displayOrder: [
-      'Chef', 'Privat', 'Funktionsoberarzt', 'TAVI', 'TEER', 'Herzkatheter', 
-      'Echo', 'EPU', 'Intensiv', 'Pneumo', 'Ambulanz', 'Kein Vertreter nötig'
+      'Chef', 'Privat', 'TAVI', 'TEER', 'Herzkatheter', 'Echo', 'EPU', 
+      'Intensiv', 'Pneumo', 'Ambulanz', 'Funktionsoberarzt', 'Kein Vertreter nötig'
     ],
     areaOrder: [
       'HKL', 'EPU', 'Echo', 'TAVI', 'TEER', 'Intensiv', 'Pneumo', 'Ambulanz', 'Notaufnahme'

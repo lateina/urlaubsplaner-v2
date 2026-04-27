@@ -316,12 +316,21 @@ const CalendarView = ({
         const areaA = getEmpArea(a.id);
         const areaB = getEmpArea(b.id);
         
-        // Priority order: displayOrder (hardcoded) > areaOrder (dynamic) > alphabetical
+        // Priority order for rotations: 
+        // 1. MONTH_AREA_ORDER (Hardcoded IDs like 'station18a')
+        // 2. displayOrder (Hardcoded names like 'Station 50-52')
+        // 3. areaOrder (Dynamic from DB)
+        // 4. Alphabetical
         const getIdx = (area) => {
-           let idx = displayOrder.indexOf(area);
+           let idx = MONTH_AREA_ORDER.indexOf(area);
            if (idx !== -1) return idx;
-           idx = effectiveAreaOrder.indexOf(area);
+           
+           idx = displayOrder.indexOf(area);
            if (idx !== -1) return idx + 100;
+
+           idx = (areaOrder || []).indexOf(area);
+           if (idx !== -1) return idx + 200;
+
            return 999;
         };
 
