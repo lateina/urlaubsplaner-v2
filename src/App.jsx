@@ -51,6 +51,15 @@ const DEFAULT_GROUP_COLORS = {
 
 const LEGACY_PALETTE = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#6366f1', '#14b8a6', '#f97316'];
 
+const OA_ONLY_IDS = new Set([
+  'skill_chef', 'skill_privat', 'skill_tavi', 'skill_teer', 'skill_herzkatheter', 
+  'skill_echo', 'skill_epu', 'skill_intensiv', 'skill_pneumo', 'skill_ambulanz',
+  'skill_interventionellesecho'
+]);
+const ASS_ONLY_IDS = new Set([
+  'skill_station5052', 'skill_intermits', 'skill_notaufnahme', 'skill_fremdrotation', 'skill_kardiologie'
+]);
+
 const App = () => {
   const [activeTab, setActiveTab] = useState('calendar');
   const [auth, setAuth] = useState(() => {
@@ -255,16 +264,20 @@ const App = () => {
 
       let employees = [...profileEmployees, ...crossEmployees];
 
-      // Skill Filtering
+      // Skill Filtering: Show skills for this profile OR shared ones
       const profileSkillIds = new Set(profile.defaultSkills.map(s => s.id));
-      let skills = allSkills.filter(s => profileSkillIds.has(s.id));
+      let skills = allSkills.filter(s => {
+        const sType = s.planerType || 'shared';
+        return sType === 'shared' || sType === planerType || profileSkillIds.has(s.id);
+      });
 
       // 3. Migration Logic (for IDs)
       const migratedSkills = skills.map(s => {
         if (typeof s === 'object' && s.id) return s;
         return {
           id: `skill_${String(s).toLowerCase().trim().replace(/[^a-z0-9]/g, '')}`,
-          name: String(s)
+          name: String(s),
+          planerType: planerType // Tag legacy strings
         };
       });
 
@@ -761,9 +774,19 @@ const App = () => {
 
     // Same for skills
     if (newData.skills) {
-      const profileSkillIds = new Set(profile.defaultSkills.map(s => s.id));
-      const otherSkills = appData.fullSkillList.filter(s => !profileSkillIds.has(s.id));
-      finalData.skills = [...otherSkills, ...newData.skills];
+      // 1. Tag current skills with the active planerType if not already set
+      const updatedSkills = newData.skills.map(s => ({
+        ...s,
+        planerType: s.planerType || (OA_ONLY_IDS.has(s.id) ? 'oa' : (ASS_ONLY_IDS.has(s.id) ? 'ass' : planerType))
+      }));
+
+      // 2. Keep skills from other planners
+      const otherSkills = appData.fullSkillList.filter(s => {
+        const sType = s.planerType || 'shared';
+        return sType !== 'shared' && sType !== planerType;
+      });
+
+      finalData.skills = [...otherSkills, ...updatedSkills];
     }
 
     const nextAppData = { ...appData, ...finalData };
