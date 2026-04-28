@@ -1,3 +1,5 @@
+import React, { useState, useEffect } from 'react';
+import { ShieldCheck, User, Search, Lock } from 'lucide-react';
 import { firestoreService } from '../../services/firestoreService';
 
 const Login = ({ onLogin, binId, planerType }) => {
