@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Trash2, UserPlus, Save } from 'lucide-react';
+import { Trash2, UserPlus, Save, AlertTriangle } from 'lucide-react';
 
-const EmployeeAdmin = ({ employees, skills, onSave, perms = {} }) => {
+const EmployeeAdmin = ({ employees, skills, onSave, perms = {}, vacationStats = {} }) => {
   const [editingEmployees, setEditingEmployees] = useState(employees);
   const [sortBy, setBy] = useState('id'); // 'id' or 'name'
 
@@ -150,16 +150,35 @@ const EmployeeAdmin = ({ employees, skills, onSave, perms = {} }) => {
                   />
                 </td>
                 <td style={{ padding: '8px 16px' }}>
-                  <input 
-                    type="text" 
-                    value={emp.name} 
-                    onChange={(e) => handleAddField(emp.id, 'name', e.target.value)}
-                    placeholder="Login-Name..."
-                    style={{ 
-                      width: '180px', padding: '6px 10px', border: '1px solid var(--glass-border)', borderRadius: '8px',
-                      fontSize: '0.85rem', background: 'rgba(255, 255, 255, 0.5)'
-                    }}
-                  />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <input 
+                      type="text" 
+                      value={emp.name} 
+                      onChange={(e) => handleAddField(emp.id, 'name', e.target.value)}
+                      placeholder="Login-Name..."
+                      style={{ 
+                        width: '180px', padding: '6px 10px', border: '1px solid var(--glass-border)', borderRadius: '8px',
+                        fontSize: '0.85rem', background: 'rgba(255, 255, 255, 0.5)'
+                      }}
+                    />
+                    {(() => {
+                      const today = new Date();
+                      const isMidYear = today.getMonth() >= 6; // July or later
+                      const stats = vacationStats[emp.id] || { used: 0, quota: 30 };
+                      const used = stats.used || 0;
+                      const quota = stats.quota || 30;
+                      const lowUsage = used < (quota / 2);
+
+                      if (isMidYear && lowUsage && emp.active !== false && emp.id !== 'admin' && emp.id !== 'sekretariat') {
+                        return (
+                          <div title={`Warnung: Weniger als 50% des Urlaubs verplant (${used}/${quota} Tage)`} style={{ color: '#eab308', display: 'flex', alignItems: 'center' }}>
+                            <AlertTriangle size={18} />
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+                  </div>
                 </td>
                 <td style={{ padding: '8px 16px' }}>
                   <input 

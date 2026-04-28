@@ -1147,6 +1147,7 @@ const App = () => {
             <EmployeeAdmin
               employees={appData.employees}
               skills={profileSkills}
+              vacationStats={appData.vacationStats}
               onSave={(newList) => handleUpdateAdminData({ employees: newList })}
               perms={perms}
             />
