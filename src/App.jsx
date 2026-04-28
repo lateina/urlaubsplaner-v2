@@ -182,9 +182,8 @@ const App = () => {
     const profile = PLANER_PROFILES[planerType];
 
     try {
-      // 1. Parallel Fetches
-      const firestoreConfigFetch = firestoreService.loadConfig(); // TRY FIRESTORE FIRST
-      const mainFetch = apiService.load(binId, key);
+      // 1. Parallel Fetches (JSONBin mainFetch removed)
+      const firestoreConfigFetch = firestoreService.loadConfig(); 
       const rotationFetch = apiService.load(ROTATION_BIN_ID, key);
       const firestoreAbsencesFetch = firestoreService.loadAbsences(planerType);
       const firestoreRequestsFetch = firestoreService.loadRequests(planerType);
@@ -193,17 +192,16 @@ const App = () => {
         ? firestoreService.loadAbsences('oa')
         : Promise.resolve({});
 
-      const [fsConfig, data, rotations, fsAbsences, fsRequests, fsOAAbsences] = await Promise.all([
+      const [fsConfig, rotations, fsAbsences, fsRequests, fsOAAbsences] = await Promise.all([
         firestoreConfigFetch.catch(e => { console.warn("Firestore config fetch failed", e); return null; }),
-        mainFetch.catch(e => { console.warn("JSONBin main fetch failed (likely API down). Falling back to Firestore.", e); return null; }),
         rotationFetch.catch(e => { console.warn("Rotation fetch failed", e); return null; }),
         firestoreAbsencesFetch.catch(e => { console.error("Firestore absences fetch failed", e); return {}; }),
         firestoreRequestsFetch.catch(e => { console.error("Firestore requests fetch failed", e); return []; }),
         firestoreOAAbsencesFetch.catch(e => { console.error("Firestore OA absences fetch failed", e); return {}; })
       ]);
 
-      // 2. Determine source of truth for Employees/Skills/Settings
-      const sourceData = fsConfig || data || {};
+      // 2. Determine source of truth (Now purely Firestore config)
+      const sourceData = fsConfig || {};
       
       // 1. Aggressive Deduplication of all source employees
       const rawEmployees = sourceData.employees || sourceData.mitarbeiter || [];
@@ -235,8 +233,8 @@ const App = () => {
       const skillOrder = storedOrder.length > 0 ? storedOrder : defaultOrder;
       
       // Merge absences and requests (Requests prefer Firestore)
-      let absences = { ...(data?.state || {}), ...fsAbsences };
-      let requests = fsRequests.length > 0 ? fsRequests : (data?.requests || data?.__REQUESTS__ || []);
+      let absences = fsAbsences;
+      let requests = fsRequests;
 
       // If we loaded from JSONBin but Firestore was empty, we'll want to migrate on next save
       if (!fsConfig && auth.user?.role === 'Administrator') {
@@ -378,14 +376,14 @@ const App = () => {
         absences,
         requests,
         groupColors,
-        rotationData: (Array.isArray(rotations) ? rotations : rotations?.rotations) || sourceData.rotationData || data?.rotations || [],
+        rotationData: (Array.isArray(rotations) ? rotations : rotations?.rotations) || sourceData.rotationData || [],
         status: sourceData.status,
         ass_areaOrder: ass_areaOrder.length > 0 ? ass_areaOrder : PLANER_PROFILES.ass.areaOrder,
         oa_areaOrder: oa_areaOrder.length > 0 ? oa_areaOrder : PLANER_PROFILES.oa.areaOrder,
         ass_skillOrder: sourceData.ass_skillOrder || [],
         oa_skillOrder: sourceData.oa_skillOrder || [],
         settings: sourceData.settings || {},
-        vacationStats: updateVacationStats(absences, migratedEmployees, data?.vacationStats || {}, requests)
+        vacationStats: updateVacationStats(absences, migratedEmployees, sourceData.vacationStats || {}, requests)
       });
     } catch (err) {
       console.error(err);
@@ -541,19 +539,7 @@ const App = () => {
       
       await firestoreService.saveConfig(firestorePayload);
 
-      // 2. Parallel backup save to JSONBin (FILTERED to avoid leakage)
-      const jsonbinPayload = {
-        ...firestorePayload,
-        employees: firestorePayload.employees.filter(emp => {
-            const isFOA = Array.isArray(emp.groups) && emp.groups.includes('skill_funktionsoberarzt');
-            if (planerType === 'oa') return emp.role === 'Oberarzt' || isFOA;
-            return emp.role !== 'Oberarzt' || isFOA;
-        }),
-        state: {},
-        requests: []
-      };
-      apiService.save(binId, auth.masterKey, jsonbinPayload)
-        .catch(e => console.warn('JSONBin backup failed', e));
+      // JSONBin backup removed here. Firestore is now the primary source of truth.
 
       // 3. Save Absences to Firestore
       const savePromises = Object.entries(absences).map(([eid, dates]) =>
