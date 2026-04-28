@@ -139,22 +139,10 @@ const Login = ({ onLogin, binId, planerType }) => {
               className="login-submit"
               disabled={!selectedUser || isLoading}
             >
-              Einloggen
+              {isLoading ? 'Lädt...' : 'Einloggen'}
             </button>
           </form>
         )}
-      </div>
-
-          {error && <div className="login-error">{error}</div>}
-
-          <button 
-            type="submit" 
-            className="login-submit"
-            disabled={!selectedUser || isLoading}
-          >
-            {isLoading ? 'Lädt...' : 'Einloggen'}
-          </button>
-        </form>
       </div>
 
       <style>{`
