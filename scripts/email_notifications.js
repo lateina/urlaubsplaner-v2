@@ -247,6 +247,48 @@ async function run() {
         }
     }
 
+    // --- New: Mid-Year Vacation Reminder Logic ---
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const isMidYearWindow = today.getMonth() === 6; // July (0-indexed)
+    
+    if (isMidYearWindow && configData.lastMidYearReminderYear !== currentYear) {
+        console.log('--- Checking Mid-Year Vacation Reminders ---');
+        const stats = configData.vacationStats || {};
+        const lowUsageEmployees = [];
+
+        for (const emp of allEmployees) {
+            if (emp.role === 'Admin' || emp.role === 'Sekretariat') continue;
+            
+            const empStats = stats[emp.id] || { used: 0, quota: 30 };
+            const used = empStats.used || 0;
+            const quota = empStats.quota || 30;
+            const percentage = (used / quota) * 100;
+
+            if (percentage < 50) {
+                lowUsageEmployees.push({ name: emp.name, used, quota, email: emp.email });
+                
+                if (emp.email) {
+                    await sendEmail(emp.email,
+                        'Erinnerung: Urlaubsplanung zur Jahreshälfte',
+                        `Hallo ${emp.name},\n\ndas erste Halbjahr ist fast vorüber. Aktuell hast du erst ${used} von ${quota} Urlaubstagen für dieses Jahr verplant.\n\nBitte denke daran, deinen restlichen Urlaub zeitnah einzureichen, um eine gute Planung für alle sicherzustellen.\n\nZum Urlaubsplaner:\nhttps://lateina.github.io/urlaubsplaner-v2/`
+                    );
+                }
+            }
+        }
+
+        if (lowUsageEmployees.length > 0) {
+            const summaryList = lowUsageEmployees.map(e => `• ${e.name}: ${e.used}/${e.quota} Tage verplant`).join('\n');
+            adminDigest.push(`\n[Jahreshälfte-Info] Folgende Mitarbeiter haben noch weniger als 50% ihres Urlaubs verplant:\n${summaryList}`);
+            sekrDigest.push(`\n[Jahreshälfte-Info] Folgende Mitarbeiter haben noch weniger als 50% ihres Urlaubs verplant:\n${summaryList}`);
+        }
+
+        // Mark as sent for this year
+        await updateFirestoreDocument('up_config', 'main', { lastMidYearReminderYear: currentYear });
+        console.log(`  → Mid-year reminders processed and flag set for ${currentYear}`);
+    }
+    // --- End of Mid-Year Logic ---
+
     // Send Admin Digest
     if (adminDigest.length > 0) {
         await sendEmail(ADMIN_EMAIL,

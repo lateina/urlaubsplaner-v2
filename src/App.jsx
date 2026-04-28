@@ -536,6 +536,7 @@ const App = () => {
         settings: dataToSave.settings || appData.settings,
         ass_skillOrder: dataToSave.ass_skillOrder || appData.ass_skillOrder || [],
         oa_skillOrder: dataToSave.oa_skillOrder || appData.oa_skillOrder || [],
+        vacationStats: dataToSave.vacationStats || appData.vacationStats || {},
       };
       
       await firestoreService.saveConfig(firestorePayload);
