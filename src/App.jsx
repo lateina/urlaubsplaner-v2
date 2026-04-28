@@ -260,6 +260,9 @@ const App = () => {
           const groups = Array.isArray(emp.groups) ? emp.groups : [];
           const isFOA = groups.includes('skill_funktionsoberarzt');
           
+          // Hide system users from AA table
+          if (emp.id === 'admin' || emp.id === 'sekretariat') return false;
+
           // Show if NOT an OA, OR if it's a FOA (who should be in both)
           return (emp.role !== 'Oberarzt' && emp.id !== 'maier' && !emp.isOberarzt) || isFOA;
         });

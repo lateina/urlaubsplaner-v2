@@ -50,8 +50,8 @@ const Login = ({ onLogin, initialMasterKey, binId, planerType }) => {
         try {
           const oaData = await oaRes.json();
           const crossEmps = (oaData.record.employees || []).filter(emp => {
-            if (emp.id === 'admin' || emp.id === 'sekretariat' || emp.id === 'assistentensprecher') return false;
-            if (emp.name && (emp.name.toLowerCase().includes('administrator') || emp.name.toLowerCase().includes('sekretariat'))) return false;
+            // Include all OA-side users (Admin, Sek, OAs) in the AA login list
+            // The deduplication logic below will prevent duplicates for FOAs
             return true;
           }).map(f => ({ ...f, _isCrossProfile: true }));
 
