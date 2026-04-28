@@ -585,17 +585,21 @@ const CalendarView = ({
   const handleEditQuota = (emp) => {
     if (emp._isCrossProfile) return;
     if (!isCalendarAdmin && currentUser?.id !== emp.id) {
-      alert('Stopp! Nur der Admin oder der Mitarbeiter selbst können das Urlaubskontingent ändern.');
+      alert('Stopp! Nur der Admin, das Sekretariat oder der Mitarbeiter selbst können das Urlaubskontingent ändern.');
       return;
     }
     const stats = vacationStats[emp.id] || { total: 0, quota: 30 };
-    const val = prompt(`Jahresurlaub für ${emp.name || emp.id} (Tage):`, stats.quota);
+    const balance = stats.quota - stats.total;
+    const val = prompt(`Verbleibende Resturlaubstage für ${emp.name || emp.id}:`, balance);
     if (val === null) return;
     const num = parseInt(val);
-    if (isNaN(num) || num < 0) { alert('Ungültige Zahl.'); return; }
+    if (isNaN(num)) { alert('Ungültige Zahl.'); return; }
+    
+    // Set new quota based on: NewBalance + AlreadyUsed = NewQuota
+    const newQuota = num + stats.total;
     
     const newEmployees = employees.map(e => {
-       if (e.id === emp.id) return { ...e, vacationQuota: num };
+       if (e.id === emp.id) return { ...e, vacationQuota: newQuota };
        return e;
     });
     if (onUpdateAdminData) onUpdateAdminData({ employees: newEmployees });
@@ -1191,13 +1195,13 @@ const CalendarView = ({
                             <span 
                               className={`vac-quota ${canEdit ? 'editable' : ''}`} 
                               onClick={() => handleEditQuota(emp)}
-                              title={canEdit ? 'Klicken zum Ändern' : ''}
+                              title={canEdit ? 'Klicken zum Ändern (Resturlaub)' : ''}
                               style={{ 
                                 cursor: canEdit ? 'pointer' : 'default',
                                 borderBottom: canEdit ? '1px dashed #94a3b8' : 'none'
                               }}
                             >
-                              {stats.quota}
+                              {stats.quota - stats.total}
                             </span>
                           </div>
                         );

@@ -472,16 +472,8 @@ const App = () => {
 
     targetEmployees.forEach(emp => {
       const used = calculateVacationUsed(emp.id, newAbsences, year, targetRequests);
-      const baseQuota = emp.vacationQuota ?? 30;
-      const carryOver = emp.vacationCarryOver ?? 0;
-      const totalQuota = baseQuota + carryOver;
-      
-      newStats[emp.id] = { 
-        total: used, 
-        quota: totalQuota,
-        baseQuota: baseQuota,
-        carryOver: carryOver
-      };
+      const currentQuota = emp.vacationQuota ?? 30;
+      newStats[emp.id] = { total: used, quota: currentQuota };
     });
     return newStats;
   };

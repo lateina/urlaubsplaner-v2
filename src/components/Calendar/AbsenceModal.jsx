@@ -450,7 +450,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
             <div style={{ height: '1px', background: 'rgba(59, 130, 246, 0.1)', margin: '4px 0' }}></div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
               <span>Aktuell geplant:</span>
-              <span style={{ fontWeight: 700 }}>{vacationInfo.currentTotal} / {vacationInfo.quota}</span>
+              <span style={{ fontWeight: 700 }}>{vacationInfo.currentTotal} / {vacationInfo.quota - vacationInfo.currentTotal}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
               <span>Nach diesem Eintrag:</span>
@@ -458,7 +458,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
                 fontWeight: 900, 
                 color: vacationInfo.projectedTotal > vacationInfo.quota ? '#ef4444' : '#2563eb' 
               }}>
-                {vacationInfo.projectedTotal} / {vacationInfo.quota}
+                {vacationInfo.projectedTotal} / {vacationInfo.quota - vacationInfo.projectedTotal}
               </span>
             </div>
           </div>
