@@ -13,6 +13,7 @@ const RequestsView = ({
   onDelete,
   onMarkPODone,
   perms = {},
+  vacationStats = {},
   planerType
 }) => {
 
@@ -229,17 +230,30 @@ const RequestsView = ({
                     checked={!!req.stamps?.po}
                     onChange={(e) => {
                         let shortcut = poShortcut;
-                        if (e.target.checked && !shortcut) {
-                            shortcut = prompt('Bitte Ihr Kürzel eingeben:');
-                            if (shortcut) {
-                                shortcut = shortcut.toUpperCase();
-                                setPoShortcut(shortcut);
-                                localStorage.setItem(`${planerType}_po_shortcut`, shortcut);
-                            } else {
-                                return;
+                        let newRemaining = null;
+                        if (e.target.checked) {
+                            if (!shortcut) {
+                                shortcut = prompt('Bitte Ihr Kürzel eingeben:');
+                                if (shortcut) {
+                                    shortcut = shortcut.toUpperCase();
+                                    setPoShortcut(shortcut);
+                                    localStorage.setItem(`${planerType}_po_shortcut`, shortcut);
+                                } else {
+                                    return;
+                                }
+                            }
+                            
+                            // New: Prompt for remaining vacation days
+                            const stats = vacationStats[req.empId] || { total: 0, quota: 30 };
+                            const currentBalance = stats.quota - stats.total;
+                            const empName = getEmpName(req.empId);
+                            const val = prompt(`Verbleibender Resturlaub für ${empName} nach diesem Antrag?`, currentBalance);
+                            if (val !== null) {
+                                newRemaining = parseInt(val);
+                                if (isNaN(newRemaining)) newRemaining = null;
                             }
                         }
-                        onMarkPODone(req.id, e.target.checked, shortcut);
+                        onMarkPODone(req.id, e.target.checked, shortcut, newRemaining);
                     }}
                     style={{ width: 20, height: 20, cursor: 'pointer' }}
                   />

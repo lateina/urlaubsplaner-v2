@@ -809,7 +809,7 @@ const App = () => {
       setIsLoading(false);
     }
   };
-  const handleMarkPODone = async (reqId, checked, shortcut) => {
+  const handleMarkPODone = async (reqId, checked, shortcut, newRemainingDays = null) => {
     const reqIndex = appData.requests.findIndex(r => r.id === reqId);
     if (reqIndex === -1) return;
 
@@ -835,13 +835,48 @@ const App = () => {
         }
       }
 
+      // Save Request to Firestore
       await firestoreService.saveRequest(planerType, request);
-      setAppData(prev => {
-        const newRequests = [...prev.requests];
-        const idx = newRequests.findIndex(r => r.id === reqId);
-        if (idx !== -1) newRequests[idx] = request;
-        return { ...prev, requests: newRequests };
-      });
+
+      let nextAppData = { ...appData };
+      const newRequests = [...nextAppData.requests];
+      const idx = newRequests.findIndex(r => r.id === reqId);
+      if (idx !== -1) newRequests[idx] = request;
+      nextAppData.requests = newRequests;
+
+      // Handle Quota Update if provided
+      if (checked && newRemainingDays !== null) {
+        const stats = appData.vacationStats[request.empId] || { total: 0, quota: 30 };
+        const newQuota = newRemainingDays + stats.total;
+        
+        const newFullList = appData.fullEmployeeList.map(e => {
+          if (e.id === request.empId) return { ...e, vacationQuota: newQuota };
+          return e;
+        });
+
+        nextAppData.fullEmployeeList = newFullList;
+        // Re-filter for current profile
+        nextAppData.employees = newFullList.filter(emp => {
+          if (planerType === 'oa') {
+            return emp.role === 'Oberarzt' || emp.id === 'admin' || emp.id === 'sekretariat' || emp.id === 'maier' || emp.isOberarzt === true;
+          } else {
+            const groups = Array.isArray(emp.groups) ? emp.groups : [];
+            const isFOA = groups.includes('skill_funktionsoberarzt');
+            return (emp.role !== 'Oberarzt' && emp.id !== 'maier' && !emp.isOberarzt) || isFOA;
+          }
+        });
+
+        // Recalculate stats
+        nextAppData.vacationStats = updateVacationStats(nextAppData.absences, nextAppData.fullEmployeeList, nextAppData.vacationStats);
+
+        // Save updated employees to JSONBin
+        const { absences, requests, ...rest } = nextAppData;
+        const jsonbinPayload = { ...rest, state: {}, requests: [] };
+        jsonbinPayload.employees = jsonbinPayload.employees.filter(e => !e._isCrossProfile);
+        await apiService.save(binId, auth.masterKey, jsonbinPayload);
+      }
+
+      setAppData(nextAppData);
 
     } catch (err) {
       console.error(err);
@@ -1089,6 +1124,7 @@ const App = () => {
             onDelete={handleDeleteRequest}
             onMarkPODone={handleMarkPODone}
             perms={perms}
+            vacationStats={appData.vacationStats}
             planerType={planerType}
           />
 
