@@ -1,74 +1,38 @@
-import React, { useState, useEffect } from 'react';
-import { KeyRound, User, Lock, Search, ShieldCheck } from 'lucide-react';
-import { APP_CONFIG } from '../../config/appConfig';
+import { firestoreService } from '../../services/firestoreService';
 
-const Login = ({ onLogin, initialMasterKey, binId, planerType }) => {
-  const [masterKey, setMasterKey] = useState(initialMasterKey || '');
+const Login = ({ onLogin, binId, planerType }) => {
   const [employees, setEmployees] = useState([]);
   const [search, setSearch] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
   const [pin, setPin] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  const [isMasterKeyValid, setIsMasterKeyValid] = useState(!!initialMasterKey);
 
-  // Load employees when master key is entered
+  // Load employees from Firestore on mount
   useEffect(() => {
-    if (masterKey.length >= 20) {
-      validateMasterKey();
-    }
-  }, [masterKey, binId, planerType]);
+    loadEmployees();
+  }, [planerType]);
 
-  const validateMasterKey = async () => {
-    if (!binId) return;
+  const loadEmployees = async () => {
     setIsLoading(true);
     setError('');
     try {
-      // 1. Define fetches
-      const mainFetch = fetch(`${APP_CONFIG.API_URL}/${binId}/latest`, {
-        headers: { 'X-Master-Key': masterKey }
-      });
-      
-      const oaFetch = (planerType === 'ass' && binId === APP_CONFIG.ASS_BIN_ID) 
-        ? fetch(`${APP_CONFIG.API_URL}/${APP_CONFIG.OA_BIN_ID}/latest`, { headers: { 'X-Master-Key': masterKey } })
-        : Promise.resolve(null);
-
-      // 2. Execute parallel
-      const [mainRes, oaRes] = await Promise.all([mainFetch, oaFetch]);
-      
-      if (!mainRes.ok) {
-        setIsMasterKeyValid(false);
-        setError('Master Key ungültig');
-        return;
+      const config = await firestoreService.loadConfig();
+      if (!config || !config.employees) {
+        throw new Error('Keine Mitarbeiterdaten gefunden');
       }
 
-      const mainData = await mainRes.json();
-      let emps = mainData.record.employees || [];
+      let emps = config.employees;
 
-      // 3. Process optional OA data
-      if (oaRes && oaRes.ok) {
-        try {
-          const oaData = await oaRes.json();
-          const crossEmps = (oaData.record.employees || []).filter(emp => {
-            // Include all OA-side users (Admin, Sek, OAs) in the AA login list
-            // The deduplication logic below will prevent duplicates for FOAs
-            return true;
-          }).map(f => ({ ...f, _isCrossProfile: true }));
-
-          crossEmps.forEach(f => {
-            if (!emps.find(e => e.id === f.id)) emps.push(f);
-          });
-        } catch (e) {
-          console.warn("FOA fetch parsing failed", e);
-        }
+      // Add cross-profile employees for Assistant view if needed
+      if (planerType === 'ass') {
+        // We include everyone in the main config for now as they are already merged in Firestore
       }
       
       setEmployees(emps);
-      setIsMasterKeyValid(true);
-      localStorage.setItem(`${planerType}_jsonbin_key`, masterKey);
-
-      } catch (err) {
-      setError('Verbindungsfehler');
+    } catch (err) {
+      console.error('Login Load Error:', err);
+      setError('Fehler beim Laden der Mitarbeiter');
     } finally {
       setIsLoading(false);
     }
@@ -85,7 +49,7 @@ const Login = ({ onLogin, initialMasterKey, binId, planerType }) => {
     
     onLogin({
       user: selectedUser,
-      masterKey: masterKey
+      masterKey: 'STORED_IN_FIRESTORE' // Signal that key is handled via config
     });
   };
 
@@ -111,36 +75,29 @@ const Login = ({ onLogin, initialMasterKey, binId, planerType }) => {
           <p>Bitte melden Sie sich an</p>
         </div>
 
-        <form onSubmit={handleLogin} className="login-form">
-          {/* Master Key Section */}
-          <div className="input-group">
-            <label><KeyRound size={16} /> Planer-Code (Master Key)</label>
-            <input 
-              type="password" 
-              value={masterKey}
-              onChange={(e) => setMasterKey(e.target.value)}
-              placeholder="Eingeben..."
-              className={isMasterKeyValid ? 'valid' : ''}
-            />
+        {isLoading ? (
+          <div className="login-loading">
+            <div className="spinner"></div>
+            <p>Lade Mitarbeiter...</p>
           </div>
-
-          {isMasterKeyValid && (
-            <>
-              {/* User Selection */}
-              <div className="input-group">
-                <label><User size={16} /> Mitarbeiter</label>
-                <div className="user-search-wrapper">
-                  <div className="search-input-box">
-                    <Search size={14} className="search-icon" />
-                    <input 
-                      type="text" 
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Suchen..."
-                    />
-                  </div>
-                  <div className="user-list">
-                    {filteredEmployees.map(emp => (
+        ) : (
+          <form onSubmit={handleLogin} className="login-form">
+            {/* User Selection */}
+            <div className="input-group">
+              <label><User size={16} /> Mitarbeiter</label>
+              <div className="user-search-wrapper">
+                <div className="search-input-box">
+                  <Search size={14} className="search-icon" />
+                  <input 
+                    type="text" 
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Suchen..."
+                  />
+                </div>
+                <div className="user-list">
+                  {filteredEmployees.length > 0 ? (
+                    filteredEmployees.map(emp => (
                       <div 
                         key={emp.id}
                         className={`user-item ${selectedUser?.id === emp.id ? 'active' : ''}`}
@@ -148,26 +105,45 @@ const Login = ({ onLogin, initialMasterKey, binId, planerType }) => {
                       >
                         {emp.name}
                       </div>
-                    ))}
-                  </div>
+                    ))
+                  ) : (
+                    <div className="user-item empty">Keine Mitarbeiter gefunden</div>
+                  )}
                 </div>
               </div>
+            </div>
 
-              {/* PIN Section */}
-              {selectedUser && (
-                <div className="input-group animate-fade-in">
-                  <label><Lock size={16} /> PIN oder Code</label>
-                  <input 
-                    type="password" 
-                    value={pin}
-                    onChange={(e) => setPin(e.target.value)}
-                    placeholder="Eingeben..."
-                    autoFocus
-                  />
-                </div>
-              )}
-            </>
-          )}
+            {/* PIN Section */}
+            {selectedUser && (
+              <div className="input-group animate-fade-in">
+                <label><Lock size={16} /> PIN oder Code</label>
+                <input 
+                  type="password" 
+                  value={pin}
+                  onChange={(e) => setPin(e.target.value)}
+                  placeholder="Eingeben..."
+                  autoFocus
+                />
+              </div>
+            )}
+
+            {error && (
+              <div className="login-error">
+                {error}
+                <button type="button" onClick={loadEmployees} className="retry-btn">Wiederholen</button>
+              </div>
+            )}
+
+            <button 
+              type="submit" 
+              className="login-submit"
+              disabled={!selectedUser || isLoading}
+            >
+              Einloggen
+            </button>
+          </form>
+        )}
+      </div>
 
           {error && <div className="login-error">{error}</div>}
 

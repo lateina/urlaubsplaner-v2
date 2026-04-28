@@ -84,7 +84,7 @@ const App = () => {
     return {
       user: savedUser ? JSON.parse(savedUser) : null,
       masterKey: savedKey,
-      isAuthenticated: !!(savedKey && savedUser),
+      isAuthenticated: !!savedUser, // Key is now optional/automatic
       authProfile: savedProfile
     };
   });
@@ -172,19 +172,25 @@ const App = () => {
   // Initial load check
 
   useEffect(() => {
-    if (auth.masterKey && auth.isAuthenticated) {
-      loadData(auth.masterKey);
+    if (auth.isAuthenticated) {
+      loadData();
     }
   }, [planerType, auth.isAuthenticated]);
-  const loadData = useCallback(async (key) => {
+  const loadData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     const profile = PLANER_PROFILES[planerType];
 
     try {
-      // 1. Parallel Fetches (JSONBin mainFetch removed)
-      const firestoreConfigFetch = firestoreService.loadConfig(); 
-      const rotationFetch = apiService.load(ROTATION_BIN_ID, key);
+      // 1. Fetch Config from Firestore FIRST (to get jsonbin_key)
+      const fsConfig = await firestoreService.loadConfig();
+      const sourceData = fsConfig || {};
+      
+      // Determine the key to use (Firestore config > Auth state > localStorage)
+      const effectiveKey = sourceData.jsonbin_key || auth.masterKey || localStorage.getItem(`${planerType}_jsonbin_key`);
+
+      // 2. Parallel Fetches for the rest
+      const rotationFetch = effectiveKey ? apiService.load(ROTATION_BIN_ID, effectiveKey) : Promise.resolve([]);
       const firestoreAbsencesFetch = firestoreService.loadAbsences(planerType);
       const firestoreRequestsFetch = firestoreService.loadRequests(planerType);
       
@@ -192,8 +198,7 @@ const App = () => {
         ? firestoreService.loadAbsences('oa')
         : Promise.resolve({});
 
-      const [fsConfig, rotations, fsAbsences, fsRequests, fsOAAbsences] = await Promise.all([
-        firestoreConfigFetch.catch(e => { console.warn("Firestore config fetch failed", e); return null; }),
+      const [rotations, fsAbsences, fsRequests, fsOAAbsences] = await Promise.all([
         rotationFetch.catch(e => { console.warn("Rotation fetch failed", e); return null; }),
         firestoreAbsencesFetch.catch(e => { console.error("Firestore absences fetch failed", e); return {}; }),
         firestoreRequestsFetch.catch(e => { console.error("Firestore requests fetch failed", e); return []; }),
@@ -372,6 +377,7 @@ const App = () => {
       setAppData({
         employees: migratedEmployees,
         fullEmployeeList: allEmployees,
+        jsonbin_key: sourceData.jsonbin_key,
         skills: correctedFullSkillPool,  // ALL skills, tagged oa/ass/shared
         absences,
         requests,
@@ -398,11 +404,13 @@ const App = () => {
   const handleLogin = (loginData) => {
     localStorage.setItem(`${planerType}_logged_user`, JSON.stringify(loginData.user));
     localStorage.setItem(`${planerType}_auth_profile`, planerType);
-    localStorage.setItem(`${planerType}_jsonbin_key`, loginData.masterKey);
+    if (loginData.masterKey && loginData.masterKey !== 'STORED_IN_FIRESTORE') {
+      localStorage.setItem(`${planerType}_jsonbin_key`, loginData.masterKey);
+    }
 
     setAuth({
       user: loginData.user,
-      masterKey: loginData.masterKey,
+      masterKey: loginData.masterKey === 'STORED_IN_FIRESTORE' ? auth.masterKey : loginData.masterKey,
       isAuthenticated: true,
       authProfile: planerType
     });
@@ -527,6 +535,7 @@ const App = () => {
       // 1. Save Employees and Config to Firestore (MUST BE FULL LIST)
       const firestorePayload = {
         employees: dedupe(dataToSave.fullEmployeeList || dataToSave.employees || []),
+        jsonbin_key: dataToSave.jsonbin_key || appData.jsonbin_key,
         skills: dataToSave.skills || appData.skills || [],
         groupColors: dataToSave.groupColors || appData.groupColors,
         ass_areaOrder: dataToSave.ass_areaOrder || appData.ass_areaOrder || [],

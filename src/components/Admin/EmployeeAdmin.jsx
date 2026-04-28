@@ -88,40 +88,44 @@ const EmployeeAdmin = ({ employees, skills, onSave, perms = {}, vacationStats = 
       return a.id.localeCompare(b.id);
     });
 
+  const handleSaveAll = () => {
+    onSave(editingEmployees.filter(e => !e._deleted));
+  };
+
   return (
-    <div className="glass" style={{ 
-      background: 'rgba(255, 255, 255, 0.45)', 
-      borderRadius: '24px', 
-      border: '1px solid var(--glass-border)', 
-      overflow: 'hidden', 
-      marginBottom: '100px',
-      margin: '20px'
-    }}>
-      <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255, 255, 255, 0.3)' }}>
-        <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#1e293b' }}>Mitarbeiter verwalten</h3>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button 
-            onClick={handleAddEmployee}
-            style={{ 
-              display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', 
-              background: 'white', border: '1px solid var(--border)', borderRadius: '6px',
-              fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer'
-            }}
-          >
-            <UserPlus size={16} /> Neu
-          </button>
-          <button 
-            onClick={() => onSave(editingEmployees.filter(e => !e._deleted))}
-            style={{ 
-              display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', 
-              background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '6px',
-              fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer'
-            }}
-          >
-            <Save size={16} /> Speichern
-          </button>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', margin: '20px', marginBottom: '100px' }}>
+
+      <div className="glass" style={{ 
+        background: 'rgba(255, 255, 255, 0.45)', 
+        borderRadius: '24px', 
+        border: '1px solid var(--glass-border)', 
+        overflow: 'hidden'
+      }}>
+        <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255, 255, 255, 0.3)' }}>
+          <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#1e293b' }}>Mitarbeiter verwalten</h3>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button 
+              onClick={handleAddEmployee}
+              style={{ 
+                display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', 
+                background: 'white', border: '1px solid var(--border)', borderRadius: '6px',
+                fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer'
+              }}
+            >
+              <UserPlus size={16} /> Neu
+            </button>
+            <button 
+              onClick={handleSaveAll}
+              style={{ 
+                display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', 
+                background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '6px',
+                fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer'
+              }}
+            >
+              <Save size={16} /> Speichern
+            </button>
+          </div>
         </div>
-      </div>
       
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
