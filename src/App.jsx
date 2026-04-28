@@ -282,7 +282,7 @@ const App = () => {
 
         // Merge Absence data for cross-profile
         crossEmployees.forEach(f => {
-          const oaAbsenceEntry = fsOAAbsences[f.id] || data.state?.[f.id];
+          const oaAbsenceEntry = fsOAAbsences[f.id];
           if (oaAbsenceEntry) {
             absences[f.id] = oaAbsenceEntry;
           }
