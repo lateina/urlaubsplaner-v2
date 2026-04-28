@@ -513,6 +513,14 @@ const App = () => {
     return filtered;
   };
 
+  const getEmployeeProfileType = (empId, currentEmployees) => {
+    const list = currentEmployees || appData.employees || [];
+    const emp = list.find(e => e.id === empId);
+    if (!emp) return planerType;
+    const isFOA = Array.isArray(emp.groups) && emp.groups.includes('skill_funktionsoberarzt');
+    return (emp.role === 'Oberarzt' || isFOA) ? 'oa' : 'ass';
+  };
+
   const saveAllData = async (dataToSave) => {
     setIsLoading(true);
     
@@ -551,11 +559,11 @@ const App = () => {
 
       // 3. Save Absences to Firestore
       const savePromises = Object.entries(absences).map(([eid, dates]) =>
-        firestoreService.saveAbsence(planerType, eid, dates)
+        firestoreService.saveAbsence(getEmployeeProfileType(eid, firestorePayload.employees), eid, dates)
       );
 
       // 4. Save Requests to Firestore
-      const reqPromises = requests.map(req => firestoreService.saveRequest(planerType, req));
+      const reqPromises = requests.map(req => firestoreService.saveRequest(getEmployeeProfileType(req.empId, firestorePayload.employees), req));
 
       await Promise.all([...savePromises, ...reqPromises]);
 
@@ -624,7 +632,7 @@ const App = () => {
       // 2. Firestore (Absences)
       // Optimization: Only update the changed employee if possible, but here we keep and use bulk save for safety
       const promises = Object.entries(absences).map(([eid, dates]) =>
-        firestoreService.saveAbsence(planerType, eid, dates)
+        firestoreService.saveAbsence(getEmployeeProfileType(eid), eid, dates)
       );
       await Promise.all(promises);
 
@@ -680,7 +688,7 @@ const App = () => {
         request.stamps = { ...request.stamps, vertreter: makeStamp(auth.user) };
         updatedRequests[reqIndex] = request;
 
-        await firestoreService.saveRequest(planerType, request);
+        await firestoreService.saveRequest(getEmployeeProfileType(request.empId), request);
         setAppData(prev => {
           const newRequests = [...prev.requests];
           const idx = newRequests.findIndex(r => r.id === reqId);
@@ -693,7 +701,7 @@ const App = () => {
         request.stamps = { ...request.stamps, supervisor: makeStamp(auth.user) };
         updatedRequests[reqIndex] = request;
 
-        await firestoreService.saveRequest(planerType, request);
+        await firestoreService.saveRequest(getEmployeeProfileType(request.empId), request);
         setAppData(prev => {
           const newRequests = [...prev.requests];
           const idx = newRequests.findIndex(r => r.id === reqId);
@@ -723,8 +731,8 @@ const App = () => {
         const updatedStats = updateVacationStats(newAbsences);
         
         const promises = [
-          firestoreService.saveRequest(planerType, request),
-          firestoreService.saveAbsence(planerType, request.empId, newAbsences[request.empId])
+          firestoreService.saveRequest(getEmployeeProfileType(request.empId), request),
+          firestoreService.saveAbsence(getEmployeeProfileType(request.empId), request.empId, newAbsences[request.empId])
         ];
         
         await Promise.all(promises);
