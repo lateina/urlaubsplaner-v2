@@ -22,10 +22,18 @@ export default defineConfig({
   ],
   base: './', 
   build: {
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
         assistenz: resolve(__dirname, 'assistenz.html'),
+      },
+      output: {
+        manualChunks(id) {
+          if (id.includes('firebase')) return 'vendor-firebase';
+          if (id.includes('pdf-lib')) return 'vendor-pdf';
+          if (id.includes('node_modules')) return 'vendor';
+        },
       },
     },
   },

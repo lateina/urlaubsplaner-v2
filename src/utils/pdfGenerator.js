@@ -1,6 +1,4 @@
 import { PDFDocument, rgb } from 'pdf-lib';
-import { PDF_TEMPLATE_B64 } from '../data/pdfTemplate';
-import { PDF_TEMPLATE_DIENST_B64 } from '../data/pdfTemplateDienstreise';
 import { getSpecialDayInfo } from './calendarUtils';
 
 /**
@@ -17,7 +15,16 @@ export async function generateAndDownloadPDF(req, employees = []) {
     
     const isUrlaub = req.type === 'U' || req.type === 'FZA';
     
-    const pdfDoc = await PDFDocument.load(isUrlaub ? PDF_TEMPLATE_B64 : PDF_TEMPLATE_DIENST_B64);
+    let template;
+    if (isUrlaub) {
+      const module = await import('../data/pdfTemplate');
+      template = module.PDF_TEMPLATE_B64;
+    } else {
+      const module = await import('../data/pdfTemplateDienstreise');
+      template = module.PDF_TEMPLATE_DIENST_B64;
+    }
+
+    const pdfDoc = await PDFDocument.load(template);
     const form = pdfDoc.getForm();
     
     const formatD = (ds) => ds.split('-').reverse().join('.');
