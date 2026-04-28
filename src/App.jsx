@@ -206,7 +206,6 @@ const App = () => {
       ]);
 
       // 2. Determine source of truth (Now purely Firestore config)
-      const sourceData = fsConfig || {};
       
       // 1. Aggressive Deduplication of all source employees
       const rawEmployees = sourceData.employees || sourceData.mitarbeiter || [];
