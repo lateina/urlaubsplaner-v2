@@ -1150,6 +1150,7 @@ const App = () => {
               vacationStats={appData.vacationStats}
               onSave={(newList) => handleUpdateAdminData({ employees: newList })}
               perms={perms}
+              planerType={planerType}
             />
 
           </div>

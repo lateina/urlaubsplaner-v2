@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Trash2, UserPlus, Save, AlertTriangle } from 'lucide-react';
 
-const EmployeeAdmin = ({ employees, skills, onSave, perms = {}, vacationStats = {} }) => {
+const EmployeeAdmin = ({ employees, skills, onSave, perms = {}, vacationStats = {}, planerType = 'oa' }) => {
   const [editingEmployees, setEditingEmployees] = useState(employees);
   const [sortBy, setBy] = useState('id'); // 'id' or 'name'
 
@@ -61,7 +61,23 @@ const EmployeeAdmin = ({ employees, skills, onSave, perms = {}, vacationStats = 
   };
 
   const visibleEmployees = editingEmployees
-    .filter(e => !e._deleted && (perms.canEditSpecialAccounts || (e.id !== 'admin' && e.id !== 'sekretariat')))
+    .filter(e => {
+      if (e._deleted) return false;
+      
+      const isSpecial = e.id === 'admin' || e.id === 'sekretariat';
+      const isFOA = Array.isArray(e.groups) && e.groups.includes('skill_funktionsoberarzt');
+
+      // In the Assistant (AA) Planer, hide OA's and Special Accounts to keep it clean
+      if (planerType === 'ass') {
+        if (e.role === 'Oberarzt' && !isFOA) return false;
+        if (isSpecial) return false;
+      } else {
+        // In OA Planer, hide special accounts unless permitted
+        if (isSpecial && !perms.canEditSpecialAccounts) return false;
+      }
+
+      return true;
+    })
 
     .sort((a, b) => {
       if (sortBy === 'name') {
