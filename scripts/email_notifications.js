@@ -36,6 +36,7 @@ async function getAuthToken() {
 
 // Helper to convert Firestore's "Value" format back to plain JS
 function fromFirestore(fields) {
+    if (!fields) return {};
     const res = {};
     for (const [key, value] of Object.entries(fields)) {
         if (value.stringValue !== undefined) res[key] = value.stringValue;
