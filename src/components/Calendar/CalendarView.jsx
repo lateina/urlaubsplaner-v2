@@ -622,6 +622,7 @@ const CalendarView = ({
         const typeLabel = { U: 'Urlaub', V: 'Urlaub', FZA: 'Freizeitausgleich', D: 'Dienstreise', F: 'Fortbildung', S: 'Sonstiges', T: 'Sonstiges' };
         const statusLabel = { 
           pending_vertreter: 'Vertreter-Zustimmung ausstehend', 
+          pending_supervisor: 'Vorgesetzten-Zustimmung ausstehend',
           pending_admin: 'LOA-Freigabe ausstehend' 
         };
         
@@ -636,6 +637,9 @@ const CalendarView = ({
 
         // Find matching request for approval stamp
         const req = requests.find(r => r.empId === emp.id && r.dates.includes(day.dateStr) && r.status === 'approved');
+        if (req && req.stamps?.supervisor) {
+          lines.push(`Vorgesetzter: ${req.stamps.supervisor.name}`);
+        }
         if (req && req.stamps?.admin) {
           lines.push(`Genehmigt von: ${req.stamps.admin.name}`);
         }
@@ -651,6 +655,9 @@ const CalendarView = ({
           } else {
             lines.push(`Vertreter: ${target.vertreter}`);
           }
+        }
+        if (target.supervisor) {
+          lines.push(`Vorgesetzter: ${target.supervisor}`);
         }
         lines.push('---');
       }
