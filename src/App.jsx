@@ -472,8 +472,16 @@ const App = () => {
 
     targetEmployees.forEach(emp => {
       const used = calculateVacationUsed(emp.id, newAbsences, year, targetRequests);
-      const currentQuota = emp.vacationQuota ?? (statsToUpdate[emp.id]?.quota ?? 30);
-      newStats[emp.id] = { total: used, quota: currentQuota };
+      const baseQuota = emp.vacationQuota ?? 30;
+      const carryOver = emp.vacationCarryOver ?? 0;
+      const totalQuota = baseQuota + carryOver;
+      
+      newStats[emp.id] = { 
+        total: used, 
+        quota: totalQuota,
+        baseQuota: baseQuota,
+        carryOver: carryOver
+      };
     });
     return newStats;
   };
@@ -960,9 +968,9 @@ const App = () => {
   const isCalendarAdmin = isFullAdmin || isSekretariat;
 
   const perms = {
-    canAdminEmployees: isFullAdmin || isSpokesperson,
-    canAdminSkills: isFullAdmin || isSpokesperson,
-    canAdminAreas: isFullAdmin || isSpokesperson,
+    canAdminEmployees: isFullAdmin || isSekretariat || isSpokesperson,
+    canAdminSkills: isFullAdmin || isSekretariat || isSpokesperson,
+    canAdminAreas: isFullAdmin || isSekretariat || isSpokesperson,
     canSeeSummary: isFullAdmin || isSekretariat || isSpokesperson,
     canBulkImport: isFullAdmin,
     canRequestAbsence: true,

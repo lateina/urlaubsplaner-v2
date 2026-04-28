@@ -128,6 +128,8 @@ const EmployeeAdmin = ({ employees, skills, onSave, perms = {} }) => {
               <th style={{ padding: '12px 16px', fontWeight: 700 }}>PIN</th>
               <th style={{ padding: '12px 16px', fontWeight: 700 }}>Eintritt</th>
               <th style={{ padding: '12px 16px', fontWeight: 700 }}>Austritt</th>
+              <th style={{ padding: '12px 16px', fontWeight: 700 }}>Urlaub</th>
+              <th style={{ padding: '12px 16px', fontWeight: 700 }}>Resturlaub</th>
               <th style={{ padding: '12px 16px', fontWeight: 700 }}>Gruppen / Bereiche</th>
               <th style={{ padding: '12px 16px', fontWeight: 700, textAlign: 'center' }}>Aktiv</th>
               <th style={{ padding: '12px 16px', fontWeight: 700, textAlign: 'center' }}>Aktion</th>
@@ -215,6 +217,28 @@ const EmployeeAdmin = ({ employees, skills, onSave, perms = {} }) => {
                     style={{ 
                       padding: '6px', border: '1px solid #e2e8f0', borderRadius: '4px',
                       fontSize: '0.85rem', color: '#475569'
+                    }}
+                  />
+                </td>
+                <td style={{ padding: '8px 16px' }}>
+                  <input 
+                    type="number" 
+                    value={emp.vacationQuota ?? 30} 
+                    onChange={(e) => handleAddField(emp.id, 'vacationQuota', parseInt(e.target.value) || 0)}
+                    style={{ 
+                      width: '50px', padding: '6px', border: '1px solid #e2e8f0', borderRadius: '4px',
+                      fontSize: '0.85rem'
+                    }}
+                  />
+                </td>
+                <td style={{ padding: '8px 16px' }}>
+                  <input 
+                    type="number" 
+                    value={emp.vacationCarryOver ?? 0} 
+                    onChange={(e) => handleAddField(emp.id, 'vacationCarryOver', parseInt(e.target.value) || 0)}
+                    style={{ 
+                      width: '50px', padding: '6px', border: '1px solid #e2e8f0', borderRadius: '4px',
+                      fontSize: '0.85rem'
                     }}
                   />
                 </td>
