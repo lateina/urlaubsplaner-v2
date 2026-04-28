@@ -314,6 +314,7 @@ const EmployeeAdmin = ({ employees, skills, onSave, perms = {}, vacationStats = 
         </table>
       </div>
     </div>
+  </div>
   );
 };
 
