@@ -942,6 +942,10 @@ const App = () => {
     if (finalData.employees || finalData.absences) {
       nextAppData.vacationStats = updateVacationStats(nextAppData.absences, nextAppData.fullEmployeeList, nextAppData.vacationStats);
     }
+    
+    // Optimistic UI update to prevent CategoryAdmin's useEffect from snapping back to old state during isLoading
+    setAppData(nextAppData);
+    
     await saveAllData(nextAppData);
     alert('Erfolgreich gespeichert!');
   };
