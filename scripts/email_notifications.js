@@ -20,18 +20,25 @@ let AUTH_TOKEN = null;
 
 async function getAuthToken() {
     if (AUTH_TOKEN) return AUTH_TOKEN;
-    const url = `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FIREBASE_API_KEY}`;
-    const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ returnSecureToken: true })
-    });
-    const data = await res.json();
-    if (data.idToken) {
-        AUTH_TOKEN = data.idToken;
-        return AUTH_TOKEN;
+    if (!FIREBASE_API_KEY) return null;
+    try {
+        const url = `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FIREBASE_API_KEY}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ returnSecureToken: true })
+        });
+        const data = await res.json();
+        if (data.idToken) {
+            AUTH_TOKEN = data.idToken;
+            return AUTH_TOKEN;
+        }
+        console.warn('Auth token fetch failed:', data.error?.message || 'Unknown error');
+        return null;
+    } catch (e) {
+        console.warn('Auth token fetch failed:', e.message);
+        return null;
     }
-    throw new Error('Authentication failed');
 }
 
 // Helper to convert Firestore's "Value" format back to plain JS
@@ -63,22 +70,34 @@ function toFirestore(obj) {
 
 async function fetchFirestoreDocument(path) {
     const token = await getAuthToken();
-    const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/${path}`;
-    const res = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (!res.ok) return null;
+    const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/${path}${FIREBASE_API_KEY ? `?key=${FIREBASE_API_KEY}` : ''}`;
+    const headers = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    
+    const res = await fetch(url, { headers });
+    if (!res.ok) {
+        if (res.status === 403 || res.status === 401) {
+            console.error(`Permission denied fetching document ${path}. Check Firestore rules and Auth.`);
+        }
+        return null;
+    }
     const data = await res.json();
     return fromFirestore(data.fields);
 }
 
 async function fetchFirestoreCollection(collectionId) {
     const token = await getAuthToken();
-    const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/${collectionId}?pageSize=1000`;
-    const res = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (!res.ok) return [];
+    const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/${collectionId}?pageSize=1000${FIREBASE_API_KEY ? `&key=${FIREBASE_API_KEY}` : ''}`;
+    const headers = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const res = await fetch(url, { headers });
+    if (!res.ok) {
+        if (res.status === 403 || res.status === 401) {
+            console.error(`Permission denied fetching collection ${collectionId}.`);
+        }
+        return [];
+    }
     const data = await res.json();
     return (data.documents || []).map(doc => ({
         ...fromFirestore(doc.fields),
@@ -89,14 +108,14 @@ async function fetchFirestoreCollection(collectionId) {
 async function updateFirestoreDocument(collectionId, docId, fieldsToUpdate) {
     const token = await getAuthToken();
     const updateMask = Object.keys(fieldsToUpdate).map(k => `updateMask.fieldPaths=${k}`).join('&');
-    const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/${collectionId}/${docId}?${updateMask}`;
+    const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/${collectionId}/${docId}?${updateMask}${FIREBASE_API_KEY ? `&key=${FIREBASE_API_KEY}` : ''}`;
     
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
     const res = await fetch(url, {
         method: 'PATCH',
-        headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-        },
+        headers,
         body: JSON.stringify({ fields: toFirestore(fieldsToUpdate) })
     });
     if (!res.ok) {
