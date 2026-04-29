@@ -25,7 +25,11 @@ async function getAuthToken() {
         const url = `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FIREBASE_API_KEY}`;
         const res = await fetch(url, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Referer': 'https://lateina.github.io/',
+                'Origin': 'https://lateina.github.io'
+            },
             body: JSON.stringify({ returnSecureToken: true })
         });
         const data = await res.json();
@@ -71,7 +75,10 @@ function toFirestore(obj) {
 async function fetchFirestoreDocument(path) {
     const token = await getAuthToken();
     const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/${path}${FIREBASE_API_KEY ? `?key=${FIREBASE_API_KEY}` : ''}`;
-    const headers = {};
+    const headers = {
+        'Referer': 'https://lateina.github.io/',
+        'Origin': 'https://lateina.github.io'
+    };
     if (token) headers['Authorization'] = `Bearer ${token}`;
     
     const res = await fetch(url, { headers });
@@ -88,7 +95,10 @@ async function fetchFirestoreDocument(path) {
 async function fetchFirestoreCollection(collectionId) {
     const token = await getAuthToken();
     const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/${collectionId}?pageSize=1000${FIREBASE_API_KEY ? `&key=${FIREBASE_API_KEY}` : ''}`;
-    const headers = {};
+    const headers = {
+        'Referer': 'https://lateina.github.io/',
+        'Origin': 'https://lateina.github.io'
+    };
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
     const res = await fetch(url, { headers });
@@ -110,7 +120,11 @@ async function updateFirestoreDocument(collectionId, docId, fieldsToUpdate) {
     const updateMask = Object.keys(fieldsToUpdate).map(k => `updateMask.fieldPaths=${k}`).join('&');
     const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/${collectionId}/${docId}?${updateMask}${FIREBASE_API_KEY ? `&key=${FIREBASE_API_KEY}` : ''}`;
     
-    const headers = { 'Content-Type': 'application/json' };
+    const headers = { 
+        'Content-Type': 'application/json',
+        'Referer': 'https://lateina.github.io/',
+        'Origin': 'https://lateina.github.io'
+    };
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
     const res = await fetch(url, {
