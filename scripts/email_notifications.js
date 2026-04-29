@@ -191,6 +191,8 @@ async function run() {
 
     let adminDigest = [];
     let sekrDigest = [];
+    let personDigests = {}; // { email: { name: string, items: [] } }
+    let firestoreUpdates = []; // [ { coll, id, fields } ]
 
     // 3. Process each bin
     for (const [binId, config] of Object.entries(BINS)) {
@@ -198,9 +200,7 @@ async function run() {
         const planerType = config.type;
         
         console.log(`Processing Notifications for ${planerType} profile...`);
-        const requestsInBin = allRequests.filter(r => r.planerType === planerType);
-
-        for (const req of requestsInBin) {
+        const requestsInBin = allRequests.filter(r => r.planerType === planerType);        for (const req of requestsInBin) {
             const notified = req.notified || {};
             const emp = allEmployees.find(e => e.id === req.empId);
             const vtr = allEmployees.find(e => e.id === req.vertreterId);
@@ -208,30 +208,26 @@ async function run() {
             const empName = emp?.name || req.empId;
             const datesStr = fmtDates(req.dates);
             const typeLabel = TYPE_LABELS[req.type] || req.type;
-            const link = `\nZum Urlaubsplaner:\n${appUrl}\n`;
+            const link = `\nZum Urlaubsplaner: ${appUrl}\n`;
 
             const updates = {};
 
-            // 1. Pending Vertreter -> Individual Email
+            // 1. Pending Vertreter -> Digest
             if (req.status === 'pending_vertreter' && !notified.pending_vertreter) {
                 if (vtr?.email) {
-                    await sendEmail(vtr.email, 
-                        `Vertretungsanfrage von ${empName}`,
-                        `Hallo ${vtr.name},\n\n${empName} beantragt ${typeLabel} (${datesStr}) und bittet dich um Zustimmung als Vertreter.${link}`
-                    );
+                    if (!personDigests[vtr.email]) personDigests[vtr.email] = { name: vtr.name, items: [] };
+                    personDigests[vtr.email].items.push(`• Vertretungsanfrage von ${empName}: ${typeLabel} (${datesStr})${link}`);
                     notified.pending_vertreter = true;
                     updates.notified = notified;
                 }
             }
 
-            // 1.5 Pending Supervisor -> Individual Email
+            // 1.5 Pending Supervisor -> Digest
             if (req.status === 'pending_supervisor' && !notified.pending_supervisor) {
                 const sup = allEmployees.find(e => e.id === req.supervisorId);
                 if (sup?.email) {
-                    await sendEmail(sup.email, 
-                        `Freigabeanfrage von ${empName}`,
-                        `Hallo ${sup.name},\n\n${empName} beantragt ${typeLabel} (${datesStr}). Der Vertreter hat bereits zugestimmt.\nBitte logge dich ein und gib den Antrag als unmittelbarer Vorgesetzter frei.${link}`
-                    );
+                    if (!personDigests[sup.email]) personDigests[sup.email] = { name: sup.name, items: [] };
+                    personDigests[sup.email].items.push(`• Freigabeanfrage von ${empName}: ${typeLabel} (${datesStr})${link}`);
                     notified.pending_supervisor = true;
                     updates.notified = notified;
                 }
@@ -244,13 +240,11 @@ async function run() {
                 updates.notified = notified;
             }
 
-            // 3. Approved -> Individual Email + Sekr Digest
+            // 3. Approved -> Digest + Sekr Digest
             if (req.status === 'approved' && !notified.approved) {
                 if (emp?.email) {
-                    await sendEmail(emp.email,
-                        'Dein Antrag wurde genehmigt ✓',
-                        `Hallo ${empName},\n\ndein Antrag auf ${typeLabel} (${datesStr}) wurde genehmigt.${link}`
-                    );
+                    if (!personDigests[emp.email]) personDigests[emp.email] = { name: empName, items: [] };
+                    personDigests[emp.email].items.push(`• Dein Antrag auf ${typeLabel} (${datesStr}) wurde GENEHMIGT ✓${link}`);
                     notified.approved = true;
                     updates.notified = notified;
                 }
@@ -261,23 +255,21 @@ async function run() {
                 }
             }
 
-            // 4. Rejected -> Individual Email
+            // 4. Rejected -> Digest
             if (req.status === 'rejected' && !notified.rejected) {
                 if (emp?.email) {
                     const by = req.rejectedBy === 'vertreter' ? 'deinem Vertreter' : 'dem Leitenden Oberarzt';
-                    await sendEmail(emp.email,
-                        'Dein Antrag wurde abgelehnt',
-                        `Hallo ${empName},\n\ndein Antrag auf ${typeLabel} (${datesStr}) wurde von ${by} abgelehnt.${req.rejectionNote ? `\nGrund: ${req.rejectionNote}` : ''}${link}`
-                    );
+                    if (!personDigests[emp.email]) personDigests[emp.email] = { name: empName, items: [] };
+                    personDigests[emp.email].items.push(`• Dein Antrag auf ${typeLabel} (${datesStr}) wurde von ${by} ABGELEHNT.${req.rejectionNote ? ` Grund: ${req.rejectionNote}` : ''}${link}`);
                     notified.rejected = true;
                     updates.notified = notified;
                 }
             }
 
             if (Object.keys(updates).length > 0) {
-                await updateFirestoreDocument('up_requests', req.id, updates);
-                console.log(`  → Firestore updated for request ${req.id}`);
+                firestoreUpdates.push({ coll: 'up_requests', id: req.id, fields: updates });
             }
+        } }
         }
     }
 
@@ -303,10 +295,8 @@ async function run() {
                 lowUsageEmployees.push({ name: emp.name, used, quota, email: emp.email });
                 
                 if (emp.email) {
-                    await sendEmail(emp.email,
-                        'Erinnerung: Urlaubsplanung zur Jahreshälfte',
-                        `Hallo ${emp.name},\n\ndas erste Halbjahr ist fast vorüber. Aktuell hast du erst ${used} von ${quota} Urlaubstagen für dieses Jahr verplant.\n\nBitte denke daran, deinen restlichen Urlaub zeitnah einzureichen, um eine gute Planung für alle sicherzustellen.\n\nZum Urlaubsplaner:\nhttps://lateina.github.io/urlaubsplaner-v2/`
-                    );
+                    if (!personDigests[emp.email]) personDigests[emp.email] = { name: emp.name, items: [] };
+                    personDigests[emp.email].items.push(`• Erinnerung: Du hast erst ${used} von ${quota} Urlaubstagen für dieses Jahr verplant. Bitte reiche deinen restlichen Urlaub zeitnah ein.\nZum Urlaubsplaner: https://lateina.github.io/urlaubsplaner-v2/`);
                 }
             }
         }
@@ -318,10 +308,18 @@ async function run() {
         }
 
         // Mark as sent for this year
-        await updateFirestoreDocument('up_config', 'main', { lastMidYearReminderYear: currentYear });
+        firestoreUpdates.push({ coll: 'up_config', id: 'main', fields: { lastMidYearReminderYear: currentYear } });
         console.log(`  → Mid-year reminders processed and flag set for ${currentYear}`);
     }
     // --- End of Mid-Year Logic ---
+
+    // Send Employee Digests
+    for (const [email, digest] of Object.entries(personDigests)) {
+        await sendEmail(email,
+            'Urlaubsplaner: Neue Benachrichtigungen',
+            `Hallo ${digest.name},\n\nes gibt Neuigkeiten zu deinen Anträgen im Urlaubsplaner:\n\n${digest.items.join('\n')}`
+        );
+    }
 
     // Send Admin Digest
     if (adminDigest.length > 0) {
@@ -338,6 +336,14 @@ async function run() {
             `Guten Morgen,\n\nfolgende Abwesenheiten wurden genehmigt und müssen im PO eingetragen werden:\n\n${sekrDigest.join('\n\n')}`,
             'Viele Grüße\nProf. Stefan Wagner'
         );
+    }
+
+    // Finally, batch update Firestore
+    if (firestoreUpdates.length > 0) {
+        console.log(`Updating ${firestoreUpdates.length} Firestore documents...`);
+        for (const update of firestoreUpdates) {
+            await updateFirestoreDocument(update.coll, update.id, update.fields);
+        }
     }
 
     console.log('--- Finished. ---');
