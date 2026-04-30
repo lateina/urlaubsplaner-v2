@@ -200,7 +200,8 @@ async function run() {
         const planerType = config.type;
         
         console.log(`Processing Notifications for ${planerType} profile...`);
-        const requestsInBin = allRequests.filter(r => r.planerType === planerType);        for (const req of requestsInBin) {
+        const requestsInBin = allRequests.filter(r => r.planerType === planerType);
+        for (const req of requestsInBin) {
             const notified = req.notified || {};
             const emp = allEmployees.find(e => e.id === req.empId);
             const vtr = allEmployees.find(e => e.id === req.vertreterId);
@@ -269,7 +270,6 @@ async function run() {
             if (Object.keys(updates).length > 0) {
                 firestoreUpdates.push({ coll: 'up_requests', id: req.id, fields: updates });
             }
-        } }
         }
     }
 
