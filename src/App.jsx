@@ -579,42 +579,37 @@ const App = () => {
 
   const handleSaveAbsence = async (newAbsences) => {
     if (!isAdmin) return;
-    let nextDataToSave = null;
 
-    setAppData(prev => {
-      let finalAbsences = newAbsences || { ...prev.absences };
+    let finalAbsences = newAbsences || { ...appData.absences };
 
-      // Detect if this is formData from AbsenceModal (single update) or a full object
-      if (newAbsences && typeof newAbsences === 'object' && newAbsences.startDate && newAbsences.employeeId) {
-        const formData = newAbsences;
-        finalAbsences = { ...prev.absences };
+    // Detect if this is formData from AbsenceModal (single update) or a full object
+    if (newAbsences && typeof newAbsences === 'object' && newAbsences.startDate && newAbsences.employeeId) {
+      const formData = newAbsences;
+      finalAbsences = { ...appData.absences };
 
-        const dates = [];
-        let curr = new Date(formData.startDate);
-        const end = new Date(formData.endDate);
-        while (curr <= end) {
-          dates.push(curr.toISOString().split('T')[0]);
-          curr.setDate(curr.getDate() + 1);
-        }
-
-        if (!finalAbsences[formData.employeeId]) finalAbsences[formData.employeeId] = {};
-        dates.forEach(d => {
-          finalAbsences[formData.employeeId][d] = {
-            type: formData.type,
-            text: formData.remarks || '',
-            status: 'confirmed'
-          };
-        });
+      const dates = [];
+      let curr = new Date(formData.startDate);
+      const end = new Date(formData.endDate);
+      while (curr <= end) {
+        dates.push(curr.toISOString().split('T')[0]);
+        curr.setDate(curr.getDate() + 1);
       }
 
-      const updatedStats = updateVacationStats(finalAbsences, prev.employees, prev.vacationStats);
-      nextDataToSave = { ...prev, absences: finalAbsences, vacationStats: updatedStats };
-      return nextDataToSave;
-    });
-
-    if (nextDataToSave) {
-      saveAllDataSideEffect(nextDataToSave);
+      if (!finalAbsences[formData.employeeId]) finalAbsences[formData.employeeId] = {};
+      dates.forEach(d => {
+        finalAbsences[formData.employeeId][d] = {
+          type: formData.type,
+          text: formData.remarks || '',
+          status: 'confirmed'
+        };
+      });
     }
+
+    const updatedStats = updateVacationStats(finalAbsences, appData.employees, appData.vacationStats);
+    const nextDataToSave = { ...appData, absences: finalAbsences, vacationStats: updatedStats };
+    
+    setAppData(nextDataToSave);
+    saveAllDataSideEffect(nextDataToSave);
   };
 
   // Dedicated side effect for saving to API without re-triggering setAppData recursively or causing race conditions
@@ -813,13 +808,13 @@ const App = () => {
     }
   };
   const handleMarkPODone = async (reqId, checked, shortcut, newRemainingDays = null) => {
+    // We need to find the request in the current state to start with
     const reqIndex = appData.requests.findIndex(r => r.id === reqId);
     if (reqIndex === -1) return;
 
     setIsLoading(true);
     try {
-      const updatedRequests = [...appData.requests];
-      const request = { ...updatedRequests[reqIndex] };
+      const request = { ...appData.requests[reqIndex] };
 
       if (checked) {
         request.stamps = {
@@ -838,48 +833,50 @@ const App = () => {
         }
       }
 
-      // Save Request to Firestore
-      await firestoreService.saveRequest(planerType, request);
+      // 1. Save Request to Firestore using the CORRECT planerType for the employee
+      const targetPlanerType = getEmployeeProfileType(request.empId);
+      await firestoreService.saveRequest(targetPlanerType, request);
 
-      let nextAppData = { ...appData };
-      const newRequests = [...nextAppData.requests];
-      const idx = newRequests.findIndex(r => r.id === reqId);
-      if (idx !== -1) newRequests[idx] = request;
-      nextAppData.requests = newRequests;
+      // 2. Update state using functional update to avoid race conditions
+      setAppData(prev => {
+        const newRequests = prev.requests.map(r => r.id === reqId ? request : r);
+        let nextData = { ...prev, requests: newRequests };
 
-      // Handle Quota Update if provided
-      if (checked && newRemainingDays !== null) {
-        const stats = appData.vacationStats[request.empId] || { total: 0, quota: 30 };
-        const newQuota = newRemainingDays + stats.total;
-        
-        const newFullList = appData.fullEmployeeList.map(e => {
-          if (e.id === request.empId) return { ...e, vacationQuota: newQuota };
-          return e;
-        });
+        // Handle Quota Update if provided
+        if (checked && newRemainingDays !== null) {
+          const stats = prev.vacationStats[request.empId] || { total: 0, quota: 30 };
+          const newQuota = newRemainingDays + stats.total;
+          
+          const newFullList = prev.fullEmployeeList.map(e => {
+            if (e.id === request.empId) return { ...e, vacationQuota: newQuota };
+            return e;
+          });
 
-        nextAppData.fullEmployeeList = newFullList;
-        // Re-filter for current profile
-        nextAppData.employees = newFullList.filter(emp => {
-          if (planerType === 'oa') {
-            return emp.role === 'Oberarzt' || emp.id === 'admin' || emp.id === 'sekretariat' || emp.id === 'maier' || emp.isOberarzt === true;
-          } else {
-            const groups = Array.isArray(emp.groups) ? emp.groups : [];
-            const isFOA = groups.includes('skill_funktionsoberarzt');
-            return (emp.role !== 'Oberarzt' && emp.id !== 'maier' && !emp.isOberarzt) || isFOA;
-          }
-        });
+          nextData.fullEmployeeList = newFullList;
+          // Re-filter employees for the UI view
+          nextData.employees = newFullList.filter(emp => {
+            if (planerType === 'oa') {
+              return emp.role === 'Oberarzt' || emp.id === 'admin' || emp.id === 'sekretariat' || emp.id === 'maier' || emp.isOberarzt === true;
+            } else {
+              const groups = Array.isArray(emp.groups) ? emp.groups : [];
+              const isFOA = groups.includes('skill_funktionsoberarzt');
+              return (emp.role !== 'Oberarzt' && emp.id !== 'maier' && !emp.isOberarzt) || isFOA;
+            }
+          });
 
-        // Recalculate stats
-        nextAppData.vacationStats = updateVacationStats(nextAppData.absences, nextAppData.fullEmployeeList, nextAppData.vacationStats);
+          // Recalculate stats
+          nextData.vacationStats = updateVacationStats(nextData.absences, nextData.fullEmployeeList, nextData.vacationStats);
+          
+          // Trigger JSONBin update in background (don't await it here for UI snappiness if possible, or await if safety is paramount)
+          // For now we keep it awaited to match previous logic but it's a candidate for improvement
+          const { absences, requests, ...rest } = nextData;
+          const jsonbinPayload = { ...rest, state: {}, requests: [] };
+          jsonbinPayload.employees = jsonbinPayload.employees.filter(e => !e._isCrossProfile);
+          apiService.save(binId, auth.masterKey, jsonbinPayload).catch(e => console.error("JSONBin save failed:", e));
+        }
 
-        // Save updated employees to JSONBin
-        const { absences, requests, ...rest } = nextAppData;
-        const jsonbinPayload = { ...rest, state: {}, requests: [] };
-        jsonbinPayload.employees = jsonbinPayload.employees.filter(e => !e._isCrossProfile);
-        await apiService.save(binId, auth.masterKey, jsonbinPayload);
-      }
-
-      setAppData(nextAppData);
+        return nextData;
+      });
 
     } catch (err) {
       console.error(err);

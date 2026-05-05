@@ -118,7 +118,7 @@ const CalendarView = ({
       if (!pres.some(e => has(e, 'Privat'))) issues.push('Privat');
       if (!pres.some(e => has(e, 'TEER'))) issues.push('TEER');
       if (pres.filter(e => has(e, 'Herzkatheter')).length < 3) issues.push('HK');
-      if (!pres.some(e => has(e, 'Echo'))) issues.push('Echo');
+      if (!pres.some(e => has(e, 'Echo') || has(e, 'InterventionellesEcho'))) issues.push('Echo');
       if (pres.filter(e => has(e, 'EPU')).length < 2) issues.push('EPU');
       
       if (issues.length > 0) map[day.dateStr] = issues;

@@ -45,7 +45,7 @@ const RequestsView = ({
   };
 
   const filteredRequests = requests.filter(r => {
-    if (subTab === 'po_transfer') return r.status === 'approved' && !r.stamps?.po && r.type !== 'D';
+    if (subTab === 'po_transfer') return r.status === 'approved' && !r.stamps?.po;
     if (filter === 'open') return r.status.startsWith('pending');
     if (filter === 'approved') return r.status === 'approved';
     if (filter === 'rejected') return r.status === 'rejected';
@@ -60,7 +60,7 @@ const RequestsView = ({
     (r.supervisorId === cuId && (r.status === 'pending_supervisor' || r.status === 'pending_admin' || r.status === 'approved'))
   );
   const meineReqs = requests.filter(r => r.empId === cuId);
-  const poPendingReqs = requests.filter(r => r.status === 'approved' && !r.stamps?.po && r.type !== 'D');
+  const poPendingReqs = requests.filter(r => r.status === 'approved' && !r.stamps?.po);
 
   const displayRequests = isAdmin 
     ? filteredRequests.sort((a, b) => b.id.localeCompare(a.id))
@@ -103,7 +103,7 @@ const RequestsView = ({
     const isPendingSupervisorForMe = req.supervisorId === cuId && effectiveStatus === 'pending_supervisor';
     const isPendingAdmin = perms.canApproveRequests && effectiveStatus === 'pending_admin';
     const canApprove = isPendingVertreterForMe || isPendingSupervisorForMe || isPendingAdmin;
-    const showPOCheckbox = (subTab === 'po_transfer' || (isAdmin && effectiveStatus === 'approved')) && req.type !== 'D';
+    const showPOCheckbox = subTab === 'po_transfer' || (isAdmin && effectiveStatus === 'approved');
 
     return (
       <div key={req.id} className="request-card">
