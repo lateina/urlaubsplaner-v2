@@ -254,6 +254,7 @@ const App = () => {
           emp.id === 'admin' || 
           emp.id === 'sekretariat' ||
           emp.id === 'maier' ||
+          (Array.isArray(emp.groups) && emp.groups.includes('skill_funktionsoberarzt')) ||
           emp.isOberarzt === true // legacy flag
         );
       } else {

@@ -101,7 +101,12 @@ const CalendarView = ({
       if (day.isWeekend || day.holiday) return;
       
       const pres = employees.filter(e => {
-        if (e.id === 'admin' || e.id === 'sekretariat' || e.active === false || e._isCrossProfile) return false;
+        if (e.id === 'admin' || e.id === 'sekretariat' || e.active === false) return false;
+        // FOAs count for coverage even if they are cross-profile entries
+        const grps = Array.isArray(e.groups) ? e.groups : (e.group ? [e.group] : []);
+        const isFOA = grps.some(g => g === 'skill_funktionsoberarzt' || (typeof g === 'string' && g.toLowerCase().includes('funktionsoberarzt')));
+        if (e._isCrossProfile && !isFOA) return false;
+        
         if (absences[e.id]?.[day.dateStr]) return false;
         if (e.entryDate && day.dateStr < e.entryDate) return false;
         if (e.exitDate && day.dateStr > e.exitDate) return false;
@@ -118,7 +123,7 @@ const CalendarView = ({
       if (!pres.some(e => has(e, 'Privat'))) issues.push('Privat');
       if (!pres.some(e => has(e, 'TEER'))) issues.push('TEER');
       if (pres.filter(e => has(e, 'Herzkatheter')).length < 3) issues.push('HK');
-      if (!pres.some(e => has(e, 'Echo') || has(e, 'InterventionellesEcho'))) issues.push('Echo');
+      if (!pres.some(e => has(e, 'Echo') || has(e, 'InterventionellesEcho') || has(e, 'interventecho'))) issues.push('Echo');
       if (pres.filter(e => has(e, 'EPU')).length < 2) issues.push('EPU');
       
       if (issues.length > 0) map[day.dateStr] = issues;

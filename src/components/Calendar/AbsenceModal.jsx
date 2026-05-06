@@ -73,7 +73,12 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
 
       if (!isWeekend && !holiday) {
         const pres = employees.filter(e => {
-          if (e.id === 'admin' || e.id === 'sekretariat' || e.active === false || e._isCrossProfile) return false;
+          if (e.id === 'admin' || e.id === 'sekretariat' || e.active === false) return false;
+          // FOAs count for coverage even if they are cross-profile entries
+          const grps = Array.isArray(e.groups) ? e.groups : (e.group ? [e.group] : []);
+          const isFOA = grps.some(g => g === 'skill_funktionsoberarzt' || (typeof g === 'string' && g.toLowerCase().includes('funktionsoberarzt')));
+          if (e._isCrossProfile && !isFOA) return false;
+          
           if (absences[e.id]?.[dStr]) return false;
           if (e.entryDate && dStr < e.entryDate) return false;
           if (e.exitDate && dStr > e.exitDate) return false;
@@ -83,9 +88,12 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
         const requesterInPres = pres.some(e => e.id === requester.id);
         
         if (requesterInPres) {
-          const checkSkill = (skillLabel, skillKey, threshold) => {
-            if (has(requester, skillKey)) {
-              const count = pres.filter(e => has(e, skillKey)).length;
+          const checkSkill = (skillLabel, skillKeys, threshold) => {
+            const keys = Array.isArray(skillKeys) ? skillKeys : [skillKeys];
+            const requesterHasAny = keys.some(k => has(requester, k));
+            
+            if (requesterHasAny) {
+              const count = pres.filter(e => keys.some(k => has(e, k))).length;
               if (count === threshold) { 
                 issues.push({ date: dStr, skill: skillLabel });
               }
@@ -96,7 +104,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
           checkSkill('Privat', 'Privat', 1);
           checkSkill('TEER', 'TEER', 1);
           checkSkill('HK', 'Herzkatheter', 3);
-          checkSkill('Echo', 'Echo', 1);
+          checkSkill('Echo', ['Echo', 'InterventionellesEcho', 'interventecho'], 1);
           checkSkill('EPU', 'EPU', 2);
         }
       }
