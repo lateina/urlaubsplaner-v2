@@ -134,6 +134,17 @@ const RequestsView = ({
               </span>
             </div>
           )}
+          {req.type === 'D' && req.forwardSeparately !== undefined && (
+            <div className="request-info-row" style={{ marginTop: 4, background: req.forwardSeparately ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.1)', padding: '6px 8px', borderRadius: '8px' }}>
+              <FileText size={14} color={req.forwardSeparately ? '#b45309' : '#047857'} />
+              <span style={{ color: req.forwardSeparately ? '#b45309' : '#047857', fontWeight: 600, fontSize: '0.8rem' }}>
+                {req.forwardSeparately 
+                  ? 'Achtung: Antragssteller reicht den Antrag mit weiteren Dokumenten ein'
+                  : 'Achtung: Das PDF des Antrags soll durch das Sekretariat ausgedruckt und Prof. Wagner zur Unterschrift/Weiterleitung vorlegt werden.'
+                }
+              </span>
+            </div>
+          )}
           {req.rejectionNote && (
             <div className="request-info-row rejection-note">
               <MessageSquare size={14} />

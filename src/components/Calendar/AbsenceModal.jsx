@@ -12,7 +12,8 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
     supervisor: '',
     supervisorId: '',
     remarks: '',
-    employeeId: currentUser?.id || ''
+    employeeId: currentUser?.id || '',
+    forwardSeparately: false
   });
 
   // Calculate vacation days in range
@@ -332,6 +333,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
       vertreterId: formData.vertreterId,
       supervisor: formData.supervisor,
       supervisorId: formData.supervisorId,
+      forwardSeparately: formData.type === 'D' ? formData.forwardSeparately : undefined,
       dates: dates,
       status: isDirect ? 'approved' : (formData.vertreterId ? 'pending_vertreter' : (formData.supervisorId ? 'pending_supervisor' : 'pending_admin')),
       createdAt: new Date().toISOString().split('T')[0],
@@ -374,7 +376,8 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
       supervisor: '',
       supervisorId: '',
       remarks: '',
-      employeeId: currentUser?.id || ''
+      employeeId: currentUser?.id || '',
+      forwardSeparately: false
     });
     setVertreterSearch('');
   };
@@ -523,7 +526,21 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
             boxShadow: '0 2px 8px rgba(245, 158, 11, 0.1)'
           }}>
             <span style={{ display: 'block', marginBottom: 4, color: '#b45309' }}>⚠️ <strong>Hinweis</strong></span>
-            Für Dienstreisen ist zusätzlich ein gesonderter Antrag an die Verwaltung zu stellen.
+            <p style={{ margin: '0 0 10px 0' }}>Für Dienstreisen ist zusätzlich ein gesonderter Antrag an die Verwaltung zu stellen.</p>
+            
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', background: 'rgba(255,255,255,0.6)', padding: '10px', borderRadius: '10px', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+              <input 
+                type="checkbox" 
+                name="forwardSeparately" 
+                checked={formData.forwardSeparately || false} 
+                onChange={(e) => setFormData(prev => ({...prev, forwardSeparately: e.target.checked}))} 
+                style={{ marginTop: 2, transform: 'scale(1.1)' }}
+              />
+              <span style={{ fontSize: '0.75rem', lineHeight: 1.4, color: '#451a03' }}>
+                <strong>Weitere Dokumente beilegen?</strong><br/>
+                Sollen dem Antrag weitere Dokumente (zur Dienstherrengenehmigung, Reisekostenabrechnung) beigelegt werden? Dann bitte in Papierform zusätzlich einreichen. Wenn nicht, wird der Antrag automatisch weitergeleitet.
+              </span>
+            </label>
           </div>
         )}
 
