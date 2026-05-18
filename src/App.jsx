@@ -641,32 +641,78 @@ const App = () => {
 
 
   const handleSubmitRequest = async (request) => {
-    let updatedAbsences = appData.absences;
+    setIsLoading(true);
+    try {
+      const type = getEmployeeProfileType(request.empId);
+      
+      // 1. Generate request ID if not exists
+      const reqId = request.id || `req_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+      const savedRequest = {
+        ...request,
+        id: reqId,
+        planerType: type,
+        lastUpdated: new Date().toISOString()
+      };
 
-    // If request is pre-approved (direct Admin entry), also update absences
-    if (request.status === 'approved') {
-      updatedAbsences = { ...appData.absences };
-      if (!updatedAbsences[request.empId]) updatedAbsences[request.empId] = {};
-      request.dates.forEach(date => {
-        updatedAbsences[request.empId][date] = {
-          type: request.type,
-          text: request.text,
-          vertreter: request.vertreter,
-          vertreterId: request.vertreterId,
-          status: 'confirmed'
+      // 2. Save ONLY the individual request to Firestore
+      await firestoreService.saveRequest(type, savedRequest);
+
+      // 3. Handle absences if pre-approved (Admin direct entry)
+      let updatedAbsences = appData.absences;
+      if (savedRequest.status === 'approved') {
+        updatedAbsences = { ...appData.absences };
+        if (!updatedAbsences[savedRequest.empId]) updatedAbsences[savedRequest.empId] = {};
+        savedRequest.dates.forEach(date => {
+          updatedAbsences[savedRequest.empId][date] = {
+            type: savedRequest.type,
+            text: savedRequest.text,
+            vertreter: savedRequest.vertreter,
+            vertreterId: savedRequest.vertreterId,
+            status: 'confirmed'
+          };
+        });
+        await firestoreService.saveAbsence(type, savedRequest.empId, updatedAbsences[savedRequest.empId]);
+      }
+
+      // 4. Update the requests list locally in state
+      const updatedRequests = [...appData.requests];
+      const existingReqIndex = updatedRequests.findIndex(r => r.id === reqId);
+      if (existingReqIndex !== -1) {
+        updatedRequests[existingReqIndex] = savedRequest;
+      } else {
+        updatedRequests.push(savedRequest);
+      }
+
+      const updatedStats = updateVacationStats(updatedAbsences, appData.employees, appData.vacationStats, updatedRequests);
+
+      setAppData(prev => ({
+        ...prev,
+        requests: updatedRequests,
+        absences: updatedAbsences,
+        vacationStats: updatedStats
+      }));
+
+      // 5. If it was an admin pre-approving, trigger background JSONBin sync
+      if (savedRequest.status === 'approved') {
+        const nextAppData = {
+          ...appData,
+          requests: updatedRequests,
+          absences: updatedAbsences,
+          vacationStats: updatedStats
         };
-      });
+        const jsonbinPayload = { ...nextAppData, state: {}, requests: [] };
+        if (jsonbinPayload.employees) {
+          jsonbinPayload.employees = jsonbinPayload.employees.filter(e => !e._isCrossProfile);
+        }
+        apiService.save(binId, auth.masterKey, jsonbinPayload).catch(e => console.error("Background JSONBin save failed:", e));
+      }
+
+    } catch (err) {
+      console.error('[Submit Request Error]:', err);
+      alert(`Speichern fehlgeschlagen! (${err.message})`);
+    } finally {
+      setIsLoading(false);
     }
-
-    const updatedRequests = [...appData.requests, request];
-    const updatedStats = updateVacationStats(updatedAbsences);
-
-    await saveAllData({
-      ...appData,
-      requests: updatedRequests,
-      absences: updatedAbsences,
-      vacationStats: updatedStats
-    });
   };
 
 
