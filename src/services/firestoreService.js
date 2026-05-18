@@ -33,12 +33,13 @@ export const firestoreService = {
   async saveAbsence(planerType, empId, dates) {
     try {
       const docId = `${planerType}_${empId}`;
-      await setDoc(doc(db, ABSENCES_COLL, docId), {
+      const clean = JSON.parse(JSON.stringify({
         planerType,
         empId,
         dates,
         updatedAt: new Date().toISOString()
-      });
+      }));
+      await setDoc(doc(db, ABSENCES_COLL, docId), clean);
     } catch (error) {
       console.error(`Error saving absence for ${empId}:`, error);
       throw error;
@@ -74,12 +75,13 @@ export const firestoreService = {
   async saveRequest(planerType, request) {
     try {
       const reqId = request.id || `req_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-      await setDoc(doc(db, REQUESTS_COLL, reqId), {
+      const clean = JSON.parse(JSON.stringify({
         ...request,
         id: reqId,
         planerType,
         lastUpdated: new Date().toISOString()
-      }, { merge: true });
+      }));
+      await setDoc(doc(db, REQUESTS_COLL, reqId), clean, { merge: true });
       return reqId;
     } catch (error) {
       console.error('Error saving request to Firestore:', error);
