@@ -190,7 +190,13 @@ const App = () => {
       const effectiveKey = sourceData.jsonbin_key || auth.masterKey || localStorage.getItem(`${planerType}_jsonbin_key`);
 
       // 2. Parallel Fetches for the rest
-      const rotationFetch = effectiveKey ? apiService.load(ROTATION_BIN_ID, effectiveKey) : Promise.resolve([]);
+      // Try loading rotation directly from Firestore. Fall back to JSONBin only if Firestore document is missing or empty.
+      const rotationFetch = firestoreService.loadRotation()
+        .then(res => {
+          if (res && res.length > 0) return res;
+          console.warn("Rotation not found in Firestore distributions/monatsverteilung, trying JSONBin fallback...");
+          return effectiveKey ? apiService.load(ROTATION_BIN_ID, effectiveKey) : [];
+        });
       const firestoreAbsencesFetch = firestoreService.loadAbsences(planerType);
       const firestoreRequestsFetch = firestoreService.loadRequests(planerType);
       

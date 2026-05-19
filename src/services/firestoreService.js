@@ -1,4 +1,4 @@
-import { collection, doc, getDocs, setDoc, query, where, deleteDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc, query, where, deleteDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
 const ABSENCES_COLL = 'up_absences';
@@ -127,6 +127,25 @@ export const firestoreService = {
     } catch (error) {
       console.error('Error saving config to Firestore:', error);
       throw error;
+    }
+  },
+
+  /**
+   * Loads rotation assignments from 'distributions/monatsverteilung'
+   */
+  async loadRotation() {
+    try {
+      const docRef = doc(db, 'distributions', 'monatsverteilung');
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        console.log('Rotation loaded from Firestore distributions/monatsverteilung:', data.assignments?.length || 0, 'assignments');
+        return data.assignments || [];
+      }
+      return null;
+    } catch (error) {
+      console.error('Error loading rotation from Firestore:', error);
+      return null;
     }
   }
 };

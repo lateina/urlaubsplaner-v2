@@ -180,7 +180,13 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
       // Rule 3: FOA Special Rule (Assistants represent FOAs)
       const isFoaSpecial = myEmp._isCrossProfileFoa && !e._isCrossProfile;
 
-      if (!hasMatchingSkill && !isHigherOrEqual && !isFoaSpecial) return false;
+      // Rule 4: Proper OA representing FOA in OA Planner (proper OAs can always represent FOAs)
+      const isProperOaForFoa = planerType === 'oa' &&
+        (mySkills.includes('skill_funktionsoberarzt') || myEmp._isCrossProfileFoa) &&
+        (e.role === 'Oberarzt' || e.isOberarzt === true) &&
+        !theirSkills.includes('skill_funktionsoberarzt');
+
+      if (!hasMatchingSkill && !isHigherOrEqual && !isFoaSpecial && !isProperOaForFoa) return false;
     }
 
     return e.name?.toLowerCase().includes(vertreterSearch.toLowerCase());
