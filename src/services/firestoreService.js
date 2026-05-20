@@ -131,18 +131,39 @@ export const firestoreService = {
   },
 
   /**
-   * Loads rotation assignments from 'distributions/monatsverteilung'
+   * Loads rotation assignments from 'rotations_v2' collection in Firestore
    */
   async loadRotation() {
     try {
-      const docRef = doc(db, 'distributions', 'monatsverteilung');
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
+      const snapshot = await getDocs(collection(db, 'rotations_v2'));
+      const assignments = [];
+      snapshot.forEach(docSnap => {
+        const docId = docSnap.id; // e.g. "month_2026_03"
+        const monthId = docId.replace('month_', ''); // "2026_03"
         const data = docSnap.data();
-        console.log('Rotation loaded from Firestore distributions/monatsverteilung:', data.assignments?.length || 0, 'assignments');
-        return data.assignments || [];
-      }
-      return null;
+        if (data.assignments) {
+          Object.entries(data.assignments).forEach(([areaKey, tokenList]) => {
+            // Filter out duplicate suffix keys like HFU_month_2026_03
+            if (areaKey.includes('_month_')) return;
+            if (Array.isArray(tokenList)) {
+              tokenList.forEach(token => {
+                if (token && token.mitarbeiter_id) {
+                  assignments.push({
+                    mi: monthId,
+                    bi: areaKey.toLowerCase(),
+                    ei: token.mitarbeiter_id,
+                    fraction: token.fraction || 1,
+                    info_text: token.info_text || '',
+                    position: token.position || 0
+                  });
+                }
+              });
+            }
+          });
+        }
+      });
+      console.log('Rotation loaded from Firestore collection rotations_v2:', assignments.length, 'assignments');
+      return assignments;
     } catch (error) {
       console.error('Error loading rotation from Firestore:', error);
       return null;
