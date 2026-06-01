@@ -198,18 +198,25 @@ const App = () => {
           return effectiveKey ? apiService.load(ROTATION_BIN_ID, effectiveKey) : [];
         });
       const firestoreAbsencesFetch = firestoreService.loadAbsences(planerType);
-      const firestoreRequestsFetch = firestoreService.loadRequests(planerType);
+      
+      // Load both ass and oa requests in parallel
+      const firestoreRequestsAssFetch = firestoreService.loadRequests('ass');
+      const firestoreRequestsOaFetch = firestoreService.loadRequests('oa');
       
       const firestoreOAAbsencesFetch = (planerType === 'ass')
         ? firestoreService.loadAbsences('oa')
         : Promise.resolve({});
 
-      const [rotations, fsAbsences, fsRequests, fsOAAbsences] = await Promise.all([
+      const [rotations, fsAbsences, fsRequestsAss, fsRequestsOa, fsOAAbsences] = await Promise.all([
         rotationFetch.catch(e => { console.warn("Rotation fetch failed", e); return null; }),
         firestoreAbsencesFetch.catch(e => { console.error("Firestore absences fetch failed", e); return {}; }),
-        firestoreRequestsFetch.catch(e => { console.error("Firestore requests fetch failed", e); return []; }),
+        firestoreRequestsAssFetch.catch(e => { console.error("Firestore ass requests fetch failed", e); return []; }),
+        firestoreRequestsOaFetch.catch(e => { console.error("Firestore oa requests fetch failed", e); return []; }),
         firestoreOAAbsencesFetch.catch(e => { console.error("Firestore OA absences fetch failed", e); return {}; })
       ]);
+
+      // Combine requests from both profile streams
+      const fsRequests = [...fsRequestsAss, ...fsRequestsOa];
 
       // 2. Determine source of truth (Now purely Firestore config)
       
@@ -291,13 +298,6 @@ const App = () => {
           };
         });
 
-        // Merge Absence data for cross-profile
-        crossEmployees.forEach(f => {
-          const oaAbsenceEntry = fsOAAbsences[f.id];
-          if (oaAbsenceEntry) {
-            absences[f.id] = oaAbsenceEntry;
-          }
-        });
       }
 
       // Combine and deduplicate by ID to prevent UI duplicates
@@ -317,6 +317,25 @@ const App = () => {
         }
       });
       let employees = Array.from(employeeMap.values());
+
+      // Safe, unified merge of absences based on employee's primary profile type
+      const cleanAbsences = {};
+      employees.forEach(emp => {
+        const primaryType = getEmployeeProfileType(emp.id, allEmployees);
+        if (planerType === 'ass') {
+          if (primaryType === 'oa') {
+            // OAs and FOAs should load their absences from the OA stream
+            cleanAbsences[emp.id] = fsOAAbsences[emp.id] || {};
+          } else {
+            // Regular assistants from the ASS stream
+            cleanAbsences[emp.id] = fsAbsences[emp.id] || {};
+          }
+        } else {
+          // In OA planner, fsAbsences is already the OA stream
+          cleanAbsences[emp.id] = fsAbsences[emp.id] || {};
+        }
+      });
+      absences = cleanAbsences;
 
       // 2. Skill Logic
       const dbSkills = Array.isArray(sourceData.skills) ? sourceData.skills : [];
@@ -521,12 +540,13 @@ const App = () => {
   };
 
   const getEmployeeProfileType = (empId, currentEmployees) => {
-    const list = currentEmployees || appData.employees || [];
+    const list = currentEmployees || appData.fullEmployeeList || appData.employees || [];
     const emp = list.find(e => e.id === empId);
     if (!emp) return planerType;
     const isFOA = Array.isArray(emp.groups) && emp.groups.includes('skill_funktionsoberarzt');
-    return (emp.role === 'Oberarzt' || isFOA) ? 'oa' : 'ass';
+    return (emp.role === 'Oberarzt' || emp.isOberarzt === true || isFOA) ? 'oa' : 'ass';
   };
+
 
   const saveAllData = async (dataToSave) => {
     setIsLoading(true);
@@ -604,12 +624,16 @@ const App = () => {
 
       if (!finalAbsences[formData.employeeId]) finalAbsences[formData.employeeId] = {};
       dates.forEach(d => {
+        const existing = finalAbsences[formData.employeeId][d] || {};
         finalAbsences[formData.employeeId][d] = {
+          ...existing,
           type: formData.type,
           text: formData.remarks || '',
-          status: 'confirmed'
+          status: 'confirmed',
+          updatedAt: new Date().toISOString()
         };
       });
+
     }
 
     const updatedStats = updateVacationStats(finalAbsences, appData.employees, appData.vacationStats);
@@ -1086,9 +1110,10 @@ const App = () => {
     }
   }, [auth.isAuthenticated, auth.authProfile, planerType, perms.canSwitchPlaner]);
 
-  const poPendingCount = appData.requests.filter(r => r.status === 'approved' && !r.stamps?.po).length;
+  const poPendingCount = appData.requests.filter(r => r.planerType === planerType && r.status === 'approved' && !r.stamps?.po).length;
 
   const actionRequiredCount = appData.requests.filter(r => {
+    if (r.planerType !== planerType) return false;
     if (isAdmin) return r.status === 'pending_admin';
     return r.status === 'pending_vertreter' && r.vertreterId === resolvedUser?.id;
   }).length + (perms.canSeePOKarte ? poPendingCount : 0);
