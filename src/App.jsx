@@ -636,8 +636,55 @@ const App = () => {
 
     }
 
-    const updatedStats = updateVacationStats(finalAbsences, appData.employees, appData.vacationStats);
-    const nextDataToSave = { ...appData, absences: finalAbsences, vacationStats: updatedStats };
+    // Detect deleted absence days and automatically delete the corresponding approved requests
+    const deletedRequestIds = new Set();
+    const requestsToDelete = [];
+
+    Object.entries(appData.absences).forEach(([empId, oldDates]) => {
+      const newDates = finalAbsences[empId] || {};
+      Object.keys(oldDates).forEach(dateStr => {
+        // If it was present in oldDates but is NOT present in newDates, it has been deleted
+        if (!newDates[dateStr]) {
+          // Find matching approved request that contains this date
+          const matchingReq = appData.requests.find(r => 
+            r.empId === empId && 
+            r.status === 'approved' && 
+            Array.isArray(r.dates) && 
+            r.dates.includes(dateStr)
+          );
+
+          if (matchingReq && !deletedRequestIds.has(matchingReq.id)) {
+            deletedRequestIds.add(matchingReq.id);
+            requestsToDelete.push(matchingReq);
+          }
+        }
+      });
+    });
+
+    let nextRequests = appData.requests;
+    if (requestsToDelete.length > 0) {
+      console.log(`[Auto-Delete Requests] Deleting ${requestsToDelete.length} requests:`, requestsToDelete.map(r => r.id));
+      nextRequests = appData.requests.filter(r => !deletedRequestIds.has(r.id));
+      
+      // Ensure all dates of the deleted requests are also removed from finalAbsences to remain consistent
+      requestsToDelete.forEach(req => {
+        if (finalAbsences[req.empId]) {
+          req.dates.forEach(d => {
+            delete finalAbsences[req.empId][d];
+          });
+        }
+      });
+
+      // Delete from Firestore in background
+      requestsToDelete.forEach(req => {
+        firestoreService.deleteRequest(req.id).catch(err => 
+          console.error(`Failed to delete request ${req.id} from Firestore:`, err)
+        );
+      });
+    }
+
+    const updatedStats = updateVacationStats(finalAbsences, appData.employees, appData.vacationStats, nextRequests);
+    const nextDataToSave = { ...appData, absences: finalAbsences, requests: nextRequests, vacationStats: updatedStats };
     
     setAppData(nextDataToSave);
     saveAllDataSideEffect(nextDataToSave);
