@@ -728,13 +728,13 @@ const App = () => {
   const saveAllDataSideEffect = async (newData) => {
     setIsSaving(true);
     try {
-      // 1. JSONBin (Employees only)
+      // 1. Config & Employees (to Firestore)
       const { absences, requests, ...rest } = newData;
-      const jsonbinPayload = { ...rest, state: {}, requests: [] };
-      if (jsonbinPayload.employees) {
-        jsonbinPayload.employees = jsonbinPayload.employees.filter(e => !e._isCrossProfile);
+      const configPayload = { ...rest, state: {}, requests: [] };
+      if (configPayload.employees) {
+        configPayload.employees = configPayload.employees.filter(e => !e._isCrossProfile);
       }
-      await apiService.save(binId, auth.masterKey, jsonbinPayload);
+      await firestoreService.saveConfig(configPayload);
 
       // 2. Firestore (Absences)
       // Optimization: Only update the changed employee if possible, but here we keep and use bulk save for safety
@@ -811,11 +811,11 @@ const App = () => {
           absences: updatedAbsences,
           vacationStats: updatedStats
         };
-        const jsonbinPayload = { ...nextAppData, state: {}, requests: [] };
-        if (jsonbinPayload.employees) {
-          jsonbinPayload.employees = jsonbinPayload.employees.filter(e => !e._isCrossProfile);
+        const configPayload = { ...nextAppData, state: {}, requests: [] };
+        if (configPayload.employees) {
+          configPayload.employees = configPayload.employees.filter(e => !e._isCrossProfile);
         }
-        apiService.save(binId, auth.masterKey, jsonbinPayload).catch(e => console.error("Background JSONBin save failed:", e));
+        firestoreService.saveConfig(configPayload).catch(e => console.error("Background config save failed:", e));
       }
 
     } catch (err) {
@@ -903,11 +903,11 @@ const App = () => {
           nextAppData.vacationStats = updateVacationStats(nextAppData.absences, prev.employees, prev.vacationStats, nextAppData.requests);
           
           // Hybrid save background sync
-          const jsonbinPayload = { ...nextAppData, state: {}, requests: [] };
-          if (jsonbinPayload.employees) {
-            jsonbinPayload.employees = jsonbinPayload.employees.filter(e => !e._isCrossProfile);
+          const configPayload = { ...nextAppData, state: {}, requests: [] };
+          if (configPayload.employees) {
+            configPayload.employees = configPayload.employees.filter(e => !e._isCrossProfile);
           }
-          apiService.save(binId, auth.masterKey, jsonbinPayload).catch(e => console.error("Background save failed:", e));
+          firestoreService.saveConfig(configPayload).catch(e => console.error("Background save failed:", e));
 
           return nextAppData;
         });
@@ -1025,12 +1025,12 @@ const App = () => {
           // Recalculate stats
           nextData.vacationStats = updateVacationStats(nextData.absences, nextData.fullEmployeeList, nextData.vacationStats);
           
-          // Trigger JSONBin update in background (don't await it here for UI snappiness if possible, or await if safety is paramount)
+          // Trigger config update in background (don't await it here for UI snappiness if possible, or await if safety is paramount)
           // For now we keep it awaited to match previous logic but it's a candidate for improvement
           const { absences, requests, ...rest } = nextData;
-          const jsonbinPayload = { ...rest, state: {}, requests: [] };
-          jsonbinPayload.employees = jsonbinPayload.employees.filter(e => !e._isCrossProfile);
-          apiService.save(binId, auth.masterKey, jsonbinPayload).catch(e => console.error("JSONBin save failed:", e));
+          const configPayload = { ...rest, state: {}, requests: [] };
+          configPayload.employees = configPayload.employees.filter(e => !e._isCrossProfile);
+          firestoreService.saveConfig(configPayload).catch(e => console.error("Config save failed:", e));
         }
 
         return nextData;
