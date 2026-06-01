@@ -636,9 +636,8 @@ const App = () => {
 
     }
 
-    // Detect deleted absence days and automatically delete the corresponding approved requests
-    const deletedRequestIds = new Set();
-    const requestsToDelete = [];
+    // Detect deleted absence days and update or delete their corresponding approved requests
+    const updatedRequestsMap = new Map(); // reqId -> updatedRequestClone
 
     Object.entries(appData.absences).forEach(([empId, oldDates]) => {
       const newDates = finalAbsences[empId] || {};
@@ -653,34 +652,59 @@ const App = () => {
             r.dates.includes(dateStr)
           );
 
-          if (matchingReq && !deletedRequestIds.has(matchingReq.id)) {
-            deletedRequestIds.add(matchingReq.id);
-            requestsToDelete.push(matchingReq);
+          if (matchingReq) {
+            // Get or create the cloned request in our working map
+            if (!updatedRequestsMap.has(matchingReq.id)) {
+              updatedRequestsMap.set(matchingReq.id, {
+                ...matchingReq,
+                dates: [...matchingReq.dates]
+              });
+            }
+            
+            const clonedReq = updatedRequestsMap.get(matchingReq.id);
+            // Remove the deleted date from this request's dates array
+            clonedReq.dates = clonedReq.dates.filter(d => d !== dateStr);
           }
         }
       });
     });
 
-    let nextRequests = appData.requests;
-    if (requestsToDelete.length > 0) {
-      console.log(`[Auto-Delete Requests] Deleting ${requestsToDelete.length} requests:`, requestsToDelete.map(r => r.id));
-      nextRequests = appData.requests.filter(r => !deletedRequestIds.has(r.id));
-      
-      // Ensure all dates of the deleted requests are also removed from finalAbsences to remain consistent
-      requestsToDelete.forEach(req => {
-        if (finalAbsences[req.empId]) {
-          req.dates.forEach(d => {
-            delete finalAbsences[req.empId][d];
-          });
-        }
-      });
+    let nextRequests = [...appData.requests];
+    const savePromises = [];
+    const deletePromises = [];
 
-      // Delete from Firestore in background
-      requestsToDelete.forEach(req => {
-        firestoreService.deleteRequest(req.id).catch(err => 
-          console.error(`Failed to delete request ${req.id} from Firestore:`, err)
+    updatedRequestsMap.forEach((clonedReq, reqId) => {
+      const targetPlanerType = getEmployeeProfileType(clonedReq.empId);
+      
+      if (clonedReq.dates.length === 0) {
+        // 1. If no dates are left, delete the request completely
+        console.log(`[Auto-Delete Request] Deleting empty request: ${reqId}`);
+        nextRequests = nextRequests.filter(r => r.id !== reqId);
+        
+        deletePromises.push(
+          firestoreService.deleteRequest(reqId).catch(err => 
+            console.error(`Failed to delete request ${reqId} from Firestore:`, err)
+          )
         );
-      });
+      } else {
+        // 2. If dates are still left, update the request with the remaining dates in Firestore and state
+        console.log(`[Auto-Update Request] Updating request ${reqId} with remaining dates:`, clonedReq.dates);
+        const reqIndex = nextRequests.findIndex(r => r.id === reqId);
+        if (reqIndex !== -1) {
+          nextRequests[reqIndex] = clonedReq;
+        }
+        
+        savePromises.push(
+          firestoreService.saveRequest(targetPlanerType, clonedReq).catch(err => 
+            console.error(`Failed to update request ${reqId} in Firestore:`, err)
+          )
+        );
+      }
+    });
+
+    // Execute Firestore operations in background
+    if (savePromises.length > 0 || deletePromises.length > 0) {
+      Promise.all([...savePromises, ...deletePromises]);
     }
 
     const updatedStats = updateVacationStats(finalAbsences, appData.employees, appData.vacationStats, nextRequests);
