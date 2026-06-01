@@ -183,38 +183,35 @@ const App = () => {
     const profile = PLANER_PROFILES[planerType];
 
     try {
-      // 1. Fetch Config from Firestore FIRST (to get jsonbin_key)
-      const fsConfig = await firestoreService.loadConfig();
+      // Start all Firestore queries in parallel immediately to speed up loading
+      const configPromise = firestoreService.loadConfig();
+      const fsAbsencesPromise = firestoreService.loadAbsences(planerType);
+      const fsRequestsAssPromise = firestoreService.loadRequests('ass');
+      const fsRequestsOaPromise = firestoreService.loadRequests('oa');
+      const fsOAAbsencesPromise = (planerType === 'ass') ? firestoreService.loadAbsences('oa') : Promise.resolve({});
+      const fsRotationPromise = firestoreService.loadRotation();
+
+      // 1. Await Config (needed for jsonbin fallback key)
+      const fsConfig = await configPromise;
       const sourceData = fsConfig || {};
       
       // Determine the key to use (Firestore config > Auth state > localStorage)
       const effectiveKey = sourceData.jsonbin_key || auth.masterKey || localStorage.getItem(`${planerType}_jsonbin_key`);
 
-      // 2. Parallel Fetches for the rest
-      // Try loading rotation directly from Firestore. Fall back to JSONBin only if Firestore document is missing or empty.
-      const rotationFetch = firestoreService.loadRotation()
-        .then(res => {
-          if (res && res.length > 0) return res;
-          console.warn("Rotation not found in Firestore distributions/monatsverteilung, trying JSONBin fallback...");
-          return effectiveKey ? apiService.load(ROTATION_BIN_ID, effectiveKey) : [];
-        });
-      const firestoreAbsencesFetch = firestoreService.loadAbsences(planerType);
-      
-      // Load both ass and oa requests in parallel
-      const firestoreRequestsAssFetch = firestoreService.loadRequests('ass');
-      const firestoreRequestsOaFetch = firestoreService.loadRequests('oa');
-      
-      const firestoreOAAbsencesFetch = (planerType === 'ass')
-        ? firestoreService.loadAbsences('oa')
-        : Promise.resolve({});
-
-      const [rotations, fsAbsences, fsRequestsAss, fsRequestsOa, fsOAAbsences] = await Promise.all([
-        rotationFetch.catch(e => { console.warn("Rotation fetch failed", e); return null; }),
-        firestoreAbsencesFetch.catch(e => { console.error("Firestore absences fetch failed", e); return {}; }),
-        firestoreRequestsAssFetch.catch(e => { console.error("Firestore ass requests fetch failed", e); return []; }),
-        firestoreRequestsOaFetch.catch(e => { console.error("Firestore oa requests fetch failed", e); return []; }),
-        firestoreOAAbsencesFetch.catch(e => { console.error("Firestore OA absences fetch failed", e); return {}; })
+      // 2. Await Parallel Fetches for the rest
+      const [rotationsRaw, fsAbsences, fsRequestsAss, fsRequestsOa, fsOAAbsences] = await Promise.all([
+        fsRotationPromise.catch(e => { console.warn("Rotation fetch failed", e); return null; }),
+        fsAbsencesPromise.catch(e => { console.error("Firestore absences fetch failed", e); return {}; }),
+        fsRequestsAssPromise.catch(e => { console.error("Firestore ass requests fetch failed", e); return []; }),
+        fsRequestsOaPromise.catch(e => { console.error("Firestore oa requests fetch failed", e); return []; }),
+        fsOAAbsencesPromise.catch(e => { console.error("Firestore OA absences fetch failed", e); return {}; })
       ]);
+
+      let rotations = rotationsRaw;
+      if (!rotations || rotations.length === 0) {
+        console.warn("Rotation not found in Firestore distributions/monatsverteilung, trying JSONBin fallback...");
+        rotations = effectiveKey ? await apiService.load(ROTATION_BIN_ID, effectiveKey).catch(e => []) : [];
+      }
 
       // Combine requests from both profile streams
       const fsRequests = [...fsRequestsAss, ...fsRequestsOa];
@@ -1259,7 +1256,7 @@ const App = () => {
         return (
           <RequestsView
             requests={appData.requests}
-            employees={appData.employees}
+            employees={appData.fullEmployeeList}
             currentUser={resolvedUser}
             isAdmin={isAdmin}
             onApprove={handleApproveRequest}
