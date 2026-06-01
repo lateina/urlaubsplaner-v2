@@ -44,7 +44,10 @@ const RequestsView = ({
     rejected: '#ef4444'
   };
 
-  const filteredRequests = requests.filter(r => {
+  // Filter incoming requests to only show requests belonging to the active planer profile in the UI
+  const filteredByProfileRequests = requests.filter(r => r.planerType === planerType);
+
+  const filteredRequests = filteredByProfileRequests.filter(r => {
     if (subTab === 'po_transfer') return r.status === 'approved' && !r.stamps?.po;
     if (filter === 'open') return r.status.startsWith('pending');
     if (filter === 'approved') return r.status === 'approved';
@@ -55,12 +58,12 @@ const RequestsView = ({
   const cuId = currentUser?.id;
   
   // Tab logic for non-admins
-  const vertreterReqs = requests.filter(r => 
+  const vertreterReqs = filteredByProfileRequests.filter(r => 
     (r.vertreterId === cuId && (r.status === 'pending_vertreter' || r.status === 'pending_supervisor' || r.status === 'pending_admin' || r.status === 'approved')) ||
     (r.supervisorId === cuId && (r.status === 'pending_supervisor' || r.status === 'pending_admin' || r.status === 'approved'))
   );
-  const meineReqs = requests.filter(r => r.empId === cuId);
-  const poPendingReqs = requests.filter(r => r.status === 'approved' && !r.stamps?.po);
+  const meineReqs = filteredByProfileRequests.filter(r => r.empId === cuId);
+  const poPendingReqs = filteredByProfileRequests.filter(r => r.status === 'approved' && !r.stamps?.po);
 
   const displayRequests = isAdmin 
     ? filteredRequests.sort((a, b) => b.id.localeCompare(a.id))

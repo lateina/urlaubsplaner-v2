@@ -150,7 +150,7 @@ export const firestoreService = {
                 if (token && token.mitarbeiter_id) {
                   assignments.push({
                     mi: monthId,
-                    bi: areaKey.toLowerCase(),
+                    bi: areaKey.replace(/_/g, '').toLowerCase(),
                     ei: token.mitarbeiter_id,
                     fraction: token.fraction || 1,
                     info_text: token.info_text || '',

@@ -17,6 +17,7 @@ import { db, auth as firebaseAuth } from './config/firebase';
 import { signInAnonymously } from 'firebase/auth';
 import { APP_CONFIG } from './config/appConfig';
 import { PLANER_PROFILES, DEFAULT_PROFILE } from './config/planerConfig';
+import { Toaster, toast } from 'react-hot-toast';
 import { ROTATION_BIN_ID, MONTH_AREA_MAPPING, MONTH_AREA_ORDER } from './config/rotationConfig';
 import { getSpecialDayInfo } from './utils/calendarUtils';
 import './styles/layout.css';
@@ -638,12 +639,14 @@ const App = () => {
 
     // Detect deleted absence days and update or delete their corresponding approved requests
     const updatedRequestsMap = new Map(); // reqId -> updatedRequestClone
+    let hasDeletedDays = false;
 
     Object.entries(appData.absences).forEach(([empId, oldDates]) => {
       const newDates = finalAbsences[empId] || {};
       Object.keys(oldDates).forEach(dateStr => {
         // If it was present in oldDates but is NOT present in newDates, it has been deleted
         if (!newDates[dateStr]) {
+          hasDeletedDays = true;
           // Find matching approved request that contains this date
           const matchingReq = appData.requests.find(r => 
             r.empId === empId && 
@@ -712,6 +715,13 @@ const App = () => {
     
     setAppData(nextDataToSave);
     saveAllDataSideEffect(nextDataToSave);
+
+    if (hasDeletedDays) {
+      toast.success('Urlaub erfolgreich gelöscht', {
+        position: 'bottom-center',
+        duration: 3000
+      });
+    }
   };
 
   // Dedicated side effect for saving to API without re-triggering setAppData recursively or causing race conditions
@@ -1411,6 +1421,7 @@ const App = () => {
         isOpen={isLegalModalOpen}
         onClose={() => setIsLegalModalOpen(false)}
       />
+      <Toaster />
     </div>
   );
 };
