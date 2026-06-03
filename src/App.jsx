@@ -730,7 +730,7 @@ const App = () => {
 
       // 2. Firestore (Absences)
       // Optimization: Only update the changed employee if possible, but here we keep and use bulk save for safety
-      const promises = Object.entries(absences).map(([eid, dates]) =>
+      const promises = Object.entries(newData.absences).map(([eid, dates]) =>
         firestoreService.saveAbsence(getEmployeeProfileType(eid), eid, dates)
       );
       await Promise.all(promises);
