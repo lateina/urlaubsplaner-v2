@@ -307,7 +307,10 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
                         const otherEmp = employees.find(e => e.id === existingReps[0].empId);
                         const otherIsEpuException = otherEmp && ((otherEmp.role === 'Oberarzt' || otherEmp.isOberarzt || (otherEmp.groups || []).includes('skill_funktionsoberarzt')) && (otherEmp.groups || []).includes('skill_epu'));
                         
-                        if (!reqIsEpuException || !otherIsEpuException) {
+                        const vertreterEmp = employees.find(e => e.id === vId);
+                        const vertreterIsEpu = vertreterEmp && (vertreterEmp.groups || []).includes('skill_epu');
+                        
+                        if (!reqIsEpuException || !otherIsEpuException || !vertreterIsEpu) {
                             isBlocked = true;
                         }
                     }
