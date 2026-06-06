@@ -294,8 +294,26 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
                     ownReqDates.push(d);
                 }
                 // Check if representative is already representing someone else
-                const vAlreadyRep = requests.find(r => r.vertreterId === vId && r.dates.includes(d) && r.status !== 'rejected');
-                if (vAlreadyRep) {
+                const existingReps = requests.filter(r => r.vertreterId === vId && r.dates.includes(d) && r.status !== 'rejected');
+                
+                let isBlocked = false;
+                if (existingReps.length > 0) {
+                    if (existingReps.length >= 2) {
+                        isBlocked = true; // Maximum 2 representations even for EPU
+                    } else {
+                        // Exactly 1 existing representation. Check if EPU exception applies
+                        const reqIsEpuException = requester && ((requester.role === 'Oberarzt' || requester.isOberarzt || (requester.groups || []).includes('skill_funktionsoberarzt')) && (requester.groups || []).includes('skill_epu'));
+                        
+                        const otherEmp = employees.find(e => e.id === existingReps[0].empId);
+                        const otherIsEpuException = otherEmp && ((otherEmp.role === 'Oberarzt' || otherEmp.isOberarzt || (otherEmp.groups || []).includes('skill_funktionsoberarzt')) && (otherEmp.groups || []).includes('skill_epu'));
+                        
+                        if (!reqIsEpuException || !otherIsEpuException) {
+                            isBlocked = true;
+                        }
+                    }
+                }
+                
+                if (isBlocked) {
                     alreadyRepDates.push(d);
                 }
             }
