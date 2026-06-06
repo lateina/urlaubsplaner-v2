@@ -11,6 +11,7 @@ import ICalExportModal from './components/Admin/ICalExportModal';
 import InstallPrompt from './components/UI/InstallPrompt';
 import LegalModal from './components/UI/LegalModal';
 import Login from './components/Auth/Login';
+import BugReportModal from './components/UI/BugReportModal';
 import { apiService } from './services/apiService';
 import { firestoreService } from './services/firestoreService';
 import { db, auth as firebaseAuth } from './config/firebase';
@@ -66,6 +67,13 @@ const SHARED_SKILL_IDS = new Set([
 
 const App = () => {
   const [activeTab, setActiveTab] = useState('calendar');
+  const [isBugModalOpen, setIsBugModalOpen] = useState(false);
+
+  useEffect(() => {
+    const handleOpenBugReport = () => setIsBugModalOpen(true);
+    window.addEventListener('open-bug-report', handleOpenBugReport);
+    return () => window.removeEventListener('open-bug-report', handleOpenBugReport);
+  }, []);
   const [auth, setAuth] = useState(() => {
     // Detect planerType early for storage key name spacing
     const params = new URLSearchParams(window.location.search);
@@ -737,6 +745,12 @@ const App = () => {
 
     } catch (err) {
       console.error('Speichern fehlgeschlagen:', err);
+      firestoreService.logError({
+        message: err.message || 'Speichern fehlgeschlagen',
+        stack: err.stack,
+        context: 'saveAllDataSideEffect',
+        user: resolvedUser ? `${resolvedUser.id} (${resolvedUser.name})` : 'Unbekannt'
+      });
     } finally {
       setIsSaving(false);
     }
@@ -1403,6 +1417,11 @@ const App = () => {
         onClose={() => setIsLegalModalOpen(false)}
       />
       <Toaster />
+      <BugReportModal 
+        isOpen={isBugModalOpen}
+        onClose={() => setIsBugModalOpen(false)}
+        currentUser={resolvedUser}
+      />
     </div>
   );
 };

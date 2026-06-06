@@ -118,14 +118,23 @@ const Sidebar = ({ activeTab, onTabChange, planerType, onPlanerSwitch, isAdmin, 
         style={{ padding: '20px', borderTop: '1px solid var(--glass-border)', fontSize: '0.75rem', color: 'var(--text-secondary)', cursor: 'pointer' }}
       >
         {!isCollapsed && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <span style={{ fontWeight: 600 }}>{profile.title}</span>
-            <span 
-              onClick={(e) => { e.stopPropagation(); onOpenLegal(); }}
-              style={{ opacity: 0.7, textDecoration: 'underline', cursor: 'pointer' }}
-            >
-              v2.2.0
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span 
+                onClick={(e) => { e.stopPropagation(); onOpenLegal(); }}
+                style={{ opacity: 0.7, textDecoration: 'underline', cursor: 'pointer' }}
+              >
+                v2.2.0
+              </span>
+              <span style={{ opacity: 0.5 }}>|</span>
+              <span 
+                onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('open-bug-report')); }}
+                style={{ opacity: 0.7, textDecoration: 'underline', cursor: 'pointer', color: '#ef4444' }}
+              >
+                Fehler melden
+              </span>
+            </div>
           </div>
         )}
       </div>

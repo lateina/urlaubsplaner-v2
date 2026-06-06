@@ -3,6 +3,7 @@ import { db } from '../config/firebase';
 
 const ABSENCES_COLL = 'up_absences';
 const REQUESTS_COLL = 'up_requests';
+const ERRORS_COLL = 'up_errors';
 
 export const firestoreService = {
   /**
@@ -167,6 +168,40 @@ export const firestoreService = {
     } catch (error) {
       console.error('Error loading rotation from Firestore:', error);
       return null;
+    }
+  },
+
+  /**
+   * Logs an automated error to the database
+   */
+  async logError(errorData) {
+    try {
+      const docId = `err_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      await setDoc(doc(db, ERRORS_COLL, docId), {
+        ...errorData,
+        timestamp: new Date().toISOString(),
+        type: 'auto_error'
+      });
+    } catch (err) {
+      // Intentionally not throwing or alerting to prevent infinite loops if firestore is down
+      console.warn('Failed to log error to Firestore:', err);
+    }
+  },
+
+  /**
+   * Submits a manual bug report from the user
+   */
+  async submitBugReport(reportData) {
+    try {
+      const docId = `bug_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      await setDoc(doc(db, ERRORS_COLL, docId), {
+        ...reportData,
+        timestamp: new Date().toISOString(),
+        type: 'manual_report'
+      });
+    } catch (err) {
+      console.error('Failed to submit bug report:', err);
+      throw err;
     }
   }
 };
