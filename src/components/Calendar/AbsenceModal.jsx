@@ -339,7 +339,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
       vertreterId: formData.vertreterId,
       supervisor: formData.supervisor,
       supervisorId: formData.supervisorId,
-      forwardSeparately: formData.type === 'D' ? formData.forwardSeparately : undefined,
+      forwardSeparately: formData.type === 'D' ? formData.forwardSeparately : null,
       dates: dates,
       status: isDirect ? 'approved' : (formData.vertreterId ? 'pending_vertreter' : (formData.supervisorId ? 'pending_supervisor' : 'pending_admin')),
       createdAt: new Date().toISOString().split('T')[0],
