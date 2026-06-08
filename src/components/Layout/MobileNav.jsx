@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Bell, Users, Settings, ClipboardList, ShieldCheck, Download, MoreHorizontal, LayoutGrid, Info } from 'lucide-react';
+import { Calendar, Bell, Users, Settings, ClipboardList, ShieldCheck, Download, MoreHorizontal, LayoutGrid, Info, AlertTriangle } from 'lucide-react';
 
 const MobileNav = ({ activeTab, onTabChange, badgeCount, isAdmin, perms, onOpenICal, onOpenLegal }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -15,7 +15,8 @@ const MobileNav = ({ activeTab, onTabChange, badgeCount, isAdmin, perms, onOpenI
     ...(perms?.canAdminSkills ? [{ id: 'skills', icon: ShieldCheck, label: 'Skills' }] : []),
     ...(perms?.canICalExport ? [{ id: 'ical', icon: Download, label: 'iCal Export' }] : []),
     { id: 'settings', icon: Settings, label: 'Einstellungen' },
-    { id: 'legal', icon: Info, label: 'Impressum' }
+    { id: 'legal', icon: Info, label: 'Impressum' },
+    { id: 'bug_report', icon: AlertTriangle, label: 'Fehler melden', isDestructive: true }
   ];
 
   const handleItemClick = (id) => {
@@ -23,6 +24,8 @@ const MobileNav = ({ activeTab, onTabChange, badgeCount, isAdmin, perms, onOpenI
       onOpenICal();
     } else if (id === 'legal') {
       onOpenLegal();
+    } else if (id === 'bug_report') {
+      window.dispatchEvent(new CustomEvent('open-bug-report'));
     } else {
       onTabChange(id);
     }
@@ -65,8 +68,8 @@ const MobileNav = ({ activeTab, onTabChange, badgeCount, isAdmin, perms, onOpenI
                 gap: '12px',
                 padding: '12px 16px',
                 borderRadius: '12px',
-                color: activeTab === item.id ? 'var(--primary)' : 'var(--text-main)',
-                background: activeTab === item.id ? 'rgba(var(--primary-rgb), 0.1)' : 'transparent',
+                color: item.isDestructive ? '#ef4444' : (activeTab === item.id ? 'var(--primary)' : 'var(--text-main)'),
+                background: activeTab === item.id && !item.isDestructive ? 'rgba(var(--primary-rgb), 0.1)' : 'transparent',
                 fontWeight: 600
               }}
             >
