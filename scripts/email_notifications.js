@@ -189,6 +189,11 @@ async function run() {
     const allRequests = await fetchFirestoreCollection('up_requests');
     console.log(`Found ${allRequests.length} requests in Firestore.`);
 
+    // 2.5 Fetch all errors from Firestore
+    console.log('Fetching Errors from Firestore...');
+    const allErrors = await fetchFirestoreCollection('up_errors');
+    console.log(`Found ${allErrors.length} error reports in Firestore.`);
+
     let adminDigest = [];
     let sekrDigest = [];
     let personDigests = {}; // { email: { name: string, items: [] } }
@@ -273,6 +278,22 @@ async function run() {
         }
     }
 
+    // --- Process Bug Reports / Errors ---
+    console.log('Processing Bug Reports...');
+    for (const err of allErrors) {
+        const notified = err.notified || {};
+        if (!notified.admin) {
+            const timeStr = err.timestamp ? new Date(err.timestamp).toLocaleString('de-DE') : 'Unbekannt';
+            const userStr = err.user || 'Unbekannt';
+            const typeStr = err.type === 'manual_report' ? 'Benutzer-Feedback' : 'Systemfehler';
+            
+            adminDigest.push(`[${typeStr}] von ${userStr} am ${timeStr}:\n"${err.message}"\nUrl: ${err.url || '-'}`);
+            
+            notified.admin = true;
+            firestoreUpdates.push({ coll: 'up_errors', id: err.id, fields: { notified } });
+        }
+    }
+
     // --- New: Mid-Year Vacation Reminder Logic ---
     const today = new Date();
     const currentYear = today.getFullYear();
@@ -324,8 +345,8 @@ async function run() {
     // Send Admin Digest
     if (adminDigest.length > 0) {
         await sendEmail(ADMIN_EMAIL,
-            `Urlaubsplaner: ${adminDigest.length} neue Anträge zur Genehmigung`,
-            `Guten Morgen,\n\nfolgende Anträge stehen noch zur Genehmigung aus:\n\n${adminDigest.join('\n\n')}`
+            `Urlaubsplaner: ${adminDigest.length} neue Mitteilungen (Anträge / Fehler)`,
+            `Guten Morgen,\n\nhier ist die Übersicht der neuesten Benachrichtigungen:\n\n${adminDigest.join('\n\n------------------------\n\n')}`
         );
     }
 
