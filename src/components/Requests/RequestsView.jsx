@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, X, Trash2, FileText, Clock, User, Calendar as CalendarIcon, MessageSquare } from 'lucide-react';
+import { Check, X, Trash2, FileText, Clock, User, Calendar as CalendarIcon, MessageSquare, ShieldCheck } from 'lucide-react';
 import { generateAndDownloadPDF } from '../../utils/pdfGenerator';
 
 
@@ -12,6 +12,7 @@ const RequestsView = ({
   onReject, 
   onDelete,
   onMarkPODone,
+  onUpdateRequest,
   perms = {},
   vacationStats = {},
   planerType
@@ -19,6 +20,8 @@ const RequestsView = ({
 
   const [filter, setFilter] = useState('open'); // 'all', 'open', 'approved', 'rejected', 'po_pending'
   const [subTab, setSubTab] = useState('meine'); // 'meine', 'vertreter', 'admin_list', 'po_transfer'
+  const [editMode, setEditMode] = useState({ reqId: null, type: null });
+  const [editValue, setEditValue] = useState('');
 
   // Initialize subTab correctly for admins
   React.useEffect(() => {
@@ -130,13 +133,78 @@ const RequestsView = ({
             <span>{typeLabel[req.type] || req.type} {req.text ? `(${req.text})` : ''}</span>
           </div>
           {req.vertreter && (
-            <div className="request-info-row">
-              <User size={14} />
-              <span style={req.vertreter === 'Kein Vertreter nötig' ? { color: '#64748b' } : {}}>
-                {req.vertreter === 'Kein Vertreter nötig' ? 'Kein Vertreter nötig' : `Vertreter: ${req.vertreter}`}
-              </span>
+            <div className="request-info-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginTop: '4px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <User size={14} />
+                {editMode.reqId === req.id && editMode.type === 'vertreter' ? (
+                   <select value={editValue} onChange={(e) => setEditValue(e.target.value)} style={{ padding: '2px 4px', fontSize: '0.8rem', borderRadius: '4px' }}>
+                     <option value="">Bitte wählen...</option>
+                     {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                   </select>
+                ) : (
+                   <span style={req.vertreter === 'Kein Vertreter nötig' ? { color: '#64748b' } : {}}>
+                     {req.vertreter === 'Kein Vertreter nötig' ? 'Kein Vertreter nötig' : `Vertreter: ${req.vertreter}`}
+                   </span>
+                )}
+              </div>
+              {isAdmin && (
+                editMode.reqId === req.id && editMode.type === 'vertreter' ? (
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <button onClick={() => {
+                        const newEmp = employees.find(e => e.id === editValue);
+                        if (newEmp) {
+                          if (confirm(`Wirklich den Vertreter auf ${newEmp.name} ändern und den Freigabeprozess zurücksetzen?`)) {
+                            onUpdateRequest(req.id, { vertreterId: newEmp.id, vertreter: newEmp.name, status: 'pending_vertreter' });
+                          }
+                        }
+                        setEditMode({ reqId: null, type: null });
+                    }} style={{ fontSize: '0.7rem', padding: '2px 6px', background: '#22c55e', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>✓</button>
+                    <button onClick={() => setEditMode({ reqId: null, type: null })} style={{ fontSize: '0.7rem', padding: '2px 6px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>✕</button>
+                  </div>
+                ) : (
+                  <button onClick={() => { setEditMode({ reqId: req.id, type: 'vertreter' }); setEditValue(req.vertreterId || ''); }} style={{ fontSize: '0.7rem', background: 'transparent', border: '1px solid #cbd5e1', padding: '2px 6px', borderRadius: '4px', cursor: 'pointer', color: '#64748b' }}>Ändern</button>
+                )
+              )}
             </div>
           )}
+
+          <div className="request-info-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginTop: '4px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <ShieldCheck size={14} />
+              {editMode.reqId === req.id && editMode.type === 'supervisor' ? (
+                <select value={editValue} onChange={(e) => setEditValue(e.target.value)} style={{ padding: '2px 4px', fontSize: '0.8rem', borderRadius: '4px' }}>
+                   <option value="">Kein Vorgesetzter</option>
+                   {employees.filter(e => e.role === 'Oberarzt' || e.isOberarzt).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                </select>
+              ) : (
+                <span>
+                  {req.supervisorId ? `Vorgesetzter: ${getEmpName(req.supervisorId)}` : 'Kein Vorgesetzter erforderlich'}
+                </span>
+              )}
+            </div>
+            {isAdmin && (
+              editMode.reqId === req.id && editMode.type === 'supervisor' ? (
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <button onClick={() => {
+                        const newEmp = employees.find(e => e.id === editValue);
+                        if (newEmp) {
+                          if (confirm(`Wirklich den Vorgesetzten auf ${newEmp.name} setzen und den Freigabeprozess zurücksetzen?`)) {
+                            onUpdateRequest(req.id, { supervisorId: newEmp.id, status: 'pending_supervisor' });
+                          }
+                        } else if (!editValue && req.supervisorId) {
+                           if (confirm(`Soll der Vorgesetzte entfernt werden?`)) {
+                               onUpdateRequest(req.id, { supervisorId: null, status: (req.vertreterId && !req.stamps?.vertreter && req.vertreter !== 'Kein Vertreter nötig') ? 'pending_vertreter' : 'pending_admin' });
+                           }
+                        }
+                        setEditMode({ reqId: null, type: null });
+                    }} style={{ fontSize: '0.7rem', padding: '2px 6px', background: '#22c55e', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>✓</button>
+                    <button onClick={() => setEditMode({ reqId: null, type: null })} style={{ fontSize: '0.7rem', padding: '2px 6px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>✕</button>
+                  </div>
+                ) : (
+                  <button onClick={() => { setEditMode({ reqId: req.id, type: 'supervisor' }); setEditValue(req.supervisorId || ''); }} style={{ fontSize: '0.7rem', background: 'transparent', border: '1px solid #cbd5e1', padding: '2px 6px', borderRadius: '4px', cursor: 'pointer', color: '#64748b' }}>Ändern</button>
+                )
+            )}
+          </div>
           {req.type === 'D' && req.forwardSeparately !== undefined && (
             <div className="request-info-row" style={{ marginTop: 4, background: req.forwardSeparately ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.1)', padding: '6px 8px', borderRadius: '8px' }}>
               <FileText size={14} color={req.forwardSeparately ? '#b45309' : '#047857'} />

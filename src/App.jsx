@@ -959,6 +959,54 @@ const App = () => {
     } catch (err) {
       console.error(err);
       alert('Speichern fehlgeschlagen: ' + err.message);
+      setIsLoading(false);
+    }
+  };
+
+  const handleUpdateRequest = async (reqId, updates) => {
+    const reqIndex = appData.requests.findIndex(r => r.id === reqId);
+    if (reqIndex === -1) return;
+
+    setIsLoading(true);
+    try {
+      const request = { ...appData.requests[reqIndex], ...updates };
+
+      // Ensure stamps property is initialized
+      if (!request.stamps) request.stamps = {};
+
+      // Handle resetting notified flags for email notifications based on status change
+      if (!request.notified) request.notified = {};
+      if (updates.status === 'pending_supervisor') {
+        request.notified.pending_supervisor = false;
+        request.notified.pending_admin = false;
+        request.notified.approved = false;
+        delete request.stamps.supervisor;
+        delete request.stamps.admin;
+      } else if (updates.status === 'pending_vertreter') {
+        request.notified.pending_vertreter = false;
+        request.notified.pending_supervisor = false;
+        request.notified.pending_admin = false;
+        request.notified.approved = false;
+        delete request.stamps.vertreter;
+        delete request.stamps.supervisor;
+        delete request.stamps.admin;
+      }
+
+      const updatedRequests = [...appData.requests];
+      updatedRequests[reqIndex] = request;
+
+      await firestoreService.saveRequest(planerType, request);
+      
+      setAppData(prev => {
+        const newRequests = [...prev.requests];
+        const idx = newRequests.findIndex(r => r.id === reqId);
+        if (idx !== -1) newRequests[idx] = request;
+        return { ...prev, requests: newRequests };
+      });
+
+    } catch (err) {
+      console.error(err);
+      alert('Speichern fehlgeschlagen: ' + err.message);
     } finally {
       setIsLoading(false);
     }
@@ -1277,6 +1325,7 @@ const App = () => {
             onReject={handleRejectRequest}
             onDelete={handleDeleteRequest}
             onMarkPODone={handleMarkPODone}
+            onUpdateRequest={handleUpdateRequest}
             perms={perms}
             vacationStats={appData.vacationStats}
             planerType={planerType}
