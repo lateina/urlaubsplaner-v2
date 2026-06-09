@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, X, Trash2, FileText, Clock, User, Calendar as CalendarIcon, MessageSquare, ShieldCheck } from 'lucide-react';
+import { Check, X, Trash2, FileText, Clock, User, Calendar as CalendarIcon, MessageSquare, ShieldCheck, Search } from 'lucide-react';
 import { generateAndDownloadPDF } from '../../utils/pdfGenerator';
 
 
@@ -47,14 +47,52 @@ const RequestsView = ({
     rejected: '#ef4444'
   };
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showHistory, setShowHistory] = useState(false);
+
   // Filter incoming requests to only show requests belonging to the active planer profile in the UI
   const filteredByProfileRequests = requests.filter(r => r.planerType === planerType);
 
+  const getEmpName = (id) => employees.find(e => e.id === id)?.name || id;
+
+  const todayStr = new Date().toISOString().split('T')[0];
+
   const filteredRequests = filteredByProfileRequests.filter(r => {
     if (subTab === 'po_transfer') return r.status === 'approved' && !r.stamps?.po;
-    if (filter === 'open') return r.status.startsWith('pending');
-    if (filter === 'approved') return r.status === 'approved';
-    if (filter === 'rejected') return r.status === 'rejected';
+    
+    // Status Filter
+    let statusMatch = true;
+    if (filter === 'open') statusMatch = r.status.startsWith('pending');
+    else if (filter === 'approved') statusMatch = r.status === 'approved';
+    else if (filter === 'rejected') statusMatch = r.status === 'rejected';
+
+    if (!statusMatch) return false;
+
+    // Search Query Filter
+    if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const empName = getEmpName(r.empId).toLowerCase();
+        const vertreter = (r.vertreter || '').toLowerCase();
+        const supervisor = (r.supervisor || '').toLowerCase();
+        const typeL = (typeLabel[r.type] || r.type).toLowerCase();
+        const text = (r.text || '').toLowerCase();
+        const note = (r.rejectionNote || '').toLowerCase();
+        
+        if (!empName.includes(query) && !vertreter.includes(query) && !supervisor.includes(query) && !typeL.includes(query) && !text.includes(query) && !note.includes(query)) {
+            return false;
+        }
+    }
+
+    // History Filter
+    if (!showHistory && !r.status.startsWith('pending')) {
+        const dates = r.dates || [];
+        if (dates.length > 0) {
+            const sorted = [...dates].sort();
+            const lastDate = sorted[sorted.length - 1];
+            if (lastDate < todayStr) return false;
+        }
+    }
+
     return true;
   });
 
@@ -71,8 +109,6 @@ const RequestsView = ({
   const displayRequests = isAdmin 
     ? filteredRequests.sort((a, b) => b.id.localeCompare(a.id))
     : (subTab === 'meine' ? meineReqs : vertreterReqs).sort((a, b) => b.id.localeCompare(a.id));
-
-  const getEmpName = (id) => employees.find(e => e.id === id)?.name || id;
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '';
@@ -355,19 +391,39 @@ const RequestsView = ({
   return (
     <div className="requests-view">
       <div className="requests-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
           <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, color: '#0f172a' }}>Anträge</h2>
           {subTab !== 'po_transfer' && (
-            <select 
-                value={filter} 
-                onChange={(e) => setFilter(e.target.value)}
-                className="status-filter-select"
-            >
-                <option value="all">Alle</option>
-                <option value="open">Offen</option>
-                <option value="approved">Genehmigt</option>
-                <option value="rejected">Abgelehnt</option>
-            </select>
+            <>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <Search size={16} color="#64748b" style={{ position: 'absolute', left: '10px' }} />
+                <input 
+                  type="text" 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Suchen..."
+                  style={{ padding: '6px 10px 6px 32px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', width: '200px' }}
+                />
+              </div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', color: '#475569', cursor: 'pointer' }}>
+                <input 
+                  type="checkbox" 
+                  checked={showHistory}
+                  onChange={(e) => setShowHistory(e.target.checked)}
+                />
+                Historie anzeigen
+              </label>
+              <select 
+                  value={filter} 
+                  onChange={(e) => setFilter(e.target.value)}
+                  className="status-filter-select"
+              >
+                  <option value="all">Alle</option>
+                  <option value="open">Offen</option>
+                  <option value="approved">Genehmigt</option>
+                  <option value="rejected">Abgelehnt</option>
+              </select>
+            </>
           )}
         </div>
 
