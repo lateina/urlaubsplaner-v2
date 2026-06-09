@@ -1258,7 +1258,8 @@ const App = () => {
   const actionRequiredCount = appData.requests.filter(r => {
     if (r.planerType !== planerType) return false;
     if (isAdmin) return r.status === 'pending_admin';
-    return r.status === 'pending_vertreter' && r.vertreterId === resolvedUser?.id;
+    return (r.status === 'pending_vertreter' && r.vertreterId === resolvedUser?.id) || 
+           (r.status === 'pending_supervisor' && r.supervisorId === resolvedUser?.id);
   }).length + (perms.canSeePOKarte ? poPendingCount : 0);
 
 
