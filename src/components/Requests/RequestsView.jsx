@@ -175,6 +175,7 @@ const RequestsView = ({
                 {editMode.reqId === req.id && editMode.type === 'vertreter' ? (
                    <select value={editValue} onChange={(e) => setEditValue(e.target.value)} style={{ padding: '2px 4px', fontSize: '0.8rem', borderRadius: '4px' }}>
                      <option value="">Bitte wählen...</option>
+                     <option value="none">Kein Vertreter nötig</option>
                      {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                    </select>
                 ) : (
@@ -187,11 +188,18 @@ const RequestsView = ({
                 editMode.reqId === req.id && editMode.type === 'vertreter' ? (
                   <div style={{ display: 'flex', gap: '4px' }}>
                     <button onClick={() => {
-                        const newEmp = employees.find(e => e.id === editValue);
-                        if (newEmp) {
-                          if (confirm(`Wirklich den Vertreter auf ${newEmp.name} ändern und den Freigabeprozess zurücksetzen?`)) {
-                            onUpdateRequest(req.id, { vertreterId: newEmp.id, vertreter: newEmp.name, status: 'pending_vertreter' });
-                          }
+                        if (editValue === 'none') {
+                           if (confirm(`Wirklich auf "Kein Vertreter nötig" ändern und den Freigabeprozess fortsetzen?`)) {
+                              const newStatus = req.supervisorId ? 'pending_supervisor' : 'pending_admin';
+                              onUpdateRequest(req.id, { vertreterId: null, vertreter: 'Kein Vertreter nötig', status: newStatus });
+                           }
+                        } else {
+                            const newEmp = employees.find(e => e.id === editValue);
+                            if (newEmp) {
+                              if (confirm(`Wirklich den Vertreter auf ${newEmp.name} ändern und den Freigabeprozess zurücksetzen?`)) {
+                                onUpdateRequest(req.id, { vertreterId: newEmp.id, vertreter: newEmp.name, status: 'pending_vertreter' });
+                              }
+                            }
                         }
                         setEditMode({ reqId: null, type: null });
                     }} style={{ fontSize: '0.7rem', padding: '2px 6px', background: '#22c55e', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>✓</button>
