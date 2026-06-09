@@ -84,7 +84,7 @@ const RequestsView = ({
     }
 
     // History Filter
-    if (!showHistory && !r.status.startsWith('pending')) {
+    if (!showHistory && !r.status.startsWith('pending') && !(r.status === 'approved' && !r.stamps?.po)) {
         const dates = r.dates || [];
         if (dates.length > 0) {
             const sorted = [...dates].sort();
