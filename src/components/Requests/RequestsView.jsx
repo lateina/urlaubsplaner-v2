@@ -61,11 +61,11 @@ const RequestsView = ({
   const cuId = currentUser?.id;
   
   // Tab logic for non-admins
-  const vertreterReqs = filteredByProfileRequests.filter(r => 
+  const vertreterReqs = filteredRequests.filter(r => 
     (r.vertreterId === cuId && (r.status === 'pending_vertreter' || r.status === 'pending_supervisor' || r.status === 'pending_admin' || r.status === 'approved')) ||
     (r.supervisorId === cuId && (r.status === 'pending_supervisor' || r.status === 'pending_admin' || r.status === 'approved'))
   );
-  const meineReqs = filteredByProfileRequests.filter(r => r.empId === cuId);
+  const meineReqs = filteredRequests.filter(r => r.empId === cuId);
   const poPendingReqs = filteredByProfileRequests.filter(r => r.status === 'approved' && !r.stamps?.po);
 
   const displayRequests = isAdmin 
