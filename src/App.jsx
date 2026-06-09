@@ -992,6 +992,12 @@ const App = () => {
         delete request.stamps.admin;
       }
 
+      if (updates.status && updates.status !== 'rejected') {
+        delete request.rejectedBy;
+        delete request.rejectionNote;
+        if (request.stamps) delete request.stamps.rejected;
+      }
+
       const updatedRequests = [...appData.requests];
       updatedRequests[reqIndex] = request;
 

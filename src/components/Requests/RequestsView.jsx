@@ -147,7 +147,7 @@ const RequestsView = ({
                    </span>
                 )}
               </div>
-              {isAdmin && (
+              { (isAdmin || (req.empId === currentUser.id && req.status === 'rejected' && req.rejectedBy === 'vertreter')) && (
                 editMode.reqId === req.id && editMode.type === 'vertreter' ? (
                   <div style={{ display: 'flex', gap: '4px' }}>
                     <button onClick={() => {
