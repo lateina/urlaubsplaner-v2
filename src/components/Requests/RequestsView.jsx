@@ -189,7 +189,7 @@ const RequestsView = ({
                         const newEmp = employees.find(e => e.id === editValue);
                         if (newEmp) {
                           if (confirm(`Wirklich den Vorgesetzten auf ${newEmp.name} setzen und den Freigabeprozess zurücksetzen?`)) {
-                            onUpdateRequest(req.id, { supervisorId: newEmp.id, status: 'pending_supervisor' });
+                            onUpdateRequest(req.id, { supervisorId: newEmp.id, supervisor: newEmp.name, status: 'pending_supervisor' });
                           }
                         } else if (!editValue && req.supervisorId) {
                            if (confirm(`Soll der Vorgesetzte entfernt werden?`)) {

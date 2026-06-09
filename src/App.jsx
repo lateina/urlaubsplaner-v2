@@ -997,11 +997,30 @@ const App = () => {
 
       await firestoreService.saveRequest(planerType, request);
       
+      let nextAbsences = appData.absences;
+      if (appData.requests[reqIndex].status === 'approved' && updates.status && updates.status !== 'approved') {
+          // It was approved, but now demoted to pending. We must remove it from absences.
+          if (nextAbsences[request.empId]) {
+              const empAbsences = { ...nextAbsences[request.empId] };
+              let changed = false;
+              request.dates.forEach(date => {
+                 if (empAbsences[date] && empAbsences[date].uid === request.id) {
+                     delete empAbsences[date];
+                     changed = true;
+                 }
+              });
+              if (changed) {
+                  nextAbsences = { ...nextAbsences, [request.empId]: empAbsences };
+                  await firestoreService.saveAbsence(getEmployeeProfileType(request.empId), request.empId, empAbsences);
+              }
+          }
+      }
+
       setAppData(prev => {
         const newRequests = [...prev.requests];
         const idx = newRequests.findIndex(r => r.id === reqId);
         if (idx !== -1) newRequests[idx] = request;
-        return { ...prev, requests: newRequests };
+        return { ...prev, requests: newRequests, absences: nextAbsences };
       });
 
     } catch (err) {
