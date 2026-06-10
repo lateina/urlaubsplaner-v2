@@ -259,6 +259,11 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
       }
     }
 
+    if (formData.endDate < formData.startDate) {
+      alert('Das Enddatum darf nicht vor dem Startdatum liegen.');
+      return;
+    }
+
     // Build dates array
     const dates = [];
     let curr = new Date(formData.startDate);

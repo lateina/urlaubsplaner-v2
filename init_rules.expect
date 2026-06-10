@@ -1,0 +1,11 @@
+#!/usr/bin/expect -f
+set timeout -1
+spawn npx -y firebase-tools@latest init firestore --project rotationstool-stefan
+
+expect "What file should be used for Firestore Rules?"
+send "\r"
+
+expect "What file should be used for Firestore indexes?"
+send "\r"
+
+expect eof
