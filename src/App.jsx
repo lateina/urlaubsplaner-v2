@@ -980,22 +980,22 @@ const App = () => {
         request.notified.pending_supervisor = false;
         request.notified.pending_admin = false;
         request.notified.approved = false;
-        delete request.stamps.supervisor;
-        delete request.stamps.admin;
+        request.stamps.supervisor = null;
+        request.stamps.admin = null;
       } else if (updates.status === 'pending_vertreter') {
         request.notified.pending_vertreter = false;
         request.notified.pending_supervisor = false;
         request.notified.pending_admin = false;
         request.notified.approved = false;
-        delete request.stamps.vertreter;
-        delete request.stamps.supervisor;
-        delete request.stamps.admin;
+        request.stamps.vertreter = null;
+        request.stamps.supervisor = null;
+        request.stamps.admin = null;
       }
 
       if (updates.status && updates.status !== 'rejected') {
-        delete request.rejectedBy;
-        delete request.rejectionNote;
-        if (request.stamps) delete request.stamps.rejected;
+        request.rejectedBy = null;
+        request.rejectionNote = null;
+        if (request.stamps) request.stamps.rejected = null;
       }
 
       const updatedRequests = [...appData.requests];
