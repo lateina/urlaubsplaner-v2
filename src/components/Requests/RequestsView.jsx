@@ -5,6 +5,7 @@ import { generateAndDownloadPDF } from '../../utils/pdfGenerator';
 
 const RequestsView = ({ 
   requests = [], 
+  absences = {},
   employees = [], 
   currentUser, 
   isAdmin, 
@@ -196,6 +197,70 @@ const RequestsView = ({
                         } else {
                             const newEmp = employees.find(e => e.id === editValue);
                             if (newEmp) {
+                              const dates = req.dates || [];
+                              const vId = newEmp.id;
+                              const vName = newEmp.name;
+                              const requester = employees.find(e => e.id === req.empId);
+                              const absentDates = [];
+                              const ownReqDates = [];
+                              const alreadyRepDates = [];
+                              
+                              for (const d of dates) {
+                                  // Check confirmed absence
+                                  if (absences[vId]?.[d]) {
+                                      absentDates.push(d);
+                                  }
+                                  // Check if representative has their own pending/approved request
+                                  const vOwnReq = requests.find(r => r.empId === vId && r.dates.includes(d) && r.status !== 'rejected');
+                                  if (vOwnReq) {
+                                      ownReqDates.push(d);
+                                  }
+                                  // Check if representative is already representing someone else
+                                  const existingReps = requests.filter(r => r.vertreterId === vId && r.dates.includes(d) && r.status !== 'rejected' && r.id !== req.id);
+                                  
+                                  let isBlocked = false;
+                                  if (existingReps.length > 0) {
+                                      if (existingReps.length >= 2) {
+                                          isBlocked = true; // Maximum 2 representations even for EPU
+                                      } else {
+                                          // Exactly 1 existing representation. Check if EPU exception applies
+                                          const reqIsEpuException = requester && ((requester.role === 'Oberarzt' || requester.isOberarzt || (requester.groups || []).includes('skill_funktionsoberarzt')) && (requester.groups || []).includes('skill_epu'));
+                                          
+                                          const otherEmp = employees.find(e => e.id === existingReps[0].empId);
+                                          const otherIsEpuException = otherEmp && ((otherEmp.role === 'Oberarzt' || otherEmp.isOberarzt || (otherEmp.groups || []).includes('skill_funktionsoberarzt')) && (otherEmp.groups || []).includes('skill_epu'));
+                                          
+                                          const vertreterEmp = newEmp;
+                                          const vertreterIsEpu = vertreterEmp && (vertreterEmp.groups || []).includes('skill_epu');
+                                          
+                                          if (!reqIsEpuException || !otherIsEpuException || !vertreterIsEpu) {
+                                              isBlocked = true;
+                                          }
+                                      }
+                                  }
+                                  
+                                  if (isBlocked) {
+                                      alreadyRepDates.push(d);
+                                  }
+                              }
+
+                              const formatDate = (dateStr) => {
+                                  const [y, m, d] = dateStr.split('-');
+                                  return `${d}.${m}.${y}`;
+                              };
+
+                              if (absentDates.length > 0) {
+                                  alert(`${vName} ist an folgenden Tagen bereits abwesend: ${absentDates.map(formatDate).join(', ')}.\n\nBitte wähle einen anderen Vertreter.`);
+                                  return;
+                              }
+                              if (ownReqDates.length > 0) {
+                                  alert(`${vName} hat für folgende Tage bereits einen Abwesenheitsantrag gestellt: ${ownReqDates.map(formatDate).join(', ')}.\n\nBitte wähle einen anderen Vertreter.`);
+                                  return;
+                              }
+                              if (alreadyRepDates.length > 0) {
+                                  alert(`${vName} vertritt an folgenden Tagen bereits jemanden: ${alreadyRepDates.map(formatDate).join(', ')}.\n\nBitte wähle einen anderen Vertreter.`);
+                                  return;
+                              }
+
                               if (confirm(`Wirklich den Vertreter auf ${newEmp.name} ändern und den Freigabeprozess zurücksetzen?`)) {
                                 onUpdateRequest(req.id, { vertreterId: newEmp.id, vertreter: newEmp.name, status: 'pending_vertreter' });
                               }

@@ -1344,6 +1344,7 @@ const App = () => {
         return (
           <RequestsView
             requests={appData.requests}
+            absences={appData.absences}
             employees={appData.fullEmployeeList}
             currentUser={resolvedUser}
             isAdmin={isAdmin}
