@@ -998,6 +998,11 @@ const App = () => {
         if (request.stamps) request.stamps.rejected = null;
       }
 
+      if (updates.dates) {
+        request.admin_changed_dates_at = new Date().toISOString();
+        request.notified.admin_changed_dates = false;
+      }
+
       const updatedRequests = [...appData.requests];
       updatedRequests[reqIndex] = request;
 
@@ -1020,13 +1025,50 @@ const App = () => {
                   await firestoreService.saveAbsence(getEmployeeProfileType(request.empId), request.empId, empAbsences);
               }
           }
+      } else if (appData.requests[reqIndex].status === 'approved' && updates.dates) {
+          // Dates changed for an approved request. Remove old dates and add new ones.
+          if (nextAbsences[request.empId]) {
+              const empAbsences = { ...nextAbsences[request.empId] };
+              let changed = false;
+              // Remove old dates
+              appData.requests[reqIndex].dates.forEach(date => {
+                 if (empAbsences[date] && empAbsences[date].uid === request.id) {
+                     delete empAbsences[date];
+                     changed = true;
+                 }
+              });
+              // Add new dates
+              request.dates.forEach(date => {
+                 empAbsences[date] = {
+                     type: request.type,
+                     text: request.text,
+                     vertreter: request.vertreter,
+                     vertreterId: request.vertreterId,
+                     status: 'confirmed',
+                     uid: request.id,
+                     updatedAt: new Date().toISOString()
+                 };
+                 changed = true;
+              });
+
+              if (changed) {
+                  nextAbsences = { ...nextAbsences, [request.empId]: empAbsences };
+                  await firestoreService.saveAbsence(getEmployeeProfileType(request.empId), request.empId, empAbsences);
+              }
+          }
       }
 
       setAppData(prev => {
         const newRequests = [...prev.requests];
         const idx = newRequests.findIndex(r => r.id === reqId);
         if (idx !== -1) newRequests[idx] = request;
-        return { ...prev, requests: newRequests, absences: nextAbsences };
+        
+        let newStats = prev.vacationStats;
+        if (nextAbsences !== prev.absences) {
+           newStats = updateVacationStats(nextAbsences, prev.employees, prev.vacationStats, newRequests);
+        }
+
+        return { ...prev, requests: newRequests, absences: nextAbsences, vacationStats: newStats };
       });
 
     } catch (err) {

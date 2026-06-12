@@ -23,6 +23,8 @@ const RequestsView = ({
   const [subTab, setSubTab] = useState('meine'); // 'meine', 'vertreter', 'admin_list', 'po_transfer'
   const [editMode, setEditMode] = useState({ reqId: null, type: null });
   const [editValue, setEditValue] = useState('');
+  const [editDateStart, setEditDateStart] = useState('');
+  const [editDateEnd, setEditDateEnd] = useState('');
 
   // Initialize subTab correctly for admins
   React.useEffect(() => {
@@ -161,9 +163,53 @@ const RequestsView = ({
         </div>
 
         <div className="request-card-body">
-          <div className="request-info-row">
-            <CalendarIcon size={14} />
-            <span>{formatDateRange(req.dates)}</span>
+          <div className="request-info-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <CalendarIcon size={14} />
+              {editMode.reqId === req.id && editMode.type === 'dates' ? (
+                 <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                   <input type="date" value={editDateStart} onChange={(e) => setEditDateStart(e.target.value)} style={{ padding: '2px 4px', fontSize: '0.8rem', borderRadius: '4px' }} />
+                   <span>-</span>
+                   <input type="date" value={editDateEnd} onChange={(e) => setEditDateEnd(e.target.value)} style={{ padding: '2px 4px', fontSize: '0.8rem', borderRadius: '4px' }} />
+                 </div>
+              ) : (
+                <span>{formatDateRange(req.dates)}</span>
+              )}
+            </div>
+            {isAdmin && (
+              editMode.reqId === req.id && editMode.type === 'dates' ? (
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  <button onClick={() => {
+                      if (!editDateStart || !editDateEnd) {
+                          alert('Bitte Start- und Enddatum angeben.');
+                          return;
+                      }
+                      const newDates = [];
+                      let curr = new Date(editDateStart);
+                      const end = new Date(editDateEnd);
+                      if (curr > end) {
+                          alert('Startdatum muss vor dem Enddatum liegen.');
+                          return;
+                      }
+                      while (curr <= end) {
+                          newDates.push(curr.toISOString().split('T')[0]);
+                          curr.setDate(curr.getDate() + 1);
+                      }
+                      if (confirm(`Wirklich das Datum auf ${formatDateRange(newDates)} ändern?`)) {
+                          onUpdateRequest(req.id, { dates: newDates });
+                      }
+                      setEditMode({ reqId: null, type: null });
+                  }} style={{ fontSize: '0.7rem', padding: '2px 6px', background: '#22c55e', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>✓</button>
+                  <button onClick={() => setEditMode({ reqId: null, type: null })} style={{ fontSize: '0.7rem', padding: '2px 6px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>✕</button>
+                </div>
+              ) : (
+                <button onClick={() => {
+                  setEditMode({ reqId: req.id, type: 'dates' });
+                  setEditDateStart(req.dates && req.dates.length > 0 ? req.dates[0] : '');
+                  setEditDateEnd(req.dates && req.dates.length > 0 ? req.dates[req.dates.length - 1] : '');
+                }} style={{ fontSize: '0.7rem', background: 'transparent', border: '1px solid #cbd5e1', padding: '2px 6px', borderRadius: '4px', cursor: 'pointer', color: '#64748b' }}>Ändern</button>
+              )
+            )}
           </div>
           <div className="request-info-row">
             <Clock size={14} />

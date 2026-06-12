@@ -272,6 +272,29 @@ async function run() {
                 }
             }
 
+            // 5. Admin changed dates
+            if (req.admin_changed_dates_at && !notified.admin_changed_dates) {
+                // Email Employee
+                if (emp?.email) {
+                    if (!personDigests[emp.email]) personDigests[emp.email] = { name: empName, items: [] };
+                    personDigests[emp.email].items.push(`• ACHTUNG: Das Datum für deinen Antrag auf ${typeLabel} wurde vom Admin geändert auf: ${datesStr}${link}`);
+                }
+                // Email Vertreter
+                if (vtr?.email) {
+                    if (!personDigests[vtr.email]) personDigests[vtr.email] = { name: vtr.name, items: [] };
+                    personDigests[vtr.email].items.push(`• ACHTUNG: Das Datum für die Vertretung von ${empName} (${typeLabel}) wurde vom Admin geändert auf: ${datesStr}${link}`);
+                }
+                // Email Supervisor
+                const sup = allEmployees.find(e => e.id === req.supervisorId);
+                if (sup?.email) {
+                    if (!personDigests[sup.email]) personDigests[sup.email] = { name: sup.name, items: [] };
+                    personDigests[sup.email].items.push(`• ACHTUNG: Das Datum für den Antrag von ${empName} (${typeLabel}) wurde vom Admin geändert auf: ${datesStr}${link}`);
+                }
+                
+                notified.admin_changed_dates = true;
+                updates.notified = notified;
+            }
+
             if (Object.keys(updates).length > 0) {
                 firestoreUpdates.push({ coll: 'up_requests', id: req.id, fields: updates });
             }
