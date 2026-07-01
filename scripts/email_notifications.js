@@ -149,6 +149,10 @@ const transporter = nodemailer.createTransport({
 });
 
 async function sendEmail(to, subject, text, footer = '-- Automatische Benachrichtigung vom Urlaubsplaner') {
+    if (!to || !to.includes('@') || to.length < 5 || to.trim() === '@') {
+        console.warn(`  → Skipped sending email to invalid address: "${to}"`);
+        return;
+    }
     await transporter.sendMail({
         from: `"Urlaubsplaner" <${GMAIL_USER}>`,
         to,
@@ -359,27 +363,39 @@ async function run() {
 
     // Send Employee Digests
     for (const [email, digest] of Object.entries(personDigests)) {
-        await sendEmail(email,
-            'Urlaubsplaner: Neue Benachrichtigungen',
-            `Hallo ${digest.name},\n\nes gibt Neuigkeiten zu deinen Anträgen im Urlaubsplaner:\n\n${digest.items.join('\n')}`
-        );
+        try {
+            await sendEmail(email,
+                'Urlaubsplaner: Neue Benachrichtigungen',
+                `Hallo ${digest.name},\n\nes gibt Neuigkeiten zu deinen Anträgen im Urlaubsplaner:\n\n${digest.items.join('\n')}`
+            );
+        } catch (e) {
+            console.error(`Error sending email to ${email}:`, e.message);
+        }
     }
 
     // Send Admin Digest
     if (adminDigest.length > 0) {
-        await sendEmail(ADMIN_EMAIL,
-            `Urlaubsplaner: ${adminDigest.length} neue Mitteilungen (Anträge / Fehler)`,
-            `Guten Morgen,\n\nhier ist die Übersicht der neuesten Benachrichtigungen:\n\n${adminDigest.join('\n\n------------------------\n\n')}`
-        );
+        try {
+            await sendEmail(ADMIN_EMAIL,
+                `Urlaubsplaner: ${adminDigest.length} neue Mitteilungen (Anträge / Fehler)`,
+                `Guten Morgen,\n\nhier ist die Übersicht der neuesten Benachrichtigungen:\n\n${adminDigest.join('\n\n------------------------\n\n')}`
+            );
+        } catch (e) {
+            console.error(`Error sending Admin Digest:`, e.message);
+        }
     }
 
     // Send Sekretariat Digest
     if (sekrDigest.length > 0) {
-        await sendEmail(SEKRETARIAT_EMAIL,
-            `Urlaubsplaner: ${sekrDigest.length} neue genehmigte Abwesenheiten`,
-            `Guten Morgen,\n\nfolgende Abwesenheiten wurden genehmigt und müssen im PO eingetragen werden:\n\n${sekrDigest.join('\n\n')}`,
-            'Viele Grüße\nProf. Stefan Wagner'
-        );
+        try {
+            await sendEmail(SEKRETARIAT_EMAIL,
+                `Urlaubsplaner: ${sekrDigest.length} neue genehmigte Abwesenheiten`,
+                `Guten Morgen,\n\nfolgende Abwesenheiten wurden genehmigt und müssen im PO eingetragen werden:\n\n${sekrDigest.join('\n\n')}`,
+                'Viele Grüße\nProf. Stefan Wagner'
+            );
+        } catch (e) {
+            console.error(`Error sending Sekretariat Digest:`, e.message);
+        }
     }
 
     // Finally, batch update Firestore
