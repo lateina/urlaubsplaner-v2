@@ -66,6 +66,7 @@ function toFirestore(obj) {
     for (const [key, value] of Object.entries(obj)) {
         if (typeof value === 'string') fields[key] = { stringValue: value };
         else if (typeof value === 'boolean') fields[key] = { booleanValue: value };
+        else if (typeof value === 'number') fields[key] = Number.isInteger(value) ? { integerValue: String(value) } : { doubleValue: value };
         else if (Array.isArray(value)) fields[key] = { arrayValue: { values: value.map(v => typeof v === 'string' ? { stringValue: v } : { mapValue: { fields: toFirestore(v) } }) } };
         else if (typeof value === 'object' && value !== null) fields[key] = { mapValue: { fields: toFirestore(value) } };
     }
