@@ -322,13 +322,13 @@ async function run() {
         }
     }
 
-    // --- New: Mid-Year Vacation Reminder Logic ---
+    // --- New: Monthly Vacation Reminder Logic ---
     const today = new Date();
     const currentYear = today.getFullYear();
-    const isMidYearWindow = today.getMonth() === 6; // July (0-indexed)
+    const currentMonthStr = `${currentYear}-${today.getMonth()}`;
     
-    if (isMidYearWindow && configData.lastMidYearReminderYear !== currentYear) {
-        console.log('--- Checking Mid-Year Vacation Reminders ---');
+    if (configData.lastVacationReminderMonth !== currentMonthStr) {
+        console.log('--- Checking Monthly Vacation Reminders ---');
         const stats = configData.vacationStats || {};
         const lowUsageEmployees = [];
 
@@ -345,22 +345,22 @@ async function run() {
                 
                 if (emp.email) {
                     if (!personDigests[emp.email]) personDigests[emp.email] = { name: emp.name, items: [] };
-                    personDigests[emp.email].items.push(`• Erinnerung: Du hast erst ${used} von ${quota} Urlaubstagen für dieses Jahr verplant. Bitte reiche deinen restlichen Urlaub zeitnah ein.\nZum Urlaubsplaner: https://lateina.github.io/urlaubsplaner-v2/`);
+                    personDigests[emp.email].items.push(`• Erinnerung: Du hast erst ${used} von ${quota} Urlaubstagen für dieses Jahr verplant. Bitte denke daran, deinen restlichen Urlaub zeitnah einzureichen.\nZum Urlaubsplaner: https://lateina.github.io/urlaubsplaner-v2/`);
                 }
             }
         }
 
         if (lowUsageEmployees.length > 0) {
             const summaryList = lowUsageEmployees.map(e => `• ${e.name}: ${e.used}/${e.quota} Tage verplant`).join('\n');
-            adminDigest.push(`\n[Jahreshälfte-Info] Folgende Mitarbeiter haben noch weniger als 50% ihres Urlaubs verplant:\n${summaryList}`);
-            sekrDigest.push(`\n[Jahreshälfte-Info] Folgende Mitarbeiter haben noch weniger als 50% ihres Urlaubs verplant:\n${summaryList}`);
+            adminDigest.push(`\n[Urlaubs-Erinnerung] Folgende Mitarbeiter haben noch weniger als 50% ihres Urlaubs verplant:\n${summaryList}`);
+            sekrDigest.push(`\n[Urlaubs-Erinnerung] Folgende Mitarbeiter haben noch weniger als 50% ihres Urlaubs verplant:\n${summaryList}`);
         }
 
-        // Mark as sent for this year
-        firestoreUpdates.push({ coll: 'up_config', id: 'main', fields: { lastMidYearReminderYear: currentYear } });
-        console.log(`  → Mid-year reminders processed and flag set for ${currentYear}`);
+        // Mark as sent for this month
+        firestoreUpdates.push({ coll: 'up_config', id: 'main', fields: { lastVacationReminderMonth: currentMonthStr } });
+        console.log(`  → Monthly reminders processed and flag set for ${currentMonthStr}`);
     }
-    // --- End of Mid-Year Logic ---
+    // --- End of Monthly Logic ---
 
     // Send Employee Digests
     for (const [email, digest] of Object.entries(personDigests)) {
