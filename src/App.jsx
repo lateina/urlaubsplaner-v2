@@ -23,6 +23,9 @@ import { ROTATION_BIN_ID, MONTH_AREA_MAPPING, MONTH_AREA_ORDER } from './config/
 import { getSpecialDayInfo } from './utils/calendarUtils';
 import './styles/layout.css';
 
+// Admin Undo functionality
+const UNDO_STACK_LIMIT = 20;
+
 const DEFAULT_GROUP_COLORS = {
   // Stationen (IDs aus rotationConfig.js)
   'station18a': '#3b82f6',
@@ -123,6 +126,14 @@ const App = () => {
   const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
+  // Undo Stack Reference
+  const undoStackRef = React.useRef([]);
+  const appDataRef = React.useRef(appData);
+
+  useEffect(() => {
+    appDataRef.current = appData;
+  }, [appData]);
+
   // Detect planer type from filename or localStorage (no forced URL params for PWA stability)
   const [planerType, setPlanerType] = useState(() => {
     const params = new URLSearchParams(window.location.search);
@@ -176,6 +187,102 @@ const App = () => {
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const pushToUndoStack = (actionName) => {
+    const currentData = appDataRef.current;
+    undoStackRef.current.push({
+      actionName,
+      appDataSnapshot: {
+        absences: JSON.parse(JSON.stringify(currentData.absences)),
+        requests: JSON.parse(JSON.stringify(currentData.requests))
+      }
+    });
+    if (undoStackRef.current.length > UNDO_STACK_LIMIT) {
+      undoStackRef.current.shift();
+    }
+  };
+
+  const handleUndo = async () => {
+    if (undoStackRef.current.length === 0) {
+      toast('Nichts zum Rückgängig machen', { icon: 'ℹ️' });
+      return;
+    }
+    const lastAction = undoStackRef.current.pop();
+    const prevAbsences = lastAction.appDataSnapshot.absences;
+    const prevRequests = lastAction.appDataSnapshot.requests;
+    const currentData = appDataRef.current;
+
+    setIsLoading(true);
+    try {
+      // 1. Determine which requests to save and which to delete
+      const prevReqIds = new Set(prevRequests.map(r => r.id));
+      const requestsToDelete = currentData.requests.filter(r => !prevReqIds.has(r.id)).map(r => r.id);
+      
+      const saveReqPromises = prevRequests.map(req => 
+        firestoreService.saveRequest(req.planerType || getEmployeeProfileType(req.empId, currentData.fullEmployeeList), req)
+      );
+      
+      const deleteReqPromises = requestsToDelete.map(reqId => 
+        firestoreService.deleteRequest(reqId)
+      );
+
+      // 2. Re-save all affected absences
+      const saveAbsPromises = Object.entries(prevAbsences).map(([eid, dates]) =>
+        firestoreService.saveAbsence(getEmployeeProfileType(eid, currentData.fullEmployeeList), eid, dates)
+      );
+      
+      // Since some employees might have all absences removed in the undo state,
+      // we also need to clear their absences if they exist in current but not in prev
+      const currentAbsences = currentData.absences;
+      Object.keys(currentAbsences).forEach(eid => {
+        if (!prevAbsences[eid]) {
+          saveAbsPromises.push(
+            firestoreService.saveAbsence(getEmployeeProfileType(eid, currentData.fullEmployeeList), eid, {})
+          );
+        }
+      });
+
+      await Promise.all([...saveReqPromises, ...deleteReqPromises, ...saveAbsPromises]);
+
+      const updatedStats = updateVacationStats(prevAbsences, currentData.employees, currentData.vacationStats, prevRequests);
+      
+      setAppData(prev => ({
+        ...prev,
+        absences: prevAbsences,
+        requests: prevRequests,
+        vacationStats: updatedStats
+      }));
+      
+      // Update config stats in background
+      firestoreService.saveConfig({ vacationStats: updatedStats }).catch(e => console.error("Undo stats save failed:", e));
+
+      toast.success(`${lastAction.actionName} rückgängig gemacht`, {
+        position: 'bottom-center',
+        duration: 3000
+      });
+    } catch (err) {
+      console.error('[Undo Error]:', err);
+      toast.error('Rückgängig machen fehlgeschlagen', { position: 'bottom-center' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Cmd+Z (Mac) or Ctrl+Z (Windows)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+        const activeTag = document.activeElement.tagName;
+        // Don't undo if user is typing in an input or textarea
+        if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') return;
+        
+        e.preventDefault();
+        handleUndo();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   // Initial load check
@@ -613,6 +720,8 @@ const App = () => {
   const handleSaveAbsence = async (newAbsences) => {
     if (!isAdmin) return;
 
+    pushToUndoStack('Urlaub bearbeiten');
+
     let finalAbsences = newAbsences || { ...appData.absences };
 
     // Detect if this is formData from AbsenceModal (single update) or a full object
@@ -758,6 +867,8 @@ const App = () => {
 
 
   const handleSubmitRequest = async (request) => {
+    if (isAdmin) pushToUndoStack('Urlaubsanfrage');
+    
     setIsLoading(true);
     try {
       const type = getEmployeeProfileType(request.empId);
@@ -832,6 +943,8 @@ const App = () => {
   const handleApproveRequest = async (reqId, byType) => {
     const reqIndex = appData.requests.findIndex(r => r.id === reqId);
     if (reqIndex === -1) return;
+
+    if (isAdmin) pushToUndoStack('Anfrage genehmigen');
 
     setIsLoading(true);
     try {
@@ -921,6 +1034,8 @@ const App = () => {
   const handleRejectRequest = async (reqId, byType, note) => {
     const reqIndex = appData.requests.findIndex(r => r.id === reqId);
     if (reqIndex === -1) return;
+
+    if (isAdmin) pushToUndoStack('Anfrage ablehnen');
 
     setIsLoading(true);
     try {
