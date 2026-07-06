@@ -334,8 +334,8 @@ async function run() {
         for (const emp of allEmployees) {
             if (emp.role === 'Admin' || emp.role === 'Sekretariat') continue;
             
-            const empStats = stats[emp.id] || { used: 0, quota: 30 };
-            const used = empStats.used || 0;
+            const empStats = stats[emp.id] || { total: 0, quota: 30 };
+            const used = empStats.total || 0;
             const quota = empStats.quota || 30;
             const percentage = (used / quota) * 100;
 
