@@ -233,6 +233,21 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
 
   const isVertreterRequired = needsVertreter(formData.employeeId);
 
+  const isSupervisorRequired = useMemo(() => {
+    if (!isVertreterRequired) return false;
+
+    const reqEmp = employees.find(e => e.id === formData.employeeId);
+    if (!reqEmp) return false;
+    
+    const isOA = reqEmp.role === 'Oberarzt' || reqEmp.isOberarzt;
+    const isFOA = Array.isArray(reqEmp.groups) && reqEmp.groups.some(g => typeof g === 'string' && g.toLowerCase().includes('funktionsoberarzt'));
+    
+    if (isFOA) return true;
+    if (!isOA) return true;
+    
+    return false;
+  }, [formData.employeeId, employees, isVertreterRequired]);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     
@@ -242,6 +257,11 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
 
     if (!isDirect && !isOptional && !formData.vertreterId) {
       alert('Bitte einen Vertreter auswählen.');
+      return;
+    }
+
+    if (!isDirect && isSupervisorRequired && !formData.supervisorId) {
+      alert('Bitte einen unmittelbaren Vorgesetzten auswählen.');
       return;
     }
 
@@ -618,39 +638,42 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
           )}
         </div>
 
-        <div className="form-group" style={{ position: 'relative', maxWidth: 320 }}>
-          <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 6, color: '#000000' }}>
-            Unmittelbarer Vorgesetzter (Optional)
-          </label>
-          <select 
-            name="supervisorId" 
-            value={formData.supervisorId || ''} 
-            onChange={(e) => {
-              const sup = [...employees].find(c => c.id === e.target.value);
-              setFormData(prev => ({ 
-                ...prev, 
-                supervisorId: e.target.value,
-                supervisor: sup ? sup.name : ''
-              }));
-            }}
-            style={{ width: '100%', padding: '12px 16px', borderRadius: 14, border: '2px solid rgba(0, 0, 0, 0.4)', background: 'white', color: '#000000', fontWeight: 500, fontSize: '1rem', boxSizing: 'border-box' }}
-          >
-            <option value="">Keiner ausgewählt</option>
-            {employees.filter(e => {
-              const isSpecial = ['admin', 'sekretariat', 'assistentensprecher'].includes(e.id) || 
-                                e.name?.toLowerCase().includes('administrator') ||
-                                e.name?.toLowerCase().includes('sekretariat');
-              const isFOA = Array.isArray(e.groups) && e.groups.includes('skill_funktionsoberarzt');
-              const isOA = e.role === 'Oberarzt';
-              const isSelf = e.id === formData.employeeId;
-              
-              // Only OAs or FOAs can be supervisors, and they must not be the requester or a special role
-              return (isOA || isFOA) && !isSpecial && !isSelf && e.active !== false;
-            }).map(emp => (
-              <option key={emp.id} value={emp.id}>{emp.name}</option>
-            ))}
-          </select>
-        </div>
+        {(isSupervisorRequired || planerType !== 'oa') && (
+          <div className="form-group" style={{ position: 'relative', maxWidth: 320 }}>
+            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 6, color: '#000000' }}>
+              Unmittelbarer Vorgesetzter {isSupervisorRequired ? '(Pflicht)' : '(Optional)'}
+            </label>
+            <select 
+              name="supervisorId" 
+              value={formData.supervisorId || ''} 
+              required={isSupervisorRequired}
+              onChange={(e) => {
+                const sup = [...employees].find(c => c.id === e.target.value);
+                setFormData(prev => ({ 
+                  ...prev, 
+                  supervisorId: e.target.value,
+                  supervisor: sup ? sup.name : ''
+                }));
+              }}
+              style={{ width: '100%', padding: '12px 16px', borderRadius: 14, border: '2px solid rgba(0, 0, 0, 0.4)', background: 'white', color: '#000000', fontWeight: 500, fontSize: '1rem', boxSizing: 'border-box' }}
+            >
+              <option value="">Keiner ausgewählt</option>
+              {employees.filter(e => {
+                const isSpecial = ['admin', 'sekretariat', 'assistentensprecher'].includes(e.id) || 
+                                  e.name?.toLowerCase().includes('administrator') ||
+                                  e.name?.toLowerCase().includes('sekretariat');
+                const isFOA = Array.isArray(e.groups) && e.groups.includes('skill_funktionsoberarzt');
+                const isOA = e.role === 'Oberarzt';
+                const isSelf = e.id === formData.employeeId;
+                
+                // Only OAs or FOAs can be supervisors, and they must not be the requester or a special role
+                return (isOA || isFOA) && !isSpecial && !isSelf && e.active !== false;
+              }).map(emp => (
+                <option key={emp.id} value={emp.id}>{emp.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="form-group">
           <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 6, color: '#000000' }}>Bemerkungen</label>
