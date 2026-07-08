@@ -55,9 +55,16 @@ const Login = ({ onLogin, binId, planerType }) => {
     });
   };
 
-  const filteredEmployees = employees.filter(emp => 
-    emp.name.toLowerCase().includes(search.toLowerCase())
-  ).sort((a, b) => {
+  const filteredEmployees = employees.filter(emp => {
+    if (emp.active === false) return false;
+    
+    if (emp.exitDate) {
+      const today = new Date().toISOString().split('T')[0];
+      if (emp.exitDate < today) return false;
+    }
+    
+    return emp.name.toLowerCase().includes(search.toLowerCase());
+  }).sort((a, b) => {
     const getSortName = (n) => {
       if (!n) return '';
       let clean = n.replace(/^Dr\.\s+/i, '');
