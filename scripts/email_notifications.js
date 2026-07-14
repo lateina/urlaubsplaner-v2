@@ -237,8 +237,10 @@ async function run() {
             if (req.status === 'pending_supervisor' && !notified.pending_supervisor) {
                 const sup = allEmployees.find(e => e.id === req.supervisorId);
                 if (sup?.email) {
+                    const isSupOa = sup.role === 'Oberarzt' || sup.isOberarzt || (Array.isArray(sup.groups) && sup.groups.includes('skill_funktionsoberarzt'));
+                    const supLink = `\nZum Urlaubsplaner: ${isSupOa ? 'https://lateina.github.io/urlaubsplaner-v2/' : appUrl}\n`;
                     if (!personDigests[sup.email]) personDigests[sup.email] = { name: sup.name, items: [] };
-                    personDigests[sup.email].items.push(`• Freigabeanfrage von ${empName}: ${typeLabel} (${datesStr})${link}`);
+                    personDigests[sup.email].items.push(`• Freigabeanfrage von ${empName}: ${typeLabel} (${datesStr})${supLink}`);
                     notified.pending_supervisor = true;
                     updates.notified = notified;
                 }

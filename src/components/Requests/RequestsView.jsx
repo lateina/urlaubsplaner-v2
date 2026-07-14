@@ -54,7 +54,11 @@ const RequestsView = ({
   const [showHistory, setShowHistory] = useState(false);
 
   // Filter incoming requests to only show requests belonging to the active planer profile in the UI
-  const filteredByProfileRequests = requests.filter(r => r.planerType === planerType);
+  // PLUS cross-profile requests where the current user needs to act as a supervisor or representative
+  const filteredByProfileRequests = requests.filter(r => 
+    r.planerType === planerType || 
+    (currentUser && (r.supervisorId === currentUser.id || r.vertreterId === currentUser.id))
+  );
 
   const getEmpName = (id) => employees.find(e => e.id === id)?.name || id;
 
