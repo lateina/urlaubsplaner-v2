@@ -1419,10 +1419,19 @@ const App = () => {
   const poPendingCount = appData.requests.filter(r => r.planerType === planerType && r.status === 'approved' && !r.stamps?.po).length;
 
   const actionRequiredCount = appData.requests.filter(r => {
+    // Show badge if I am the requested vertreter or supervisor (cross-profile or native)
+    if ((r.status === 'pending_vertreter' && r.vertreterId === resolvedUser?.id) || 
+        (r.status === 'pending_supervisor' && r.supervisorId === resolvedUser?.id)) {
+        return true;
+    }
+
+    // For other cases, only look at native profile requests
     if (r.planerType !== planerType) return false;
+
+    // Admins see a badge for requests needing final approval
     if (isAdmin) return r.status === 'pending_admin';
-    return (r.status === 'pending_vertreter' && r.vertreterId === resolvedUser?.id) || 
-           (r.status === 'pending_supervisor' && r.supervisorId === resolvedUser?.id);
+    
+    return false;
   }).length + (perms.canSeePOKarte ? poPendingCount : 0);
 
 
