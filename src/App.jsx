@@ -1064,18 +1064,8 @@ const App = () => {
   };
 
   const handleDeleteRequest = async (reqId) => {
-    setIsLoading(true);
-    try {
-      await firestoreService.deleteRequest(reqId);
-      setAppData(prev => ({
-        ...prev,
-        requests: prev.requests.filter(r => r.id !== reqId)
-      }));
-    } catch (err) {
-      console.error(err);
-      alert('Speichern fehlgeschlagen: ' + err.message);
-      setIsLoading(false);
-    }
+    if (!isAdmin) return;
+    await handleUpdateRequest(reqId, { status: 'deleted' });
   };
 
   const handleUpdateRequest = async (reqId, updates) => {

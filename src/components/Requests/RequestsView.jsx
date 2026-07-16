@@ -39,7 +39,8 @@ const RequestsView = ({
     pending_supervisor: 'Vorgesetzten-Zustimmung ausstehend',
     pending_admin: 'Leitender OA-Freigabe ausstehend',
     approved: 'Genehmigt',
-    rejected: 'Abgelehnt'
+    rejected: 'Abgelehnt',
+    deleted: 'Gelöscht (Papierkorb)'
   };
 
   const statusColor = {
@@ -47,7 +48,8 @@ const RequestsView = ({
     pending_supervisor: '#22c55e',
     pending_admin: '#6366f1',
     approved: '#10b981',
-    rejected: '#ef4444'
+    rejected: '#ef4444',
+    deleted: '#64748b'
   };
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -72,6 +74,8 @@ const RequestsView = ({
     if (filter === 'open') statusMatch = r.status.startsWith('pending');
     else if (filter === 'approved') statusMatch = r.status === 'approved';
     else if (filter === 'rejected') statusMatch = r.status === 'rejected';
+    else if (filter === 'deleted') statusMatch = r.status === 'deleted';
+    else if (filter === 'all') statusMatch = r.status !== 'deleted';
 
     if (!statusMatch) return false;
 
@@ -501,10 +505,19 @@ const RequestsView = ({
               </div>
           )}
 
-          {perms.canDeleteRequests && (
-            <button className="btn-delete" onClick={() => { if(confirm('Antrag wirklich löschen?')) onDelete(req.id); }}>
-              <Trash2 size={16} />
-            </button>
+          {effectiveStatus === 'deleted' ? (
+            isAdmin && (
+              <button className="btn-approve" onClick={() => { if(confirm('Antrag wirklich wiederherstellen? Er wird in den Status "Abgelehnt" versetzt.')) onUpdateRequest(req.id, { status: 'rejected' }); }}>
+                <Check size={16} />
+                <span>Wiederherstellen</span>
+              </button>
+            )
+          ) : (
+            perms.canDeleteRequests && (
+              <button className="btn-delete" onClick={() => { if(confirm('Antrag wirklich in den Papierkorb verschieben?')) onDelete(req.id); }}>
+                <Trash2 size={16} />
+              </button>
+            )
           )}
         </div>
       </div>
@@ -545,6 +558,7 @@ const RequestsView = ({
                   <option value="open">Offen</option>
                   <option value="approved">Genehmigt</option>
                   <option value="rejected">Abgelehnt</option>
+                  {isAdmin && <option value="deleted">Papierkorb</option>}
               </select>
             </>
           )}
