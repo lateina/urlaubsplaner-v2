@@ -137,6 +137,7 @@ const EmployeeAdmin = ({ employees, skills, onSave, perms = {}, vacationStats = 
               >
                 ID {sortBy === 'id' && '↓'}
               </th>
+              <th style={{ padding: '12px 16px', fontWeight: 700, textAlign: 'center' }}>Aktiv</th>
               <th 
                 onClick={() => setBy('name')}
                 style={{ padding: '12px 16px', fontWeight: 700, cursor: 'pointer', background: sortBy === 'name' ? '#e2e8f0' : 'transparent' }}
@@ -149,7 +150,6 @@ const EmployeeAdmin = ({ employees, skills, onSave, perms = {}, vacationStats = 
               <th style={{ padding: '12px 16px', fontWeight: 700 }}>Eintritt</th>
               <th style={{ padding: '12px 16px', fontWeight: 700 }}>Austritt</th>
               <th style={{ padding: '12px 16px', fontWeight: 700 }}>Gruppen / Bereiche</th>
-              <th style={{ padding: '12px 16px', fontWeight: 700, textAlign: 'center' }}>Aktiv</th>
               <th style={{ padding: '12px 16px', fontWeight: 700, textAlign: 'center' }}>Aktion</th>
             </tr>
           </thead>
@@ -167,6 +167,14 @@ const EmployeeAdmin = ({ employees, skills, onSave, perms = {}, vacationStats = 
                       background: (emp.id === 'admin' || emp.id === 'sekretariat') ? '#f1f5f9' : 'transparent',
                       outline: 'none'
                     }}
+                  />
+                </td>
+                <td style={{ padding: '8px 16px', textAlign: 'center' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={emp.active !== false}
+                    onChange={(e) => handleAddField(emp.id, 'active', e.target.checked)}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                   />
                 </td>
                 <td style={{ padding: '8px 16px' }}>
@@ -286,14 +294,6 @@ const EmployeeAdmin = ({ employees, skills, onSave, perms = {}, vacationStats = 
                       );
                     })}
                   </div>
-                </td>
-                <td style={{ padding: '8px 16px', textAlign: 'center' }}>
-                  <input 
-                    type="checkbox" 
-                    checked={emp.active !== false}
-                    onChange={(e) => handleAddField(emp.id, 'active', e.target.checked)}
-                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                  />
                 </td>
                 <td style={{ padding: '8px 16px', textAlign: 'center' }}>
                   {emp.id !== 'admin' && (
