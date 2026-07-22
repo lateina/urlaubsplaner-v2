@@ -203,14 +203,6 @@ const EmployeeAdmin = ({ employees, skills, onSave, perms = {}, vacationStats = 
             <div style={{ flex: 1, overflowY: 'auto' }}>
               {visibleEmployees.map(emp => {
                 const isSelected = selectedEmpId === emp.id;
-                
-                // Check warnings
-                const today = new Date();
-                const isMidYear = today.getMonth() >= 6;
-                const stats = vacationStats[emp.id] || { used: 0, quota: 30 };
-                const lowUsage = (stats.used || 0) < ((stats.quota || 30) / 2);
-                const showWarning = isMidYear && lowUsage && emp.active !== false && emp.id !== 'admin' && emp.id !== 'sekretariat';
-
                 return (
                   <div 
                     key={emp.id}
@@ -233,7 +225,6 @@ const EmployeeAdmin = ({ employees, skills, onSave, perms = {}, vacationStats = 
                         <span style={{ fontWeight: isSelected ? 700 : 500, fontSize: '0.9rem', color: isSelected ? 'var(--primary)' : '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {emp.name || '(Ohne Namen)'}
                         </span>
-                        {showWarning && <AlertTriangle size={14} color="#eab308" title={`Wenig Urlaub verplant (${stats.used}/${stats.quota})`} />}
                       </div>
                       <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{emp.id}</span>
                     </div>
@@ -253,6 +244,27 @@ const EmployeeAdmin = ({ employees, skills, onSave, perms = {}, vacationStats = 
           <div style={{ flex: 1, padding: '24px', overflowY: 'auto', background: 'white' }}>
             {selectedEmp ? (
               <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+                {/* Check warnings for selected employee */}
+                {(() => {
+                  const today = new Date();
+                  const isMidYear = today.getMonth() >= 6;
+                  const stats = vacationStats[selectedEmp.id] || { used: 0, quota: 30 };
+                  const lowUsage = (stats.used || 0) < ((stats.quota || 30) / 2);
+                  const showWarning = isMidYear && lowUsage && selectedEmp.active !== false && selectedEmp.id !== 'admin' && selectedEmp.id !== 'sekretariat';
+                  
+                  if (showWarning) {
+                    return (
+                      <div style={{ marginBottom: '20px', padding: '12px 16px', background: '#fef9c3', border: '1px solid #fef08a', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px', color: '#854d0e' }}>
+                        <AlertTriangle size={20} />
+                        <span style={{ fontSize: '0.95rem', fontWeight: 500 }}>
+                          Warnung: Weniger als 50% des Jahresurlaubs verplant ({stats.used} von {stats.quota} Tagen).
+                        </span>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
                   <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, color: '#0f172a' }}>Mitarbeiter Details</h2>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: '6px 12px', background: selectedEmp.active !== false ? '#ecfdf5' : '#fef2f2', border: `1px solid ${selectedEmp.active !== false ? '#a7f3d0' : '#fecaca'}`, borderRadius: '20px' }}>
