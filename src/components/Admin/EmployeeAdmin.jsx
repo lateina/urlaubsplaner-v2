@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Trash2, UserPlus, Save, AlertTriangle, Search, ChevronRight } from 'lucide-react';
 
 const EmployeeAdmin = ({ employees, skills, onSave, perms = {}, vacationStats = {}, planerType = 'oa' }) => {
@@ -97,6 +97,47 @@ const EmployeeAdmin = ({ employees, skills, onSave, perms = {}, vacationStats = 
     onSave(editingEmployees.filter(e => !e._deleted));
   };
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) {
+          if (e.target.id !== 'emp-search-input') {
+            return;
+          }
+        }
+        
+        e.preventDefault();
+        if (visibleEmployees.length === 0) return;
+        
+        const currentIndex = visibleEmployees.findIndex(emp => emp.id === selectedEmpId);
+        
+        if (e.key === 'ArrowDown') {
+          if (currentIndex < visibleEmployees.length - 1) {
+            setSelectedEmpId(visibleEmployees[currentIndex + 1].id);
+          } else if (currentIndex === -1) {
+            setSelectedEmpId(visibleEmployees[0].id);
+          }
+        } else if (e.key === 'ArrowUp') {
+          if (currentIndex > 0) {
+            setSelectedEmpId(visibleEmployees[currentIndex - 1].id);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [visibleEmployees, selectedEmpId]);
+
+  useEffect(() => {
+    if (selectedEmpId) {
+      const el = document.getElementById(`emp-item-${selectedEmpId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+  }, [selectedEmpId]);
+
   const selectedEmp = editingEmployees.find(e => e.id === selectedEmpId);
 
   return (
@@ -140,6 +181,7 @@ const EmployeeAdmin = ({ employees, skills, onSave, perms = {}, vacationStats = 
               <div style={{ position: 'relative' }}>
                 <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
                 <input 
+                  id="emp-search-input"
                   type="text" 
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
@@ -172,6 +214,7 @@ const EmployeeAdmin = ({ employees, skills, onSave, perms = {}, vacationStats = 
                 return (
                   <div 
                     key={emp.id}
+                    id={`emp-item-${emp.id}`}
                     onClick={() => setSelectedEmpId(emp.id)}
                     style={{ 
                       padding: '12px 16px',
