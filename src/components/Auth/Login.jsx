@@ -62,6 +62,25 @@ const Login = ({ onLogin, binId, planerType }) => {
       const today = new Date().toISOString().split('T')[0];
       if (emp.exitDate < today) return false;
     }
+
+    const isSystemUser = ['admin', 'sekretariat'].includes(emp.id) || 
+                         emp.name?.toLowerCase().includes('administrator') || 
+                         emp.name?.toLowerCase().includes('sekretariat');
+
+    const groups = Array.isArray(emp.groups) ? emp.groups : (emp.group ? [emp.group] : []);
+    const isFOA = groups.includes('skill_funktionsoberarzt') || groups.some(g => String(g).toLowerCase().includes('funktionsoberarzt'));
+    const isOA = emp.role === 'Oberarzt' || emp.isOberarzt === true || isFOA;
+    const isMaier = emp.id === 'maier';
+
+    if (planerType === 'oa') {
+      // In OA Planer: show only OAs, system users, FOAs, and maier
+      if (!isOA && !isSystemUser && !isMaier) return false;
+    } else {
+      // In ASS Planer: show only Assistenten and FOAs. System users shouldn't be in the regular list,
+      // but they need to log in to ASS planner too to manage it! 
+      // Wait, if Admin needs to log into ASS planer, they MUST be visible.
+      if (!isSystemUser && isOA && !isFOA && !isMaier) return false;
+    }
     
     return emp.name.toLowerCase().includes(search.toLowerCase());
   }).sort((a, b) => {
