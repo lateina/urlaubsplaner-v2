@@ -248,8 +248,8 @@ const EmployeeAdmin = ({ employees, skills, onSave, perms = {}, vacationStats = 
                 {(() => {
                   const today = new Date();
                   const isMidYear = today.getMonth() >= 6;
-                  const stats = vacationStats[selectedEmp.id] || { used: 0, quota: 30 };
-                  const lowUsage = (stats.used || 0) < ((stats.quota || 30) / 2);
+                  const stats = vacationStats[selectedEmp.id] || { total: 0, quota: 30 };
+                  const lowUsage = (stats.total || 0) < ((stats.quota || 30) / 2);
                   const showWarning = isMidYear && lowUsage && selectedEmp.active !== false && selectedEmp.id !== 'admin' && selectedEmp.id !== 'sekretariat';
                   
                   if (showWarning) {
@@ -257,7 +257,7 @@ const EmployeeAdmin = ({ employees, skills, onSave, perms = {}, vacationStats = 
                       <div style={{ marginBottom: '20px', padding: '12px 16px', background: '#fef9c3', border: '1px solid #fef08a', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px', color: '#854d0e' }}>
                         <AlertTriangle size={20} />
                         <span style={{ fontSize: '0.95rem', fontWeight: 500 }}>
-                          Warnung: Weniger als 50% des Jahresurlaubs verplant ({stats.used} von {stats.quota} Tagen).
+                          Warnung: Weniger als 50% des Jahresurlaubs verplant ({stats.total} von {stats.quota} Tagen).
                         </span>
                       </div>
                     );
