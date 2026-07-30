@@ -131,6 +131,20 @@ export const firestoreService = {
     }
   },
 
+  async loadPlanerEmployees() {
+    try {
+      const docSnap = await getDoc(doc(db, 'planer_app_state', 'currentState'));
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        return data.employees || [];
+      }
+      return [];
+    } catch (error) {
+      console.error('Error loading employees from Planer570:', error);
+      return [];
+    }
+  },
+
   /**
    * Loads rotation assignments from 'rotations_v2' collection in Firestore
    */

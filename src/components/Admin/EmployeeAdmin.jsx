@@ -1,10 +1,78 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Trash2, UserPlus, Save, AlertTriangle, Search, ChevronRight } from 'lucide-react';
+import { Trash2, UserPlus, Save, AlertTriangle, Search, ChevronRight, Download } from 'lucide-react';
 
 const EmployeeAdmin = ({ employees, skills, onSave, perms = {}, vacationStats = {}, planerType = 'oa' }) => {
   const [editingEmployees, setEditingEmployees] = useState(employees);
   const [selectedEmpId, setSelectedEmpId] = useState(null);
   const [search, setSearch] = useState('');
+  
+  const [isImporting, setIsImporting] = useState(false);
+  const [importQueue, setImportQueue] = useState([]);
+  const [currentImport, setCurrentImport] = useState(null);
+
+  const handleStartImport = async () => {
+    setIsImporting(true);
+    try {
+      const { firestoreService } = await import('../../services/firestoreService');
+      const planerEmployees = await firestoreService.loadPlanerEmployees();
+      
+      const newEmployees = planerEmployees.filter(pe => !editingEmployees.some(e => e.id === pe.mitarbeiter_id));
+      
+      if (newEmployees.length === 0) {
+        alert('Alle Mitarbeiter aus Planer570 sind bereits importiert.');
+        setIsImporting(false);
+        return;
+      }
+      
+      setImportQueue(newEmployees);
+      setCurrentImport(newEmployees[0]);
+    } catch (err) {
+      console.error(err);
+      alert('Fehler beim Laden der Planer570 Mitarbeiter.');
+      setIsImporting(false);
+    }
+  };
+
+  const handleNextImport = (role) => {
+    if (currentImport) {
+      if (role) { // Wenn nicht übersprungen
+        let newGroups = [];
+        let newRole = 'User';
+        
+        if (role === 'FOA') {
+          newRole = 'Oberarzt';
+          newGroups.push('skill_funktionsoberarzt');
+        } else if (role === 'OA') {
+          newRole = 'Oberarzt';
+        }
+
+        const newEmp = {
+          id: currentImport.mitarbeiter_id,
+          name: currentImport.mitarbeiter_name,
+          email: '',
+          pin: String(Math.floor(Math.random() * 10000)).padStart(4, '0'),
+          groups: newGroups,
+          active: true,
+          role: newRole,
+          entryDate: '',
+          exitDate: ''
+        };
+        
+        setEditingEmployees(prev => [...prev, newEmp]);
+      }
+      
+      const nextIndex = importQueue.findIndex(e => e.mitarbeiter_id === currentImport.mitarbeiter_id) + 1;
+      if (nextIndex < importQueue.length) {
+        setCurrentImport(importQueue[nextIndex]);
+      } else {
+        setCurrentImport(null);
+        setImportQueue([]);
+        setIsImporting(false);
+        alert('Import abgeschlossen! Bitte denken Sie daran, am Ende "Speichern" zu klicken.');
+      }
+    }
+  };
+
 
   const handleAddField = (id, field, value) => {
     setEditingEmployees(prev => prev.map(emp => 
@@ -143,6 +211,50 @@ const EmployeeAdmin = ({ employees, skills, onSave, perms = {}, vacationStats = 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', margin: '20px', marginBottom: '100px', height: 'calc(100vh - 140px)' }}>
 
+      {/* Import Modal */}
+      {currentImport && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: 'white', padding: '24px', borderRadius: '12px', width: '400px', maxWidth: '90%' }}>
+            <h3 style={{ marginTop: 0 }}>Mitarbeiter importieren</h3>
+            <p>Möchten Sie <strong>{currentImport.mitarbeiter_name}</strong> in den Urlaubsplaner übernehmen?</p>
+            <p style={{ fontSize: '0.85rem', color: '#64748b' }}>Qualifikation (Planer570): {currentImport.qualifikation || '-'}</p>
+            
+            <div style={{ margin: '20px 0', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                <input type="radio" name="importRole" value="AA" defaultChecked={!(currentImport.qualifikation || '').toLowerCase().includes('oberarzt') && !(currentImport.qualifikation || '').toLowerCase().includes('oa')} />
+                Assistenzarzt / User
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                <input type="radio" name="importRole" value="OA" defaultChecked={(currentImport.qualifikation || '').toLowerCase().includes('oberarzt') && !(currentImport.qualifikation || '').toLowerCase().includes('funktions')} />
+                Oberarzt
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                <input type="radio" name="importRole" value="FOA" defaultChecked={(currentImport.qualifikation || '').toLowerCase().includes('funktionsoberarzt')} />
+                Funktionsoberarzt (erscheint in beiden Planern)
+              </label>
+            </div>
+            
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button 
+                onClick={() => handleNextImport(null)}
+                style={{ padding: '8px 16px', background: 'transparent', border: '1px solid var(--border)', borderRadius: '6px', cursor: 'pointer' }}
+              >
+                Überspringen
+              </button>
+              <button 
+                onClick={() => {
+                  const role = document.querySelector('input[name="importRole"]:checked').value;
+                  handleNextImport(role);
+                }}
+                style={{ padding: '8px 16px', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+              >
+                Importieren
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="glass" style={{ 
         background: 'rgba(255, 255, 255, 0.45)', 
         borderRadius: '24px', 
@@ -189,16 +301,30 @@ const EmployeeAdmin = ({ employees, skills, onSave, perms = {}, vacationStats = 
                   style={{ width: '100%', padding: '8px 10px 8px 32px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.85rem' }}
                 />
               </div>
-              <button 
-                onClick={handleAddEmployee}
-                style={{ 
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '8px 16px', 
-                  background: 'white', border: '1px solid var(--border)', borderRadius: '6px',
-                  fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', width: '100%'
-                }}
-              >
-                <UserPlus size={16} /> Neuer Mitarbeiter
-              </button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button 
+                  onClick={handleAddEmployee}
+                  style={{ 
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '8px', 
+                    background: 'white', border: '1px solid var(--border)', borderRadius: '6px',
+                    fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', flex: 1
+                  }}
+                >
+                  <UserPlus size={16} /> Neuer
+                </button>
+                <button 
+                  onClick={handleStartImport}
+                  disabled={isImporting}
+                  style={{ 
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '8px', 
+                    background: 'white', border: '1px solid var(--border)', borderRadius: '6px',
+                    fontSize: '0.85rem', fontWeight: 600, cursor: isImporting ? 'not-allowed' : 'pointer', flex: 1,
+                    opacity: isImporting ? 0.6 : 1
+                  }}
+                >
+                  <Download size={16} /> Import
+                </button>
+              </div>
             </div>
             <div style={{ flex: 1, overflowY: 'auto' }}>
               {visibleEmployees.map(emp => {
