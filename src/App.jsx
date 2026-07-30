@@ -1536,6 +1536,7 @@ const App = () => {
           <div style={{ flex: 1, overflow: 'auto', padding: '24px', background: 'transparent' }}>
             <EmployeeAdmin
               employees={appData.employees}
+              planerEmployees={appData.planerEmployees}
               skills={profileSkills}
               vacationStats={appData.vacationStats}
               onSave={(newList) => handleUpdateAdminData({ employees: newList })}

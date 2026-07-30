@@ -172,16 +172,16 @@ const CalendarView = ({
   // ROTANDEN RESOLUTION
   const getActiveRotandName = useCallback((emp) => {
     // 1. Is this employee a rotand in planer570?
-    if (!planerEmployees || planerEmployees.length === 0) return emp.name;
+    if (!planerEmployees || planerEmployees.length === 0) return null;
     const pEmp = planerEmployees.find(p => p.mitarbeiter_id === emp.id);
-    if (!pEmp || !pEmp.is_rotandenstelle) return emp.name;
+    if (!pEmp || !pEmp.is_rotandenstelle) return null;
     
     // 2. Do they have assigned names?
-    if (!pEmp.rotanden_namen || !Array.isArray(pEmp.rotanden_namen)) return emp.name;
+    if (!pEmp.rotanden_namen || !Array.isArray(pEmp.rotanden_namen)) return null;
     
     // Convert activeMonthStr (e.g. "month_2026_01") to "YYYY-MM"
     const mMatch = activeMonthStr.match(/month_(\d{4})_(\d{2})/);
-    if (!mMatch) return emp.name;
+    if (!mMatch) return null;
     const currentMonthId = `${mMatch[1]}-${mMatch[2]}`;
     
     const activeNames = pEmp.rotanden_namen.filter(rn => {
@@ -207,7 +207,7 @@ const CalendarView = ({
         return activeNames.map(rn => rn.name).join(', ');
     }
     
-    return emp.name;
+    return null;
   }, [planerEmployees, activeMonthStr]);
 
   // Pre-calculate assignments for the active month for performance
@@ -1176,7 +1176,7 @@ const CalendarView = ({
                         WebkitBoxOrient: 'vertical',
                         lineHeight: '1.1'
                       }}>
-                        {formatDisplayName(getActiveRotandName(emp) || emp.id)}
+                        {formatDisplayName(getActiveRotandName(emp) || emp.stampAlias || emp.name || emp.id)}
                       </div>
 
                       {/* V1 Vacation Badge */}

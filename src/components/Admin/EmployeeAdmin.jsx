@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Trash2, UserPlus, Save, AlertTriangle, Search, ChevronRight, Download } from 'lucide-react';
 
-const EmployeeAdmin = ({ employees, skills, onSave, perms = {}, vacationStats = {}, planerType = 'oa' }) => {
+const EmployeeAdmin = ({ employees, planerEmployees = [], skills, onSave, perms = {}, vacationStats = {}, planerType = 'oa' }) => {
   const [editingEmployees, setEditingEmployees] = useState(employees);
   const [selectedEmpId, setSelectedEmpId] = useState(null);
   const [search, setSearch] = useState('');
