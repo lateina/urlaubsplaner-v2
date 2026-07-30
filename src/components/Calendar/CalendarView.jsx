@@ -11,6 +11,8 @@ import { MONTH_AREA_MAPPING, MONTH_AREA_ORDER, getAreaColor } from '../../config
 const CalendarView = ({ 
   planerType,
   employees = [], 
+  planerEmployees = [],
+  allEmployees = [],
   absences = {}, 
   requests = [],
   onSaveAbsences, 
@@ -166,6 +168,47 @@ const CalendarView = ({
       return () => clearTimeout(timer);
     }
   }, [forcedMonthIndex]);
+
+  // ROTANDEN RESOLUTION
+  const getActiveRotandName = useCallback((emp) => {
+    // 1. Is this employee a rotand in planer570?
+    if (!planerEmployees || planerEmployees.length === 0) return emp.name;
+    const pEmp = planerEmployees.find(p => p.mitarbeiter_id === emp.id);
+    if (!pEmp || !pEmp.is_rotandenstelle) return emp.name;
+    
+    // 2. Do they have assigned names?
+    if (!pEmp.rotanden_namen || !Array.isArray(pEmp.rotanden_namen)) return emp.name;
+    
+    // Convert activeMonthStr (e.g. "month_2026_01") to "YYYY-MM"
+    const mMatch = activeMonthStr.match(/month_(\d{4})_(\d{2})/);
+    if (!mMatch) return emp.name;
+    const currentMonthId = `${mMatch[1]}-${mMatch[2]}`;
+    
+    const activeNames = pEmp.rotanden_namen.filter(rn => {
+        if (!rn.name) return false;
+        
+        // Parse "MM/YYYY" to "YYYY-MM"
+        const parseMonth = (str) => {
+            if (!str) return null;
+            const parts = str.split('/');
+            if (parts.length === 2) return `${parts[1]}-${parts[0].padStart(2, '0')}`;
+            return null;
+        };
+        
+        const start = parseMonth(rn.von);
+        const end = parseMonth(rn.bis);
+        
+        if (start && start > currentMonthId) return false;
+        if (end && end < currentMonthId) return false;
+        return true;
+    });
+    
+    if (activeNames.length > 0) {
+        return activeNames.map(rn => rn.name).join(', ');
+    }
+    
+    return emp.name;
+  }, [planerEmployees, activeMonthStr]);
 
   // Pre-calculate assignments for the active month for performance
   const empAreaMap = useMemo(() => {
@@ -1133,7 +1176,7 @@ const CalendarView = ({
                         WebkitBoxOrient: 'vertical',
                         lineHeight: '1.1'
                       }}>
-                        {formatDisplayName(emp.name || emp.id)}
+                        {formatDisplayName(getActiveRotandName(emp) || emp.id)}
                       </div>
 
                       {/* V1 Vacation Badge */}

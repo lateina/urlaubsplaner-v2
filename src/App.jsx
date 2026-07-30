@@ -117,6 +117,7 @@ const App = () => {
     skills: [],
     groupColors: DEFAULT_GROUP_COLORS,
     rotationData: [],
+    planerEmployees: [],
     vacationStats: {}
   });
   const [isLoading, setIsLoading] = useState(false);
@@ -305,6 +306,7 @@ const App = () => {
       const fsRequestsOaPromise = firestoreService.loadRequests('oa');
       const fsOAAbsencesPromise = (planerType === 'ass') ? firestoreService.loadAbsences('oa') : Promise.resolve({});
       const fsRotationPromise = firestoreService.loadRotation();
+      const fsPlanerEmployeesPromise = firestoreService.loadPlanerEmployees();
 
       // 1. Await Config (needed for jsonbin fallback key)
       const fsConfig = await configPromise;
@@ -314,12 +316,13 @@ const App = () => {
       const effectiveKey = sourceData.jsonbin_key || auth.masterKey || localStorage.getItem(`${planerType}_jsonbin_key`);
 
       // 2. Await Parallel Fetches for the rest
-      const [rotationsRaw, fsAbsences, fsRequestsAss, fsRequestsOa, fsOAAbsences] = await Promise.all([
+      const [rotationsRaw, fsAbsences, fsRequestsAss, fsRequestsOa, fsOAAbsences, planerEmployees] = await Promise.all([
         fsRotationPromise.catch(e => { console.warn("Rotation fetch failed", e); return null; }),
         fsAbsencesPromise.catch(e => { console.error("Firestore absences fetch failed", e); return {}; }),
         fsRequestsAssPromise.catch(e => { console.error("Firestore ass requests fetch failed", e); return []; }),
         fsRequestsOaPromise.catch(e => { console.error("Firestore oa requests fetch failed", e); return []; }),
-        fsOAAbsencesPromise.catch(e => { console.error("Firestore OA absences fetch failed", e); return {}; })
+        fsOAAbsencesPromise.catch(e => { console.error("Firestore OA absences fetch failed", e); return {}; }),
+        fsPlanerEmployeesPromise.catch(e => { console.error("Firestore planerEmployees fetch failed", e); return []; })
       ]);
 
       let rotations = rotationsRaw;
@@ -1477,6 +1480,8 @@ const App = () => {
           <CalendarView
             planerType={planerType}
             employees={appData.employees}
+            planerEmployees={appData.planerEmployees}
+            allEmployees={appData.fullEmployeeList}
             absences={appData.absences}
             requests={appData.requests}
             onSaveAbsences={handleSaveAbsence}
