@@ -16,7 +16,33 @@ const EmployeeAdmin = ({ employees, skills, onSave, perms = {}, vacationStats = 
       const { firestoreService } = await import('../../services/firestoreService');
       const planerEmployees = await firestoreService.loadPlanerEmployees();
       
-      const newEmployees = planerEmployees.filter(pe => !editingEmployees.some(e => e.id === pe.mitarbeiter_id));
+      const today = new Date();
+      // Only set time to 00:00:00 for accurate date comparison
+      today.setHours(0, 0, 0, 0);
+      
+      const sixMonthsFromNow = new Date(today);
+      sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6);
+      
+      const newEmployees = planerEmployees.filter(pe => {
+        // Bereits importiert?
+        if (editingEmployees.some(e => e.id === pe.mitarbeiter_id)) return false;
+        
+        // Hat Enddatum in der Vergangenheit?
+        if (pe.enddatum) {
+          const end = new Date(pe.enddatum);
+          end.setHours(0, 0, 0, 0);
+          if (end < today) return false;
+        }
+        
+        // Liegt Startdatum mehr als 6 Monate in der Zukunft?
+        if (pe.startdatum) {
+          const start = new Date(pe.startdatum);
+          start.setHours(0, 0, 0, 0);
+          if (start > sixMonthsFromNow) return false;
+        }
+        
+        return true;
+      });
       
       if (newEmployees.length === 0) {
         alert('Alle Mitarbeiter aus Planer570 sind bereits importiert.');
@@ -54,8 +80,8 @@ const EmployeeAdmin = ({ employees, skills, onSave, perms = {}, vacationStats = 
           groups: newGroups,
           active: true,
           role: newRole,
-          entryDate: '',
-          exitDate: ''
+          entryDate: currentImport.startdatum || '',
+          exitDate: currentImport.enddatum || ''
         };
         
         setEditingEmployees(prev => [...prev, newEmp]);
