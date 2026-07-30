@@ -82,7 +82,9 @@ const Login = ({ onLogin, binId, planerType }) => {
       if (!isSystemUser && isOA && !isFOA && !isMaier) return false;
     }
     
-    return emp.name.toLowerCase().includes(search.toLowerCase());
+    const s = search.toLowerCase();
+    return emp.name.toLowerCase().includes(s) || 
+           (emp.stampAlias && emp.stampAlias.toLowerCase().includes(s));
   }).sort((a, b) => {
     const getSortName = (n) => {
       if (!n) return '';
@@ -131,7 +133,7 @@ const Login = ({ onLogin, binId, planerType }) => {
                         className={`user-item ${selectedUser?.id === emp.id ? 'active' : ''}`}
                         onClick={() => setSelectedUser(emp)}
                       >
-                        {emp.name}
+                        {emp.name} {emp.stampAlias ? `(${emp.stampAlias})` : ''}
                       </div>
                     ))
                   ) : (
