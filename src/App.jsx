@@ -1279,7 +1279,10 @@ const App = () => {
 
     // If we are updating employees, merge subset into fullEmployeeList
     if (newData.employees) {
+      const deletedIdsSet = new Set(newData.deletedEmployeeIds || []);
       const otherEmps = appData.fullEmployeeList.filter(emp => {
+        // Drop if it was explicitly deleted
+        if (deletedIdsSet.has(emp.id)) return false;
         // Keep employees that were NOT in the current view's subset
         return !newData.employees.some(ne => ne.id === emp.id);
       });
@@ -1539,7 +1542,7 @@ const App = () => {
               planerEmployees={appData.planerEmployees}
               skills={profileSkills}
               vacationStats={appData.vacationStats}
-              onSave={(newList) => handleUpdateAdminData({ employees: newList })}
+              onSave={(newList, deletedIds) => handleUpdateAdminData({ employees: newList, deletedEmployeeIds: deletedIds })}
               perms={perms}
               planerType={planerType}
             />

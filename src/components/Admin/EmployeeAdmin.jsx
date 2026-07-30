@@ -188,7 +188,8 @@ const EmployeeAdmin = ({ employees, planerEmployees = [], skills, onSave, perms 
     });
 
   const handleSaveAll = () => {
-    onSave(editingEmployees.filter(e => !e._deleted));
+    const deletedIds = editingEmployees.filter(e => e._deleted).map(e => e.id);
+    onSave(editingEmployees.filter(e => !e._deleted), deletedIds);
   };
 
   useEffect(() => {
