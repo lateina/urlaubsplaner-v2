@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, X, Trash2, FileText, Clock, User, Calendar as CalendarIcon, MessageSquare, ShieldCheck, Search } from 'lucide-react';
+import { Check, X, Trash2, FileText, Clock, User, Calendar as CalendarIcon, MessageSquare, ShieldCheck, Search, Mail } from 'lucide-react';
 import { generateAndDownloadPDF } from '../../utils/pdfGenerator';
 
 
@@ -234,8 +234,20 @@ const RequestsView = ({
                      {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                    </select>
                 ) : (
-                   <span style={req.vertreter === 'Kein Vertreter nötig' ? { color: '#64748b' } : {}}>
+                   <span style={req.vertreter === 'Kein Vertreter nötig' ? { color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' } : { display: 'flex', alignItems: 'center', gap: '6px' }}>
                      {req.vertreter === 'Kein Vertreter nötig' ? 'Kein Vertreter nötig' : `Vertreter: ${req.vertreter}`}
+                     {isAdmin && req.status === 'pending_vertreter' && (
+                       <button 
+                         onClick={() => {
+                           onUpdateRequest(req.id, { notified: { ...(req.notified || {}), pending_vertreter: false } });
+                           alert('Erinnerungs-E-Mail wurde in die Warteschlange gestellt (Versand erfolgt beim nächsten Systemlauf in ca. 15-30 Min).');
+                         }}
+                         style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: '#3b82f6' }}
+                         title="Erinnerungs-E-Mail an Vertreter senden"
+                       >
+                         <Mail size={14} />
+                       </button>
+                     )}
                    </span>
                 )}
               </div>
@@ -340,8 +352,20 @@ const RequestsView = ({
                    {employees.filter(e => e.role === 'Oberarzt' || e.isOberarzt).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                 </select>
               ) : (
-                <span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   {req.supervisorId ? `Vorgesetzter: ${getEmpName(req.supervisorId)}` : 'Kein Vorgesetzter erforderlich'}
+                  {isAdmin && req.supervisorId && req.status === 'pending_supervisor' && (
+                       <button 
+                         onClick={() => {
+                           onUpdateRequest(req.id, { notified: { ...(req.notified || {}), pending_supervisor: false } });
+                           alert('Erinnerungs-E-Mail wurde in die Warteschlange gestellt (Versand erfolgt beim nächsten Systemlauf in ca. 15-30 Min).');
+                         }}
+                         style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: '#3b82f6' }}
+                         title="Erinnerungs-E-Mail an Vorgesetzten senden"
+                       >
+                         <Mail size={14} />
+                       </button>
+                  )}
                 </span>
               )}
             </div>
