@@ -237,8 +237,7 @@ async function run() {
             if (req.status === 'pending_supervisor' && !notified.pending_supervisor) {
                 const sup = allEmployees.find(e => e.id === req.supervisorId);
                 if (sup?.email) {
-                    const isSupOa = sup.role === 'Oberarzt' || sup.isOberarzt || (Array.isArray(sup.groups) && sup.groups.includes('skill_funktionsoberarzt'));
-                    const supLink = `\nZum Urlaubsplaner: ${isSupOa ? 'https://lateina.github.io/urlaubsplaner-v2/' : appUrl}\n`;
+                    const supLink = `\nZum Urlaubsplaner: ${appUrl}\n`;
                     if (!personDigests[sup.email]) personDigests[sup.email] = { name: sup.name, items: [] };
                     personDigests[sup.email].items.push(`• Freigabeanfrage von ${empName}: ${typeLabel} (${datesStr})${supLink}`);
                     notified.pending_supervisor = true;
@@ -346,8 +345,9 @@ async function run() {
                 lowUsageEmployees.push({ name: emp.name, used, quota, email: emp.email });
                 
                 if (emp.email) {
+                    const userAppUrl = (emp.role === 'Oberarzt' || emp.isOberarzt) ? 'https://lateina.github.io/urlaubsplaner-v2/' : 'https://lateina.github.io/urlaubsplaner-v2/assistenz.html';
                     if (!personDigests[emp.email]) personDigests[emp.email] = { name: emp.name, items: [] };
-                    personDigests[emp.email].items.push(`• Erinnerung: Du hast erst ${used} von ${quota} Urlaubstagen für dieses Jahr verplant. Bitte denke daran, deinen restlichen Urlaub zeitnah einzureichen.\nZum Urlaubsplaner: https://lateina.github.io/urlaubsplaner-v2/`);
+                    personDigests[emp.email].items.push(`• Erinnerung: Du hast erst ${used} von ${quota} Urlaubstagen für dieses Jahr verplant. Bitte denke daran, deinen restlichen Urlaub zeitnah einzureichen.\nZum Urlaubsplaner: ${userAppUrl}`);
                 }
             }
         }
