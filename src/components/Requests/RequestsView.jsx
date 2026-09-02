@@ -237,16 +237,23 @@ const RequestsView = ({
                    <span style={req.vertreter === 'Kein Vertreter nötig' ? { color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' } : { display: 'flex', alignItems: 'center', gap: '6px' }}>
                      {req.vertreter === 'Kein Vertreter nötig' ? 'Kein Vertreter nötig' : `Vertreter: ${req.vertreter}`}
                      {isAdmin && req.status === 'pending_vertreter' && (
-                       <button 
-                         onClick={() => {
-                           onUpdateRequest(req.id, { notified: { ...(req.notified || {}), pending_vertreter: false } });
-                           alert('Erinnerungs-E-Mail wurde in die Warteschlange gestellt (Versand erfolgt beim nächsten Systemlauf in ca. 15-30 Min).');
-                         }}
-                         style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: '#3b82f6' }}
-                         title={`Erinnerung senden (Text: "Vertretungsanfrage von ${getEmpName(req.empId)}: ${typeLabel[req.type]} (${formatDateRange(req.dates)})")`}
-                       >
-                         <Mail size={14} />
-                       </button>
+                       <div className="mail-tooltip-container">
+                         <button 
+                           onClick={() => {
+                             onUpdateRequest(req.id, { notified: { ...(req.notified || {}), pending_vertreter: false } });
+                             alert('Erinnerungs-E-Mail wurde in die Warteschlange gestellt (Versand erfolgt beim nächsten Systemlauf in ca. 15-30 Min).');
+                           }}
+                           style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: '#3b82f6' }}
+                         >
+                           <Mail size={14} />
+                         </button>
+                         <div className="mail-tooltip">
+                           Hallo {getEmpName(req.vertreterId)},<br/><br/>
+                           es gibt Neuigkeiten zu deinen Anträgen im Urlaubsplaner:<br/><br/>
+                           • Vertretungsanfrage von {getEmpName(req.empId)}: {typeLabel[req.type]} ({formatDateRange(req.dates)})<br/>
+                           Zum Urlaubsplaner: {req.planerType === 'ass' ? 'https://lateina.github.io/urlaubsplaner-v2/assistenz.html' : 'https://lateina.github.io/urlaubsplaner-v2/'}
+                         </div>
+                       </div>
                      )}
                    </span>
                 )}
@@ -355,16 +362,23 @@ const RequestsView = ({
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   {req.supervisorId ? `Vorgesetzter: ${getEmpName(req.supervisorId)}` : 'Kein Vorgesetzter erforderlich'}
                   {isAdmin && req.supervisorId && req.status === 'pending_supervisor' && (
-                       <button 
-                         onClick={() => {
-                           onUpdateRequest(req.id, { notified: { ...(req.notified || {}), pending_supervisor: false } });
-                           alert('Erinnerungs-E-Mail wurde in die Warteschlange gestellt (Versand erfolgt beim nächsten Systemlauf in ca. 15-30 Min).');
-                         }}
-                         style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: '#3b82f6' }}
-                         title={`Erinnerung senden (Text: "Zu prüfender Antrag von ${getEmpName(req.empId)}: ${typeLabel[req.type]} (${formatDateRange(req.dates)})")`}
-                       >
-                         <Mail size={14} />
-                       </button>
+                       <div className="mail-tooltip-container">
+                         <button 
+                           onClick={() => {
+                             onUpdateRequest(req.id, { notified: { ...(req.notified || {}), pending_supervisor: false } });
+                             alert('Erinnerungs-E-Mail wurde in die Warteschlange gestellt (Versand erfolgt beim nächsten Systemlauf in ca. 15-30 Min).');
+                           }}
+                           style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: '#3b82f6' }}
+                         >
+                           <Mail size={14} />
+                         </button>
+                         <div className="mail-tooltip">
+                           Hallo {getEmpName(req.supervisorId)},<br/><br/>
+                           es gibt Neuigkeiten zu deinen Anträgen im Urlaubsplaner:<br/><br/>
+                           • Zu prüfender Antrag von {getEmpName(req.empId)}: {typeLabel[req.type]} ({formatDateRange(req.dates)})<br/>
+                           Zum Urlaubsplaner: {req.planerType === 'ass' ? 'https://lateina.github.io/urlaubsplaner-v2/assistenz.html' : 'https://lateina.github.io/urlaubsplaner-v2/'}
+                         </div>
+                       </div>
                   )}
                 </span>
               )}

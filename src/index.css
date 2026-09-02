@@ -505,3 +505,48 @@ body.planer-oa .modal-card textarea {
   from { transform: translateY(100%); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
+
+.mail-tooltip-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.mail-tooltip-container .mail-tooltip {
+  visibility: hidden;
+  opacity: 0;
+  width: max-content;
+  max-width: 350px;
+  background-color: #1e293b;
+  color: #fff;
+  text-align: left;
+  border-radius: 6px;
+  padding: 8px 12px;
+  position: absolute;
+  z-index: 100;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%);
+  transition: opacity 0.1s;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  pointer-events: none;
+}
+
+.mail-tooltip-container .mail-tooltip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: #1e293b transparent transparent transparent;
+}
+
+.mail-tooltip-container:hover .mail-tooltip {
+  visibility: visible;
+  opacity: 1;
+}
