@@ -369,7 +369,7 @@ async function run() {
         try {
             await sendEmail(email,
                 'Urlaubsplaner: Neue Benachrichtigungen',
-                `Hallo ${digest.name},\n\nes gibt Neuigkeiten zu deinen Anträgen im Urlaubsplaner:\n\n${digest.items.join('\n')}`
+                `Hallo ${digest.name},\n\nes gibt neue Benachrichtigungen für dich im Urlaubsplaner:\n\n${digest.items.join('\n')}`
             );
         } catch (e) {
             console.error(`Error sending email to ${email}:`, e.message);

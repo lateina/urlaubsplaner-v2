@@ -249,7 +249,7 @@ const RequestsView = ({
                          </button>
                          <div className="mail-tooltip">
                            Hallo {getEmpName(req.vertreterId)},<br/><br/>
-                           es gibt Neuigkeiten zu deinen Anträgen im Urlaubsplaner:<br/><br/>
+                           es gibt neue Benachrichtigungen für dich im Urlaubsplaner:<br/><br/>
                            • Vertretungsanfrage von {getEmpName(req.empId)}: {typeLabel[req.type]} ({formatDateRange(req.dates)})<br/>
                            Zum Urlaubsplaner: {req.planerType === 'ass' ? 'https://lateina.github.io/urlaubsplaner-v2/assistenz.html' : 'https://lateina.github.io/urlaubsplaner-v2/'}
                          </div>
@@ -374,7 +374,7 @@ const RequestsView = ({
                          </button>
                          <div className="mail-tooltip">
                            Hallo {getEmpName(req.supervisorId)},<br/><br/>
-                           es gibt Neuigkeiten zu deinen Anträgen im Urlaubsplaner:<br/><br/>
+                           es gibt neue Benachrichtigungen für dich im Urlaubsplaner:<br/><br/>
                            • Zu prüfender Antrag von {getEmpName(req.empId)}: {typeLabel[req.type]} ({formatDateRange(req.dates)})<br/>
                            Zum Urlaubsplaner: {req.planerType === 'ass' ? 'https://lateina.github.io/urlaubsplaner-v2/assistenz.html' : 'https://lateina.github.io/urlaubsplaner-v2/'}
                          </div>
