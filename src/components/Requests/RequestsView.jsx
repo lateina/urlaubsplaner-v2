@@ -243,7 +243,7 @@ const RequestsView = ({
                            alert('Erinnerungs-E-Mail wurde in die Warteschlange gestellt (Versand erfolgt beim nächsten Systemlauf in ca. 15-30 Min).');
                          }}
                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: '#3b82f6' }}
-                         title="Erinnerungs-E-Mail an Vertreter senden"
+                         title={`Erinnerung senden (Text: "Vertretungsanfrage von ${getEmpName(req.empId)}: ${typeLabel[req.type]} (${formatDateRange(req.dates)})")`}
                        >
                          <Mail size={14} />
                        </button>
@@ -361,7 +361,7 @@ const RequestsView = ({
                            alert('Erinnerungs-E-Mail wurde in die Warteschlange gestellt (Versand erfolgt beim nächsten Systemlauf in ca. 15-30 Min).');
                          }}
                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: '#3b82f6' }}
-                         title="Erinnerungs-E-Mail an Vorgesetzten senden"
+                         title={`Erinnerung senden (Text: "Zu prüfender Antrag von ${getEmpName(req.empId)}: ${typeLabel[req.type]} (${formatDateRange(req.dates)})")`}
                        >
                          <Mail size={14} />
                        </button>
