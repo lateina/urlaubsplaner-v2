@@ -152,6 +152,12 @@ const CalendarView = ({
     ? forcedMonthIndex 
     : Math.floor((colVirtualizer.scrollOffset + (0.5 * CELL_W)) / CELL_W);
   
+  const activeYear = useMemo(() => {
+    const index = Math.min(Math.max(0, activeMonthIndex), days.length - 1);
+    const activeDay = days[index];
+    return activeDay ? activeDay.year : new Date().getFullYear();
+  }, [activeMonthIndex, days]);
+
   const activeMonthStr = useMemo(() => {
     const index = Math.min(Math.max(0, activeMonthIndex), days.length - 1);
     const activeDay = days[index];
@@ -159,6 +165,44 @@ const CalendarView = ({
     const date = new Date(activeDay.dateStr);
     return `month_${date.getFullYear()}_${String(date.getMonth() + 1).padStart(2, '0')}`;
   }, [activeMonthIndex, days]);
+
+  const liveVacationStats = useMemo(() => {
+    const stats = {};
+    employees.forEach(emp => {
+      let currentTotal = 0;
+      const empAbsences = (absences && absences[emp.id]) || {};
+      
+      Object.entries(empAbsences).forEach(([dateStr, entry]) => {
+        if (!dateStr.startsWith(String(activeYear))) return;
+        const type = typeof entry === 'object' ? entry.type : entry;
+        const status = typeof entry === 'object' ? entry.status : 'confirmed';
+        if (status === 'rejected') return;
+        if (type === 'U' || type === 'V') {
+          const d = days.find(day => day.dateStr === dateStr);
+          if (d && !d.isWeekend && !d.holiday) {
+            currentTotal++;
+          }
+        }
+      });
+
+      (requests || []).filter(r =>
+        r.empId === emp.id &&
+        r.status.startsWith('pending') &&
+        (r.type === 'U' || r.type === 'V')
+      ).forEach(r => {
+        r.dates.forEach(dateStr => {
+          if (!dateStr.startsWith(String(activeYear))) return;
+          const d = days.find(day => day.dateStr === dateStr);
+          if (d && !d.isWeekend && !d.holiday) {
+            currentTotal++;
+          }
+        });
+      });
+
+      stats[emp.id] = { total: currentTotal, quota: emp.vacationQuota ?? 30 };
+    });
+    return stats;
+  }, [absences, requests, employees, activeYear, days]);
 
   // Reset forced month after some time to allow natural scrolling to take over again
   // Increased to 2 seconds to ensure smooth scroll has reached the target
@@ -616,7 +660,7 @@ const CalendarView = ({
       alert('Stopp! Nur der Admin, das Sekretariat oder der Mitarbeiter selbst können das Urlaubskontingent ändern.');
       return;
     }
-    const stats = vacationStats[emp.id] || { total: 0, quota: 30 };
+    const stats = liveVacationStats[emp.id] || { total: 0, quota: 30 };
     const balance = stats.quota - stats.total;
     const val = prompt(`Verbleibende Resturlaubstage für ${emp.name || emp.id}:`, balance);
     if (val === null) return;
@@ -1181,11 +1225,11 @@ const CalendarView = ({
 
                       {/* V1 Vacation Badge */}
                       {(() => {
-                        let stats = vacationStats[emp.id] || { total: 0, quota: 30 };
+                        let stats = liveVacationStats[emp.id] || { total: 0, quota: 30 };
                         
                         // REAL-TIME: If dragging this employee, calculate live total from tempAbsences
                         if (isDragging && draggedEmpId === emp.id && tempAbsences) {
-                          const year = new Date().getFullYear();
+                          const year = activeYear;
                           const vacationDates = new Set();
                           const empAbsences = tempAbsences[emp.id] || {};
                           
