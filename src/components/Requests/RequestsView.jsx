@@ -527,8 +527,11 @@ const RequestsView = ({
                             }
                             
                             // New: Prompt for remaining vacation days
-                            const stats = vacationStats[req.empId] || { total: 0, quota: 30 };
-                            const currentBalance = stats.quota - stats.total;
+                            const reqYear = req.dates && req.dates.length > 0 ? req.dates[0].split('-')[0] : new Date().getFullYear();
+                            const emp = employees.find(e => e.id === req.empId);
+                            const specificQuota = (emp?.vacationQuotas && emp.vacationQuotas[reqYear]) ?? emp?.vacationQuota ?? 30;
+                            const stats = vacationStats[req.empId] || { total: 0 }; // total is fallback to current year
+                            const currentBalance = specificQuota - stats.total;
                             const empName = getEmpName(req.empId);
                             const val = prompt(`Verbleibender Resturlaub für ${empName} nach diesem Antrag?`, currentBalance);
                             if (val !== null) {

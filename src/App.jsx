@@ -619,7 +619,7 @@ const App = () => {
 
     targetEmployees.forEach(emp => {
       const used = calculateVacationUsed(emp.id, newAbsences, year, targetRequests);
-      const currentQuota = emp.vacationQuota ?? 30;
+      const currentQuota = (emp.vacationQuotas && emp.vacationQuotas[year]) ?? emp.vacationQuota ?? 30;
       newStats[emp.id] = { total: used, quota: currentQuota };
     });
     return newStats;
@@ -1227,7 +1227,11 @@ const App = () => {
           const newQuota = newRemainingDays + stats.total;
           
           const newFullList = prev.fullEmployeeList.map(e => {
-            if (e.id === request.empId) return { ...e, vacationQuota: newQuota };
+            if (e.id === request.empId) {
+              const year = request.dates && request.dates.length > 0 ? request.dates[0].split('-')[0] : new Date().getFullYear();
+              const q = e.vacationQuotas || {};
+              return { ...e, vacationQuotas: { ...q, [year]: newQuota } };
+            }
             return e;
           });
 

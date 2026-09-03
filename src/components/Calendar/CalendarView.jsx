@@ -199,7 +199,7 @@ const CalendarView = ({
         });
       });
 
-      stats[emp.id] = { total: currentTotal, quota: emp.vacationQuota ?? 30 };
+      stats[emp.id] = { total: currentTotal, quota: (emp.vacationQuotas && emp.vacationQuotas[activeYear]) ?? emp.vacationQuota ?? 30 };
     });
     return stats;
   }, [absences, requests, employees, activeYear, days]);
@@ -671,7 +671,7 @@ const CalendarView = ({
     const newQuota = num + stats.total;
     
     const newEmployees = employees.map(e => {
-       if (e.id === emp.id) return { ...e, vacationQuota: newQuota };
+       if (e.id === emp.id) { const q = e.vacationQuotas || {}; return { ...e, vacationQuotas: { ...q, [activeYear]: newQuota } }; }
        return e;
     });
     if (onUpdateAdminData) onUpdateAdminData({ employees: newEmployees });
