@@ -71,7 +71,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
     });
 
     const emp = employees?.find(e => e.id === formData.employeeId);
-    const quota = (emp?.vacationQuotas && emp.vacationQuotas[year]) ?? emp?.vacationQuota ?? 30;
+    const quota = (emp?.vacationQuotas && emp.vacationQuotas[year]) ?? (parseInt(year) > 2026 ? 30 : (emp?.vacationQuota ?? 30));
 
     return {
       daysInRange: count,

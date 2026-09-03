@@ -199,7 +199,7 @@ const CalendarView = ({
         });
       });
 
-      stats[emp.id] = { total: currentTotal, quota: (emp.vacationQuotas && emp.vacationQuotas[activeYear]) ?? emp.vacationQuota ?? 30 };
+      stats[emp.id] = { total: currentTotal, quota: (emp.vacationQuotas && emp.vacationQuotas[activeYear]) ?? (parseInt(activeYear) > 2026 ? 30 : (emp.vacationQuota ?? 30)) };
     });
     return stats;
   }, [absences, requests, employees, activeYear, days]);

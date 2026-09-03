@@ -619,7 +619,7 @@ const App = () => {
 
     targetEmployees.forEach(emp => {
       const used = calculateVacationUsed(emp.id, newAbsences, year, targetRequests);
-      const currentQuota = (emp.vacationQuotas && emp.vacationQuotas[year]) ?? emp.vacationQuota ?? 30;
+      const currentQuota = (emp.vacationQuotas && emp.vacationQuotas[year]) ?? (parseInt(year) > 2026 ? 30 : (emp.vacationQuota ?? 30));
       newStats[emp.id] = { total: used, quota: currentQuota };
     });
     return newStats;

@@ -529,7 +529,7 @@ const RequestsView = ({
                             // New: Prompt for remaining vacation days
                             const reqYear = req.dates && req.dates.length > 0 ? req.dates[0].split('-')[0] : new Date().getFullYear();
                             const emp = employees.find(e => e.id === req.empId);
-                            const specificQuota = (emp?.vacationQuotas && emp.vacationQuotas[reqYear]) ?? emp?.vacationQuota ?? 30;
+                            const specificQuota = (emp?.vacationQuotas && emp.vacationQuotas[reqYear]) ?? (parseInt(reqYear) > 2026 ? 30 : (emp?.vacationQuota ?? 30));
                             const stats = vacationStats[req.empId] || { total: 0 }; // total is fallback to current year
                             const currentBalance = specificQuota - stats.total;
                             const empName = getEmpName(req.empId);
