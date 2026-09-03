@@ -45,7 +45,13 @@ export const SCHOOL_HOLIDAYS = [
   { start: '2027-05-18', end: '2027-05-28', name: 'Pfingstferien' }, 
   { start: '2027-08-02', end: '2027-09-13', name: 'Sommerferien' }, 
   { start: '2027-11-02', end: '2027-11-05', name: 'Herbstferien' }, 
-  { start: '2027-12-24', end: '2028-01-07', name: 'Weihnachtsferien' }
+  { start: '2027-12-24', end: '2028-01-07', name: 'Weihnachtsferien' }, 
+  { start: '2028-02-28', end: '2028-03-03', name: 'Winterferien' }, 
+  { start: '2028-04-10', end: '2028-04-21', name: 'Osterferien' }, 
+  { start: '2028-06-06', end: '2028-06-16', name: 'Pfingstferien' }, 
+  { start: '2028-07-31', end: '2028-09-11', name: 'Sommerferien' }, 
+  { start: '2028-10-30', end: '2028-11-03', name: 'Herbstferien' }, 
+  { start: '2028-12-23', end: '2029-01-05', name: 'Weihnachtsferien' }
 ];
 
 export const CONGRESSES = [
