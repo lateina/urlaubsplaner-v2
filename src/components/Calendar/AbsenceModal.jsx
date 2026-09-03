@@ -26,8 +26,8 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
     const end = new Date(formData.endDate);
     if (end < start) return null;
 
+    const year = start.getFullYear();
     let count = 0;
-    const year = new Date().getFullYear();
     let curr = new Date(start);
     while (curr <= end) {
       const dStr = curr.toISOString().split('T')[0];
@@ -41,14 +41,45 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
       curr.setDate(curr.getDate() + 1);
     }
 
-    const currentStats = vacationStats[formData.employeeId] || { total: 0, quota: 30 };
+    let currentTotal = 0;
+    const empAbsences = (absences && absences[formData.employeeId]) || {};
+    Object.entries(empAbsences).forEach(([dateStr, entry]) => {
+      if (!dateStr.startsWith(String(year))) return;
+      const type = typeof entry === 'object' ? entry.type : entry;
+      const status = typeof entry === 'object' ? entry.status : 'confirmed';
+      if (status === 'rejected') return;
+      if (type === 'U' || type === 'V') {
+        const { holiday } = getSpecialDayInfo(dateStr);
+        const d = new Date(dateStr);
+        const isWeekend = (d.getDay() === 0 || d.getDay() === 6);
+        if (!isWeekend && !holiday) currentTotal++;
+      }
+    });
+
+    (requests || []).filter(r =>
+      r.empId === formData.employeeId &&
+      r.status.startsWith('pending') &&
+      (r.type === 'U' || r.type === 'V')
+    ).forEach(r => {
+      r.dates.forEach(dateStr => {
+        if (!dateStr.startsWith(String(year))) return;
+        const { holiday } = getSpecialDayInfo(dateStr);
+        const d = new Date(dateStr);
+        const isWeekend = (d.getDay() === 0 || d.getDay() === 6);
+        if (!isWeekend && !holiday) currentTotal++;
+      });
+    });
+
+    const emp = employees?.find(e => e.id === formData.employeeId);
+    const quota = emp?.vacationQuota ?? 30;
+
     return {
       daysInRange: count,
-      currentTotal: currentStats.total,
-      projectedTotal: currentStats.total + count,
-      quota: currentStats.quota
+      currentTotal: currentTotal,
+      projectedTotal: currentTotal + count,
+      quota: quota
     };
-  }, [formData.startDate, formData.endDate, formData.type, formData.employeeId, vacationStats]);
+  }, [formData.startDate, formData.endDate, formData.type, formData.employeeId, absences, requests, employees]);
 
   // STAFFING CHECK: Identify issues CAUSED by this absence
   const causedStaffingIssues = useMemo(() => {
