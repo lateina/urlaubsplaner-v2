@@ -16,6 +16,8 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
     forwardSeparately: false
   });
 
+  const effectiveEmpId = formData.employeeId || currentUser?.id || '';
+
   // Calculate vacation days in range
   const vacationInfo = useMemo(() => {
     if ((formData.type !== 'U' && formData.type !== 'V') || !formData.startDate || !formData.endDate) {
@@ -42,7 +44,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
     }
 
     let currentTotal = 0;
-    const empAbsences = (absences && absences[formData.employeeId]) || {};
+    const empAbsences = (absences && absences[effectiveEmpId]) || {};
     Object.entries(empAbsences).forEach(([dateStr, entry]) => {
       if (!dateStr.startsWith(String(year))) return;
       const type = typeof entry === 'object' ? entry.type : entry;
@@ -57,7 +59,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
     });
 
     (requests || []).filter(r =>
-      r.empId === formData.employeeId &&
+      r.empId === effectiveEmpId &&
       r.status.startsWith('pending') &&
       (r.type === 'U' || r.type === 'V')
     ).forEach(r => {
@@ -70,7 +72,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
       });
     });
 
-    const emp = employees?.find(e => e.id === formData.employeeId);
+    const emp = employees?.find(e => e.id === effectiveEmpId);
     const quota = (emp?.vacationQuotas && emp.vacationQuotas[year]) ?? (parseInt(year) > 2026 ? 30 : (emp?.vacationQuota ?? 30));
 
     return {
@@ -79,14 +81,14 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
       projectedTotal: currentTotal + count,
       quota: quota
     };
-  }, [formData.startDate, formData.endDate, formData.type, formData.employeeId, absences, requests, employees]);
+  }, [formData.startDate, formData.endDate, formData.type, effectiveEmpId, absences, requests, employees]);
 
   // STAFFING CHECK: Identify issues CAUSED by this absence
   const causedStaffingIssues = useMemo(() => {
     if (planerType !== 'oa' || !formData.startDate || !formData.endDate) return [];
     
     const issues = [];
-    const requester = employees.find(e => e.id === formData.employeeId);
+    const requester = employees.find(e => e.id === effectiveEmpId);
     if (!requester) return [];
 
     const has = (e, sId) => {
@@ -143,22 +145,29 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
       curr.setDate(curr.getDate() + 1);
     }
     return issues;
-  }, [formData.startDate, formData.endDate, formData.employeeId, planerType, employees, absences]);
+  }, [formData.startDate, formData.endDate, effectiveEmpId, planerType, employees, absences]);
 
-  // Ensure employeeId is initialized to someone other than admin if we're an admin
+  // Ensure employeeId is initialized and synced
   React.useEffect(() => {
-    if (isAdmin && formData.employeeId === 'admin') {
-      const firstEmp = employees.find(e => 
-        e.id !== 'admin' && 
-        e.id !== 'sekretariat' && 
-        e.id !== 'assistentensprecher' &&
-        !e.name?.toLowerCase().includes('administrator')
-      );
-      if (firstEmp) {
-        setFormData(prev => ({ ...prev, employeeId: firstEmp.id }));
+    if (!isOpen) return;
+    if (!isAdmin) {
+      if (currentUser?.id && formData.employeeId !== currentUser.id) {
+        setFormData(prev => ({ ...prev, employeeId: currentUser.id }));
+      }
+    } else {
+      if (!formData.employeeId || formData.employeeId === 'admin') {
+        const firstEmp = employees.find(e => 
+          e.id !== 'admin' && 
+          e.id !== 'sekretariat' && 
+          e.id !== 'assistentensprecher' &&
+          !e.name?.toLowerCase().includes('administrator')
+        );
+        if (firstEmp) {
+          setFormData(prev => ({ ...prev, employeeId: firstEmp.id }));
+        }
       }
     }
-  }, [isOpen, isAdmin, employees]);
+  }, [isOpen, isAdmin, currentUser?.id, employees]);
 
   const [vertreterSearch, setVertreterSearch] = useState('');
 
@@ -166,7 +175,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
 
   // Filter employees for representative search (exclude self and special roles)
   const vertreterCandidates = employees.filter(e => {
-    const isSelf = e.id === formData.employeeId;
+    const isSelf = e.id === effectiveEmpId;
     const isSpecial = ['admin', 'sekretariat', 'assistentensprecher'].includes(e.id) || 
                       e.name?.toLowerCase().includes('administrator') ||
                       e.name?.toLowerCase().includes('assistentensprecher');
@@ -183,7 +192,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
     }
 
     // Filter by skill hierarchy compatibility
-    const myEmp = employees.find(emp => emp.id === formData.employeeId);
+    const myEmp = employees.find(emp => emp.id === effectiveEmpId);
     if (myEmp) {
       const mySkills = Array.isArray(myEmp.groups) ? myEmp.groups : [];
       const theirSkills = Array.isArray(e.groups) ? e.groups : [];
@@ -225,7 +234,15 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => {
+      const next = { ...prev, [name]: value };
+      if (name === 'startDate' && value) {
+        if (!next.endDate || next.endDate < value) {
+          next.endDate = value;
+        }
+      }
+      return next;
+    });
   };
 
   const handleVertreterSelect = (emp) => {
@@ -240,7 +257,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
 
   // Static check based on role/skills (Chef / Kein Vertreter nötig)
   const isStaticNoVertreter = useMemo(() => {
-    const emp = employees.find(e => e.id === formData.employeeId);
+    const emp = employees.find(e => e.id === effectiveEmpId);
     if (!emp) return false;
     
     const gIds = Array.isArray(emp.groups) ? emp.groups : [];
@@ -250,11 +267,11 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
       if (skillObj && (skillObj.name === 'Chef' || skillObj.name === 'Kein Vertreter nötig')) return true;
       return false;
     });
-  }, [formData.employeeId, employees, skills]);
+  }, [effectiveEmpId, employees, skills]);
 
   // Dynamic check: Is the employee in Labor/Forschungsfrei for the ENTIRE requested period?
   const isLaborPeriod = useMemo(() => {
-    if (!formData.employeeId || !formData.startDate || !formData.endDate) return false;
+    if (!effectiveEmpId || !formData.startDate || !formData.endDate) return false;
     if (formData.endDate < formData.startDate) return false;
     if (!rotationData || rotationData.length === 0) return false;
 
@@ -280,7 +297,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
         const areaId = (r.ai || r.bi || r.area_id || '').replace(/_/g, '').toLowerCase();
 
         const matchesMonth = (mId === mStr || mId === mNoZero);
-        const matchesEmp = (empId === String(formData.employeeId));
+        const matchesEmp = (empId === String(effectiveEmpId));
         const isLabor = (areaId === 'labor' || (areaId.includes('labor') && !areaId.includes('echo') && !areaId.includes('schlaf')));
 
         return matchesMonth && matchesEmp && isLabor;
@@ -290,11 +307,11 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
     }
 
     return true;
-  }, [formData.employeeId, formData.startDate, formData.endDate, rotationData]);
+  }, [effectiveEmpId, formData.startDate, formData.endDate, rotationData]);
 
   // Check if partially in labor (some days in labor, but not all)
   const isPartialLabor = useMemo(() => {
-    if (isLaborPeriod || !formData.employeeId || !formData.startDate || !formData.endDate) return false;
+    if (isLaborPeriod || !effectiveEmpId || !formData.startDate || !formData.endDate) return false;
     if (formData.endDate < formData.startDate) return false;
     if (!rotationData || rotationData.length === 0) return false;
 
@@ -313,21 +330,21 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
         const mId = String(r.monat_id || r.mi || '').replace('month_', '').replace('-', '_');
         const empId = String(r.mitarbeiter_id || r.mi_id || r.ei || r.employee_id);
         const areaId = (r.ai || r.bi || r.area_id || '').replace(/_/g, '').toLowerCase();
-        return (mId === mStr || mId === mNoZero) && empId === String(formData.employeeId) && (areaId === 'labor' || (areaId.includes('labor') && !areaId.includes('echo') && !areaId.includes('schlaf')));
+        return (mId === mStr || mId === mNoZero) && empId === String(effectiveEmpId) && (areaId === 'labor' || (areaId.includes('labor') && !areaId.includes('echo') && !areaId.includes('schlaf')));
       });
 
       if (hasLabor) return true;
       curr.setDate(curr.getDate() + 1);
     }
     return false;
-  }, [isLaborPeriod, formData.employeeId, formData.startDate, formData.endDate, rotationData]);
+  }, [isLaborPeriod, effectiveEmpId, formData.startDate, formData.endDate, rotationData]);
 
   const isVertreterRequired = !isStaticNoVertreter && !isLaborPeriod;
 
   const isSupervisorRequired = useMemo(() => {
     if (isStaticNoVertreter) return false;
 
-    const reqEmp = employees.find(e => e.id === formData.employeeId);
+    const reqEmp = employees.find(e => e.id === effectiveEmpId);
     if (!reqEmp) return false;
     
     const isOA = reqEmp.role === 'Oberarzt' || reqEmp.isOberarzt;
@@ -337,7 +354,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
     if (!isOA) return true;
     
     return false;
-  }, [formData.employeeId, employees, isStaticNoVertreter]);
+  }, [effectiveEmpId, employees, isStaticNoVertreter]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -356,7 +373,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
       return;
     }
 
-    const requester = employees.find(e => e.id === formData.employeeId);
+    const requester = employees.find(e => e.id === effectiveEmpId);
     if (requester) {
       if (requester.entryDate && (formData.startDate < requester.entryDate || formData.endDate < requester.entryDate)) {
         const [y, m, d] = requester.entryDate.split('-');
@@ -454,7 +471,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
         // 2. Check if Requester is currently acting as a representative
         const iAmRepDates = [];
         for (const d of dates) {
-            const iAmRep = requests.find(r => r.vertreterId === formData.employeeId && r.dates.includes(d) && r.status !== 'rejected');
+            const iAmRep = requests.find(r => r.vertreterId === effectiveEmpId && r.dates.includes(d) && r.status !== 'rejected');
             if (iAmRep) {
                 iAmRepDates.push(d);
             }
@@ -469,11 +486,11 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
     // Always create a request object
     const request = {
       id: 'req_' + Date.now(),
-      empId: formData.employeeId,
+      empId: effectiveEmpId,
       type: formData.type,
       text: formData.remarks,
       vertreter: (!isVertreterRequired && !formData.vertreterId) ? 'Kein Vertreter nötig' : formData.vertreter,
-      vertreterId: formData.vertreterId,
+      vertreterId: (!isVertreterRequired && !formData.vertreterId) ? null : (formData.vertreterId || null),
       supervisor: formData.supervisor,
       supervisorId: formData.supervisorId,
       forwardSeparately: formData.type === 'D' ? formData.forwardSeparately : null,
@@ -566,10 +583,26 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
           </div>
           <div className="form-group" style={{ minWidth: 0 }}>
             <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4, color: '#000000' }}>Bis</label>
-            <input type="date" name="endDate" value={formData.endDate} onChange={handleChange} required 
+            <input type="date" name="endDate" min={formData.startDate || undefined} value={formData.endDate} onChange={handleChange} required 
                    style={{ width: '100%', padding: '10px 2px', borderRadius: 12, border: '2px solid rgba(0, 0, 0, 0.4)', background: 'white', color: '#000000', fontWeight: 500, fontSize: '0.8rem', boxSizing: 'border-box', minWidth: 0 }} />
           </div>
         </div>
+
+        {formData.startDate && formData.endDate && formData.endDate < formData.startDate && (
+          <div style={{
+            padding: '8px 12px',
+            borderRadius: 10,
+            background: '#fef2f2',
+            border: '1px solid #fca5a5',
+            color: '#991b1b',
+            fontSize: '0.8rem',
+            lineHeight: 1.4,
+            maxWidth: 320,
+            boxSizing: 'border-box'
+          }}>
+            ⚠️ <strong>Ungültiger Zeitraum:</strong> Das Enddatum darf nicht vor dem Startdatum liegen.
+          </div>
+        )}
 
 
         <div className="form-group" style={{ maxWidth: 320 }}>

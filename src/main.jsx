@@ -35,4 +35,13 @@ createRoot(document.getElementById('root')).render(
   </StrictMode>,
 )
 
-// Service worker registration is handled automatically by vite-plugin-pwa
+// Auto-reload on Service Worker update so PWA clients always run latest code
+if ('serviceWorker' in navigator) {
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!refreshing) {
+      refreshing = true;
+      window.location.reload();
+    }
+  });
+}
