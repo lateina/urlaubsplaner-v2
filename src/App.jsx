@@ -987,11 +987,20 @@ const App = () => {
         const newAbsences = { ...appData.absences };
         if (!newAbsences[request.empId]) newAbsences[request.empId] = {};
         request.dates.forEach(date => {
+          let repName = request.vertreter;
+          let repId = request.vertreterId;
+          if (Array.isArray(request.substitutes) && request.substitutes.length > 0) {
+            const sub = request.substitutes.find(s => (s.dates && s.dates.includes(date)) || (date >= s.from && date <= s.to));
+            if (sub) {
+              repName = sub.vertreter;
+              repId = sub.vertreterId;
+            }
+          }
           newAbsences[request.empId][date] = {
             type: request.type,
             text: request.text,
-            vertreter: request.vertreter,
-            vertreterId: request.vertreterId,
+            vertreter: repName,
+            vertreterId: repId,
             status: 'confirmed',
             uid: request.id,
             updatedAt: new Date().toISOString()
@@ -1098,6 +1107,8 @@ const App = () => {
         request.stamps.vertreter = null;
         request.stamps.supervisor = null;
         request.stamps.admin = null;
+      } else if (updates.status === 'approved' && !request.stamps.admin) {
+        request.stamps.admin = makeStamp(auth.user);
       }
 
       if (updates.status && updates.status !== 'rejected') {
@@ -1133,36 +1144,48 @@ const App = () => {
                   await firestoreService.saveAbsence(getEmployeeProfileType(request.empId), request.empId, empAbsences);
               }
           }
-      } else if (appData.requests[reqIndex].status === 'approved' && updates.dates) {
-          // Dates changed for an approved request. Remove old dates and add new ones.
-          if (nextAbsences[request.empId]) {
-              const empAbsences = { ...nextAbsences[request.empId] };
-              let changed = false;
-              // Remove old dates
+      } else if (request.status === 'approved' && (updates.dates || updates.vertreter || updates.vertreterId || updates.substitutes || updates.status === 'approved')) {
+          // Dates or representatives changed for an approved request, or request newly approved directly
+          if (!nextAbsences[request.empId]) {
+              nextAbsences = { ...nextAbsences, [request.empId]: {} };
+          }
+          const empAbsences = { ...nextAbsences[request.empId] };
+          let changed = false;
+          // Remove old dates
+          if (appData.requests[reqIndex].dates) {
               appData.requests[reqIndex].dates.forEach(date => {
                  if (empAbsences[date] && empAbsences[date].uid === request.id) {
                      delete empAbsences[date];
                      changed = true;
                  }
               });
-              // Add new dates
-              request.dates.forEach(date => {
-                 empAbsences[date] = {
-                     type: request.type,
-                     text: request.text,
-                     vertreter: request.vertreter,
-                     vertreterId: request.vertreterId,
-                     status: 'confirmed',
-                     uid: request.id,
-                     updatedAt: new Date().toISOString()
-                 };
-                 changed = true;
-              });
+          }
+          // Add new dates with date-specific representative
+          request.dates.forEach(date => {
+             let repName = request.vertreter;
+             let repId = request.vertreterId;
+             if (Array.isArray(request.substitutes) && request.substitutes.length > 0) {
+               const sub = request.substitutes.find(s => (s.dates && s.dates.includes(date)) || (date >= s.from && date <= s.to));
+               if (sub) {
+                 repName = sub.vertreter;
+                 repId = sub.vertreterId;
+               }
+             }
+             empAbsences[date] = {
+                 type: request.type,
+                 text: request.text,
+                 vertreter: repName,
+                 vertreterId: repId,
+                 status: 'confirmed',
+                 uid: request.id,
+                 updatedAt: new Date().toISOString()
+             };
+             changed = true;
+          });
 
-              if (changed) {
-                  nextAbsences = { ...nextAbsences, [request.empId]: empAbsences };
-                  await firestoreService.saveAbsence(getEmployeeProfileType(request.empId), request.empId, empAbsences);
-              }
+          if (changed) {
+              nextAbsences = { ...nextAbsences, [request.empId]: empAbsences };
+              await firestoreService.saveAbsence(getEmployeeProfileType(request.empId), request.empId, empAbsences);
           }
       }
 

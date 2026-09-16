@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Check, X, Trash2, FileText, Clock, User, Calendar as CalendarIcon, MessageSquare, ShieldCheck, Search, Mail } from 'lucide-react';
 import { generateAndDownloadPDF } from '../../utils/pdfGenerator';
+import EditRepresentativesModal from './EditRepresentativesModal';
 
 
 const RequestsView = ({ 
@@ -25,6 +26,7 @@ const RequestsView = ({
   const [editValue, setEditValue] = useState('');
   const [editDateStart, setEditDateStart] = useState('');
   const [editDateEnd, setEditDateEnd] = useState('');
+  const [repModalReq, setRepModalReq] = useState(null);
 
   // Initialize subTab correctly for admins
   React.useEffect(() => {
@@ -110,10 +112,12 @@ const RequestsView = ({
   const cuId = currentUser?.id;
   
   // Tab logic for non-admins
-  const vertreterReqs = filteredRequests.filter(r => 
-    (r.vertreterId === cuId && (r.status === 'pending_vertreter' || r.status === 'pending_supervisor' || r.status === 'pending_admin' || r.status === 'approved')) ||
-    (r.supervisorId === cuId && (r.status === 'pending_supervisor' || r.status === 'pending_admin' || r.status === 'approved'))
-  );
+  const vertreterReqs = filteredRequests.filter(r => {
+    const isRep = r.vertreterId === cuId || (Array.isArray(r.substitutes) && r.substitutes.some(s => s.vertreterId === cuId));
+    const isSup = r.supervisorId === cuId;
+    return (isRep && (r.status === 'pending_vertreter' || r.status === 'pending_supervisor' || r.status === 'pending_admin' || r.status === 'approved')) ||
+           (isSup && (r.status === 'pending_supervisor' || r.status === 'pending_admin' || r.status === 'approved'));
+  });
   const meineReqs = filteredRequests.filter(r => r.empId === cuId);
   const poPendingReqs = filteredByProfileRequests.filter(r => r.status === 'approved' && !r.stamps?.po);
 
@@ -152,7 +156,8 @@ const RequestsView = ({
       ? (req.supervisorId ? 'pending_supervisor' : 'pending_admin') 
       : (req.status === 'pending_supervisor' && req.stamps?.supervisor) ? 'pending_admin' : req.status;
 
-    const isPendingVertreterForMe = req.vertreterId === cuId && effectiveStatus === 'pending_vertreter';
+    const isRepForMe = req.vertreterId === cuId || (Array.isArray(req.substitutes) && req.substitutes.some(s => s.vertreterId === cuId));
+    const isPendingVertreterForMe = isRepForMe && effectiveStatus === 'pending_vertreter';
     const isPendingSupervisorForMe = req.supervisorId === cuId && effectiveStatus === 'pending_supervisor';
     const isPendingAdmin = perms.canApproveRequests && effectiveStatus === 'pending_admin';
     const canApprove = isPendingVertreterForMe || isPendingSupervisorForMe || isPendingAdmin;
@@ -223,43 +228,61 @@ const RequestsView = ({
             <Clock size={14} />
             <span>{typeLabel[req.type] || req.type} {req.text ? `(${req.text})` : ''}</span>
           </div>
-          {req.vertreter && (
-            <div className="request-info-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginTop: '4px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <User size={14} />
-                {editMode.reqId === req.id && editMode.type === 'vertreter' ? (
-                   <select value={editValue} onChange={(e) => setEditValue(e.target.value)} style={{ padding: '2px 4px', fontSize: '0.8rem', borderRadius: '4px' }}>
-                     <option value="">Bitte wählen...</option>
-                     <option value="none">Kein Vertreter nötig</option>
-                     {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-                   </select>
+          {(req.vertreter || isAdmin) && (
+            <div className="request-info-row" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', width: '100%', marginTop: '4px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', flex: 1 }}>
+                {!isAdmin && editMode.reqId === req.id && editMode.type === 'vertreter' ? (
+                  <>
+                    <User size={14} style={{ marginTop: '3px' }} />
+                    <select value={editValue} onChange={(e) => setEditValue(e.target.value)} style={{ padding: '2px 4px', fontSize: '0.8rem', borderRadius: '4px' }}>
+                      <option value="">Bitte wählen...</option>
+                      <option value="none">Kein Vertreter nötig</option>
+                      {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                    </select>
+                  </>
+                ) : Array.isArray(req.substitutes) && req.substitutes.length > 1 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, fontSize: '0.82rem', color: '#334155' }}>
+                      <User size={14} />
+                      <span>Vertretung (aufgeteilt):</span>
+                    </div>
+                    <div style={{ paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      {req.substitutes.map((s, idx) => (
+                        <div key={idx} style={{ fontSize: '0.78rem', color: '#475569', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span style={{ fontWeight: 600, color: '#1e293b' }}>{formatDate(s.from)} – {formatDate(s.to)}:</span>
+                          <span>{s.vertreter || 'Kein Vertreter nötig'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 ) : (
-                   <span style={req.vertreter === 'Kein Vertreter nötig' ? { color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' } : { display: 'flex', alignItems: 'center', gap: '6px' }}>
-                     {req.vertreter === 'Kein Vertreter nötig' ? 'Kein Vertreter nötig' : `Vertreter: ${req.vertreter}`}
-                     {isAdmin && req.status === 'pending_vertreter' && (
-                       <div className="mail-tooltip-container">
-                         <button 
-                           onClick={() => {
-                             onUpdateRequest(req.id, { notified: { ...(req.notified || {}), pending_vertreter: false } });
-                             alert('Erinnerungs-E-Mail wurde in die Warteschlange gestellt (Versand erfolgt beim nächsten Systemlauf in ca. 15-30 Min).');
-                           }}
-                           style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: '#3b82f6' }}
-                         >
-                           <Mail size={14} />
-                         </button>
-                         <div className="mail-tooltip">
-                           Hallo {getEmpName(req.vertreterId)},<br/><br/>
-                           es gibt neue Benachrichtigungen für dich im Urlaubsplaner:<br/><br/>
-                           • Vertretungsanfrage von {getEmpName(req.empId)}: {typeLabel[req.type]} ({formatDateRange(req.dates)})<br/>
-                           Zum Urlaubsplaner: {req.planerType === 'ass' ? 'https://lateina.github.io/urlaubsplaner-v2/assistenz.html' : 'https://lateina.github.io/urlaubsplaner-v2/'}
-                         </div>
-                       </div>
-                     )}
-                   </span>
+                  <span style={req.vertreter === 'Kein Vertreter nötig' ? { color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' } : { display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <User size={14} />
+                    {req.vertreter === 'Kein Vertreter nötig' ? 'Kein Vertreter nötig' : `Vertreter: ${req.vertreter || 'Keine Angabe'}`}
+                    {isAdmin && req.status === 'pending_vertreter' && req.vertreterId && (
+                      <div className="mail-tooltip-container">
+                        <button 
+                          onClick={() => {
+                            onUpdateRequest(req.id, { notified: { ...(req.notified || {}), pending_vertreter: false } });
+                            alert('Erinnerungs-E-Mail wurde in die Warteschlange gestellt (Versand erfolgt beim nächsten Systemlauf in ca. 15-30 Min).');
+                          }}
+                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: '#3b82f6' }}
+                        >
+                          <Mail size={14} />
+                        </button>
+                        <div className="mail-tooltip">
+                          Hallo {getEmpName(req.vertreterId)},<br/><br/>
+                          es gibt neue Benachrichtigungen für dich im Urlaubsplaner:<br/><br/>
+                          • Vertretungsanfrage von {getEmpName(req.empId)}: {typeLabel[req.type]} ({formatDateRange(req.dates)})<br/>
+                          Zum Urlaubsplaner: {req.planerType === 'ass' ? 'https://lateina.github.io/urlaubsplaner-v2/assistenz.html' : 'https://lateina.github.io/urlaubsplaner-v2/'}
+                        </div>
+                      </div>
+                    )}
+                  </span>
                 )}
               </div>
               { (isAdmin || (req.empId === currentUser.id && req.status === 'rejected' && req.rejectedBy === 'vertreter')) && (
-                editMode.reqId === req.id && editMode.type === 'vertreter' ? (
+                !isAdmin && editMode.reqId === req.id && editMode.type === 'vertreter' ? (
                   <div style={{ display: 'flex', gap: '4px' }}>
                     <button onClick={() => {
                         if (editValue === 'none') {
@@ -344,7 +367,14 @@ const RequestsView = ({
                     <button onClick={() => setEditMode({ reqId: null, type: null })} style={{ fontSize: '0.7rem', padding: '2px 6px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>✕</button>
                   </div>
                 ) : (
-                  <button onClick={() => { setEditMode({ reqId: req.id, type: 'vertreter' }); setEditValue(req.vertreterId || ''); }} style={{ fontSize: '0.7rem', background: 'transparent', border: '1px solid #cbd5e1', padding: '2px 6px', borderRadius: '4px', cursor: 'pointer', color: '#64748b' }}>Ändern</button>
+                  <button onClick={() => {
+                    if (isAdmin) {
+                      setRepModalReq(req);
+                    } else {
+                      setEditMode({ reqId: req.id, type: 'vertreter' });
+                      setEditValue(req.vertreterId || '');
+                    }
+                  }} style={{ fontSize: '0.7rem', background: 'transparent', border: '1px solid #cbd5e1', padding: '2px 6px', borderRadius: '4px', cursor: 'pointer', color: '#64748b', whiteSpace: 'nowrap' }}>Ändern</button>
                 )
               )}
             </div>
@@ -678,6 +708,19 @@ const RequestsView = ({
           </div>
         )}
       </div>
+
+      <EditRepresentativesModal
+        isOpen={!!repModalReq}
+        onClose={() => setRepModalReq(null)}
+        request={repModalReq}
+        employees={employees}
+        absences={absences}
+        requests={requests}
+        onSave={(reqId, updates) => {
+          onUpdateRequest(reqId, updates);
+          setRepModalReq(null);
+        }}
+      />
     </div>
   );
 };
