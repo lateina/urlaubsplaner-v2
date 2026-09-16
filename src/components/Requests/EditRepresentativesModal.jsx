@@ -29,20 +29,29 @@ const EditRepresentativesModal = ({
     return `${d}.${m}.`;
   };
 
+  const formatYMD = (date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
   const addDays = (dateStr, n) => {
     if (!dateStr) return '';
-    const d = new Date(dateStr + 'T00:00:00');
-    d.setDate(d.getDate() + n);
-    return d.toISOString().split('T')[0];
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d + n);
+    return formatYMD(date);
   };
 
   const getDatesBetween = (fromStr, toStr) => {
     if (!fromStr || !toStr || fromStr > toStr) return [];
     const res = [];
-    let curr = new Date(fromStr + 'T00:00:00');
-    const end = new Date(toStr + 'T00:00:00');
+    const [fy, fm, fd] = fromStr.split('-').map(Number);
+    const [ty, tm, td] = toStr.split('-').map(Number);
+    let curr = new Date(fy, fm - 1, fd);
+    const end = new Date(ty, tm - 1, td);
     while (curr <= end) {
-      res.push(curr.toISOString().split('T')[0]);
+      res.push(formatYMD(curr));
       curr.setDate(curr.getDate() + 1);
     }
     return res;
