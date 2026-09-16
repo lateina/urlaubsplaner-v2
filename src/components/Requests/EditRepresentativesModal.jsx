@@ -9,6 +9,7 @@ const EditRepresentativesModal = ({
   employees = [],
   absences = {},
   requests = [],
+  rotationData = [],
   onSave
 }) => {
   if (!isOpen || !request) return null;
@@ -130,6 +131,46 @@ const EditRepresentativesModal = ({
   }, [employees, request.empId]);
 
   const requesterEmp = employees.find(e => e.id === request.empId);
+
+  // Dynamic check: Is the employee in Labor/Forschungsfrei for the ENTIRE requested period?
+  const isLaborPeriod = useMemo(() => {
+    if (!request?.empId || !minDate || !maxDate) return false;
+    if (maxDate < minDate) return false;
+    if (!rotationData || rotationData.length === 0) return false;
+
+    const [fy, fm, fd] = minDate.split('-').map(Number);
+    const [ty, tm, td] = maxDate.split('-').map(Number);
+    let curr = new Date(fy, fm - 1, fd);
+    const end = new Date(ty, tm - 1, td);
+
+    const months = new Set();
+    while (curr <= end) {
+      const y = curr.getFullYear();
+      const m = String(curr.getMonth() + 1).padStart(2, '0');
+      months.add(`${y}_${m}`);
+      curr.setDate(curr.getDate() + 1);
+    }
+    if (months.size === 0) return false;
+
+    for (const mStr of months) {
+      const mNoZero = mStr.replace('_0', '_');
+      const hasLabor = rotationData.some(r => {
+        const mId = String(r.monat_id || r.mi || '').replace('month_', '').replace('-', '_');
+        const empId = String(r.mitarbeiter_id || r.mi_id || r.ei || r.employee_id);
+        const areaId = (r.ai || r.bi || r.area_id || '').replace(/_/g, '').toLowerCase();
+
+        const matchesMonth = (mId === mStr || mId === mNoZero);
+        const matchesEmp = (empId === String(request.empId));
+        const isLabor = (areaId === 'labor' || (areaId.includes('labor') && !areaId.includes('echo') && !areaId.includes('schlaf')));
+
+        return matchesMonth && matchesEmp && isLabor;
+      });
+
+      if (!hasLabor) return false;
+    }
+
+    return true;
+  }, [request?.empId, minDate, maxDate, rotationData]);
 
   // Conflict detector
   const checkConflicts = (vId, dateList) => {
@@ -400,9 +441,27 @@ const EditRepresentativesModal = ({
         {/* Antrags-Kurzinfo */}
         <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '12px 16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-            <span style={{ fontWeight: 700, fontSize: '1rem', color: '#0f172a' }}>
-              {requesterEmp?.name || request.empName || 'Mitarbeiter'}
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <span style={{ fontWeight: 700, fontSize: '1rem', color: '#0f172a' }}>
+                {requesterEmp?.name || request.empName || 'Mitarbeiter'}
+              </span>
+              {isLaborPeriod && (
+                <span style={{
+                  fontSize: '0.72rem',
+                  fontWeight: 600,
+                  padding: '2px 8px',
+                  borderRadius: '9999px',
+                  background: '#e0e7ff',
+                  color: '#3730a3',
+                  border: '1px solid #c7d2fe',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}>
+                  🔬 Labor / Forschung
+                </span>
+              )}
+            </div>
             <span style={{
               fontSize: '0.75rem',
               fontWeight: 600,
@@ -418,6 +477,11 @@ const EditRepresentativesModal = ({
             <Calendar size={14} />
             <span>Zeitraum: <strong>{formatDate(minDate)}</strong> bis <strong>{formatDate(maxDate)}</strong> ({dates.length} Tage)</span>
           </div>
+          {isLaborPeriod && (
+            <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed #c7d2fe', fontSize: '0.78rem', color: '#4338ca', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span>ℹ️ Mitarbeiter ist im Zeitraum forschungsfrei (Labor). Keine Vertretung zwingend nötig.</span>
+            </div>
+          )}
         </div>
 
         {/* Modus-Auswahl: Segmented Control */}

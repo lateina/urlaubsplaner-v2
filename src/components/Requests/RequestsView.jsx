@@ -17,7 +17,8 @@ const RequestsView = ({
   onUpdateRequest,
   perms = {},
   vacationStats = {},
-  planerType
+  planerType,
+  rotationData = []
 }) => {
 
   const [filter, setFilter] = useState('open'); // 'all', 'open', 'approved', 'rejected', 'po_pending'
@@ -716,6 +717,7 @@ const RequestsView = ({
         employees={employees}
         absences={absences}
         requests={requests}
+        rotationData={rotationData}
         onSave={(reqId, updates) => {
           onUpdateRequest(reqId, updates);
           setRepModalReq(null);

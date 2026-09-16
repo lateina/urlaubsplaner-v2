@@ -776,6 +776,7 @@ const CalendarView = ({
         requests={requests}
         vacationStats={vacationStats}
         planerType={planerType}
+        rotationData={rotationData}
       />
 
 

@@ -1547,6 +1547,7 @@ const App = () => {
             perms={perms}
             vacationStats={appData.vacationStats}
             planerType={planerType}
+            rotationData={appData.rotationData}
           />
 
 

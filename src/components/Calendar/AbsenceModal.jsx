@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { getSpecialDayInfo } from '../../utils/calendarUtils';
 import Modal from '../UI/Modal';
 
-const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isAdmin, perms = {}, currentUser, skills = [], absences = {}, requests = [], vacationStats = {}, planerType }) => {
+const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isAdmin, perms = {}, currentUser, skills = [], absences = {}, requests = [], vacationStats = {}, planerType, rotationData = [] }) => {
   const [formData, setFormData] = useState({
     startDate: '',
     endDate: '',
@@ -238,34 +238,94 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
     setShowVertreterResults(false);
   };
 
-  const needsVertreter = (empId) => {
-    const emp = employees.find(e => e.id === empId);
-    if (!emp) return true;
+  // Static check based on role/skills (Chef / Kein Vertreter nötig)
+  const isStaticNoVertreter = useMemo(() => {
+    const emp = employees.find(e => e.id === formData.employeeId);
+    if (!emp) return false;
     
     const gIds = Array.isArray(emp.groups) ? emp.groups : [];
-    
-    // Check if any of the employee's group IDs or their resolved names indicate no representative is needed
-    const isOptional = gIds.some(gid => {
-      // 1. Check direct IDs
+    return gIds.some(gid => {
       if (gid === 'skill_chef' || gid === 'skill_keinvertreternotig' || gid === 'Chef') return true;
-      
-      // 2. Resolve name from skills array and check
       const skillObj = skills.find(s => s.id === gid);
-      if (skillObj) {
-        const name = skillObj.name;
-        if (name === 'Chef' || name === 'Kein Vertreter nötig') return true;
-      }
-      
+      if (skillObj && (skillObj.name === 'Chef' || skillObj.name === 'Kein Vertreter nötig')) return true;
       return false;
     });
+  }, [formData.employeeId, employees, skills]);
 
-    return !isOptional;
-  };
+  // Dynamic check: Is the employee in Labor/Forschungsfrei for the ENTIRE requested period?
+  const isLaborPeriod = useMemo(() => {
+    if (!formData.employeeId || !formData.startDate || !formData.endDate) return false;
+    if (formData.endDate < formData.startDate) return false;
+    if (!rotationData || rotationData.length === 0) return false;
 
-  const isVertreterRequired = needsVertreter(formData.employeeId);
+    const [fy, fm, fd] = formData.startDate.split('-').map(Number);
+    const [ty, tm, td] = formData.endDate.split('-').map(Number);
+    let curr = new Date(fy, fm - 1, fd);
+    const end = new Date(ty, tm - 1, td);
+
+    const months = new Set();
+    while (curr <= end) {
+      const y = curr.getFullYear();
+      const m = String(curr.getMonth() + 1).padStart(2, '0');
+      months.add(`${y}_${m}`);
+      curr.setDate(curr.getDate() + 1);
+    }
+    if (months.size === 0) return false;
+
+    for (const mStr of months) {
+      const mNoZero = mStr.replace('_0', '_');
+      const hasLabor = rotationData.some(r => {
+        const mId = String(r.monat_id || r.mi || '').replace('month_', '').replace('-', '_');
+        const empId = String(r.mitarbeiter_id || r.mi_id || r.ei || r.employee_id);
+        const areaId = (r.ai || r.bi || r.area_id || '').replace(/_/g, '').toLowerCase();
+
+        const matchesMonth = (mId === mStr || mId === mNoZero);
+        const matchesEmp = (empId === String(formData.employeeId));
+        const isLabor = (areaId === 'labor' || (areaId.includes('labor') && !areaId.includes('echo') && !areaId.includes('schlaf')));
+
+        return matchesMonth && matchesEmp && isLabor;
+      });
+
+      if (!hasLabor) return false;
+    }
+
+    return true;
+  }, [formData.employeeId, formData.startDate, formData.endDate, rotationData]);
+
+  // Check if partially in labor (some days in labor, but not all)
+  const isPartialLabor = useMemo(() => {
+    if (isLaborPeriod || !formData.employeeId || !formData.startDate || !formData.endDate) return false;
+    if (formData.endDate < formData.startDate) return false;
+    if (!rotationData || rotationData.length === 0) return false;
+
+    const [fy, fm, fd] = formData.startDate.split('-').map(Number);
+    const [ty, tm, td] = formData.endDate.split('-').map(Number);
+    let curr = new Date(fy, fm - 1, fd);
+    const end = new Date(ty, tm - 1, td);
+
+    while (curr <= end) {
+      const y = curr.getFullYear();
+      const m = String(curr.getMonth() + 1).padStart(2, '0');
+      const mStr = `${y}_${m}`;
+      const mNoZero = mStr.replace('_0', '_');
+
+      const hasLabor = rotationData.some(r => {
+        const mId = String(r.monat_id || r.mi || '').replace('month_', '').replace('-', '_');
+        const empId = String(r.mitarbeiter_id || r.mi_id || r.ei || r.employee_id);
+        const areaId = (r.ai || r.bi || r.area_id || '').replace(/_/g, '').toLowerCase();
+        return (mId === mStr || mId === mNoZero) && empId === String(formData.employeeId) && (areaId === 'labor' || (areaId.includes('labor') && !areaId.includes('echo') && !areaId.includes('schlaf')));
+      });
+
+      if (hasLabor) return true;
+      curr.setDate(curr.getDate() + 1);
+    }
+    return false;
+  }, [isLaborPeriod, formData.employeeId, formData.startDate, formData.endDate, rotationData]);
+
+  const isVertreterRequired = !isStaticNoVertreter && !isLaborPeriod;
 
   const isSupervisorRequired = useMemo(() => {
-    if (!isVertreterRequired) return false;
+    if (isStaticNoVertreter) return false;
 
     const reqEmp = employees.find(e => e.id === formData.employeeId);
     if (!reqEmp) return false;
@@ -277,7 +337,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
     if (!isOA) return true;
     
     return false;
-  }, [formData.employeeId, employees, isVertreterRequired]);
+  }, [formData.employeeId, employees, isStaticNoVertreter]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -627,9 +687,47 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
           </div>
         )}
 
+        {isLaborPeriod && (
+          <div style={{
+            padding: '10px 14px',
+            borderRadius: '12px',
+            background: 'rgba(59, 130, 246, 0.1)',
+            border: '1px solid rgba(59, 130, 246, 0.3)',
+            color: '#1e40af',
+            fontSize: '0.82rem',
+            lineHeight: 1.4,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            maxWidth: 320,
+            boxSizing: 'border-box'
+          }}>
+            <span style={{ fontSize: '1.1rem' }}>🔬</span>
+            <span>
+              <strong>Forschungsfrei / Labor:</strong> In diesem Zeitraum ist keine Vertretung erforderlich (optional).
+            </span>
+          </div>
+        )}
+
+        {isPartialLabor && (
+          <div style={{
+            padding: '10px 14px',
+            borderRadius: '12px',
+            background: 'rgba(245, 158, 11, 0.1)',
+            border: '1px solid rgba(245, 158, 11, 0.3)',
+            color: '#92400e',
+            fontSize: '0.8rem',
+            lineHeight: 1.4,
+            maxWidth: 320,
+            boxSizing: 'border-box'
+          }}>
+            ℹ️ <strong>Hinweis:</strong> Der Zeitraum liegt nur teilweise im Labor/Forschungsfrei. Für die übrigen Tage ist eine Vertretung erforderlich.
+          </div>
+        )}
+
         <div className="form-group" style={{ position: 'relative', maxWidth: 320 }}>
           <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 6, color: '#000000' }}>
-            Vertreter {isVertreterRequired ? '(Pflicht)' : '(Optional)'}
+            Vertreter {isVertreterRequired ? '(Pflicht)' : (isLaborPeriod ? '(Optional – Labor/Forschungsfrei)' : '(Optional)')}
           </label>
           <input 
             type="text"
@@ -640,7 +738,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
               if (!e.target.value) setFormData(prev => ({ ...prev, vertreter: '', vertreterId: '' }));
             }}
             onFocus={() => setShowVertreterResults(true)}
-            placeholder="Kollegen suchen..."
+            placeholder={isLaborPeriod ? "Optional: Kollegen suchen..." : "Kollegen suchen..."}
             required={isVertreterRequired}
             style={{ width: '100%', padding: '12px 16px', borderRadius: 14, border: '2px solid rgba(0, 0, 0, 0.4)', background: 'white', color: '#000000', fontWeight: 500, fontSize: '1rem', boxSizing: 'border-box' }} 
           />
