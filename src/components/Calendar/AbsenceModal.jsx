@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { getSpecialDayInfo } from '../../utils/calendarUtils';
+import { getSpecialDayInfo, getLastNameSortKey } from '../../utils/calendarUtils';
 import Modal from '../UI/Modal';
 
 const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isAdmin, perms = {}, currentUser, skills = [], absences = {}, requests = [], vacationStats = {}, planerType, rotationData = [] }) => {
@@ -230,7 +230,22 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
     }
 
     return e.name?.toLowerCase().includes(vertreterSearch.toLowerCase());
-  });
+  }).sort((a, b) => getLastNameSortKey(a.name).localeCompare(getLastNameSortKey(b.name), 'de'));
+
+  // Filter and sort supervisors alphabetically by last name
+  const supervisorCandidates = useMemo(() => {
+    return employees.filter(e => {
+      const isSpecial = ['admin', 'sekretariat', 'assistentensprecher'].includes(e.id) || 
+                        e.name?.toLowerCase().includes('administrator') ||
+                        e.name?.toLowerCase().includes('sekretariat');
+      const isFOA = Array.isArray(e.groups) && e.groups.includes('skill_funktionsoberarzt');
+      const isOA = e.role === 'Oberarzt' || e.isOberarzt === true;
+      const isSelf = e.id === effectiveEmpId;
+      
+      // Only OAs or FOAs can be supervisors, and they must not be the requester or a special role
+      return (isOA || isFOA) && !isSpecial && !isSelf && e.active !== false;
+    }).sort((a, b) => getLastNameSortKey(a.name).localeCompare(getLastNameSortKey(b.name), 'de'));
+  }, [employees, effectiveEmpId]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -568,7 +583,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
                 !e.name?.toLowerCase().includes('administrator') &&
                 !e.name?.toLowerCase().includes('assistentensprecher') &&
                 !e._isCrossProfile
-              ).map(emp => (
+              ).sort((a, b) => getLastNameSortKey(a.name).localeCompare(getLastNameSortKey(b.name), 'de')).map(emp => (
                 <option key={emp.id} value={emp.id}>{emp.name}</option>
               ))}
             </select>
@@ -820,17 +835,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
               style={{ width: '100%', padding: '12px 16px', borderRadius: 14, border: '2px solid rgba(0, 0, 0, 0.4)', background: 'white', color: '#000000', fontWeight: 500, fontSize: '1rem', boxSizing: 'border-box' }}
             >
               <option value="">Keiner ausgewählt</option>
-              {employees.filter(e => {
-                const isSpecial = ['admin', 'sekretariat', 'assistentensprecher'].includes(e.id) || 
-                                  e.name?.toLowerCase().includes('administrator') ||
-                                  e.name?.toLowerCase().includes('sekretariat');
-                const isFOA = Array.isArray(e.groups) && e.groups.includes('skill_funktionsoberarzt');
-                const isOA = e.role === 'Oberarzt';
-                const isSelf = e.id === formData.employeeId;
-                
-                // Only OAs or FOAs can be supervisors, and they must not be the requester or a special role
-                return (isOA || isFOA) && !isSpecial && !isSelf && e.active !== false;
-              }).map(emp => (
+              {supervisorCandidates.map(emp => (
                 <option key={emp.id} value={emp.id}>{emp.name}</option>
               ))}
             </select>

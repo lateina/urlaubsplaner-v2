@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import Modal from '../UI/Modal';
 import { User, Calendar, Plus, Trash2, AlertTriangle, CheckCircle2, Split, Clock, ArrowRight } from 'lucide-react';
+import { getLastNameSortKey } from '../../utils/calendarUtils';
 
 const EditRepresentativesModal = ({
   isOpen,
@@ -127,7 +128,7 @@ const EditRepresentativesModal = ({
   const candidateEmployees = useMemo(() => {
     return employees
       .filter(e => e.id !== request.empId && e.active !== false)
-      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      .sort((a, b) => getLastNameSortKey(a.name).localeCompare(getLastNameSortKey(b.name), 'de'));
   }, [employees, request.empId]);
 
   const requesterEmp = employees.find(e => e.id === request.empId);

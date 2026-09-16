@@ -76,3 +76,21 @@ export const getSpecialDayInfo = (dateStr) => {
     congressName: congress ? congress.name : null,
   };
 };
+
+/**
+ * Normalizes full name (handles titles like Dr., Prof. Dr., PD) and returns "nachname, vorname" for alphabetical sorting by last name.
+ */
+export const getLastNameSortKey = (fullName) => {
+  if (!fullName) return '';
+  const clean = String(fullName)
+    .replace(/^(prof\.\s*(dr\.)?|pd\s*(dr\.)?|dr\.\s*(med\.)?)\s*/i, '')
+    .trim();
+  if (clean.includes(',')) return clean.toLowerCase();
+  const parts = clean.split(/\s+/);
+  if (parts.length > 1) {
+    const lastName = parts[parts.length - 1];
+    const firstNames = parts.slice(0, -1).join(' ');
+    return `${lastName}, ${firstNames}`.toLowerCase();
+  }
+  return clean.toLowerCase();
+};

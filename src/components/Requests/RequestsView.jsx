@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Check, X, Trash2, FileText, Clock, User, Calendar as CalendarIcon, MessageSquare, ShieldCheck, Search, Mail } from 'lucide-react';
 import { generateAndDownloadPDF } from '../../utils/pdfGenerator';
+import { getLastNameSortKey } from '../../utils/calendarUtils';
 import EditRepresentativesModal from './EditRepresentativesModal';
 
 
@@ -385,10 +386,13 @@ const RequestsView = ({
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <ShieldCheck size={14} />
               {editMode.reqId === req.id && editMode.type === 'supervisor' ? (
-                <select value={editValue} onChange={(e) => setEditValue(e.target.value)} style={{ padding: '2px 4px', fontSize: '0.8rem', borderRadius: '4px' }}>
-                   <option value="">Kein Vorgesetzter</option>
-                   {employees.filter(e => e.role === 'Oberarzt' || e.isOberarzt).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-                </select>
+                 <select value={editValue} onChange={(e) => setEditValue(e.target.value)} style={{ padding: '2px 4px', fontSize: '0.8rem', borderRadius: '4px' }}>
+                    <option value="">Kein Vorgesetzter</option>
+                    {employees.filter(e => e.role === 'Oberarzt' || e.isOberarzt || (Array.isArray(e.groups) && e.groups.includes('skill_funktionsoberarzt')))
+                     .filter(e => e.active !== false && !['admin', 'sekretariat'].includes(e.id))
+                     .sort((a, b) => getLastNameSortKey(a.name).localeCompare(getLastNameSortKey(b.name), 'de'))
+                     .map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                 </select>
               ) : (
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   {req.supervisorId ? `Vorgesetzter: ${getEmpName(req.supervisorId)}` : 'Kein Vorgesetzter erforderlich'}
