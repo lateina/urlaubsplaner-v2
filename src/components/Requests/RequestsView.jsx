@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Check, X, Trash2, FileText, Clock, User, Calendar as CalendarIcon, MessageSquare, ShieldCheck, Search, Mail } from 'lucide-react';
 import { generateAndDownloadPDF } from '../../utils/pdfGenerator';
-import { getLastNameSortKey } from '../../utils/calendarUtils';
+import { getLastNameSortKey, getRepresentativeIdForDate } from '../../utils/calendarUtils';
 import EditRepresentativesModal from './EditRepresentativesModal';
 
 
@@ -63,7 +63,11 @@ const RequestsView = ({
   // PLUS cross-profile requests where the current user needs to act as a supervisor or representative
   const filteredByProfileRequests = requests.filter(r => 
     r.planerType === planerType || 
-    (currentUser && (r.supervisorId === currentUser.id || r.vertreterId === currentUser.id))
+    (currentUser && (
+      r.supervisorId === currentUser.id || 
+      r.vertreterId === currentUser.id || 
+      (Array.isArray(r.substitutes) && r.substitutes.some(s => s.vertreterId === currentUser.id))
+    ))
   );
 
   const getEmpName = (id) => employees.find(e => e.id === id)?.name || id;
@@ -314,7 +318,7 @@ const RequestsView = ({
                                       ownReqDates.push(d);
                                   }
                                   // Check if representative is already representing someone else
-                                  const existingReps = requests.filter(r => r.vertreterId === vId && r.dates.includes(d) && r.status !== 'rejected' && r.id !== req.id);
+                                  const existingReps = requests.filter(r => r.id !== req.id && getRepresentativeIdForDate(r, d) === vId);
                                   
                                   let isBlocked = false;
                                   if (existingReps.length > 0) {
@@ -674,8 +678,8 @@ const RequestsView = ({
                 onClick={() => setSubTab('vertreter')}
                 style={{ padding: '8px 16px', borderRadius: '10px' }}
               >
-                Vertretungen/Freigaben {vertreterReqs.filter(r => (r.status === 'pending_vertreter' && r.vertreterId === cuId) || (r.status === 'pending_supervisor' && r.supervisorId === cuId)).length > 0 && (
-                  <span className="tab-badge">{vertreterReqs.filter(r => (r.status === 'pending_vertreter' && r.vertreterId === cuId) || (r.status === 'pending_supervisor' && r.supervisorId === cuId)).length}</span>
+                Vertretungen/Freigaben {vertreterReqs.filter(r => (r.status === 'pending_vertreter' && (r.vertreterId === cuId || (Array.isArray(r.substitutes) && r.substitutes.some(s => s.vertreterId === cuId)))) || (r.status === 'pending_supervisor' && r.supervisorId === cuId)).length > 0 && (
+                  <span className="tab-badge">{vertreterReqs.filter(r => (r.status === 'pending_vertreter' && (r.vertreterId === cuId || (Array.isArray(r.substitutes) && r.substitutes.some(s => s.vertreterId === cuId)))) || (r.status === 'pending_supervisor' && r.supervisorId === cuId)).length}</span>
                 )}
               </button>
             </>

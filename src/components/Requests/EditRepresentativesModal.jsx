@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import Modal from '../UI/Modal';
 import { User, Calendar, Plus, Trash2, AlertTriangle, CheckCircle2, Split, Clock, ArrowRight } from 'lucide-react';
-import { getLastNameSortKey } from '../../utils/calendarUtils';
+import { getLastNameSortKey, getRepresentativeIdForDate } from '../../utils/calendarUtils';
 
 const EditRepresentativesModal = ({
   isOpen,
@@ -189,7 +189,7 @@ const EditRepresentativesModal = ({
         conflicts.push({ date: d, reason: 'Eigener Antrag' });
         continue;
       }
-      const existingReps = requests.filter(r => r.vertreterId === vId && r.dates?.includes(d) && r.status !== 'rejected' && r.id !== request.id);
+      const existingReps = requests.filter(r => r.id !== request.id && getRepresentativeIdForDate(r, d) === vId);
       if (existingReps.length > 0) {
         if (existingReps.length >= 2) {
           conflicts.push({ date: d, reason: 'Bereits 2x Vertretung' });

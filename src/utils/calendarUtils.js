@@ -94,3 +94,37 @@ export const getLastNameSortKey = (fullName) => {
   }
   return clean.toLowerCase();
 };
+
+/**
+ * Returns the effective representative ID for a specific date from a request.
+ * Takes into account split substitutes (request.substitutes) if present.
+ * Returns null if the request does not cover the date, has no representative on that date,
+ * or is rejected / deleted.
+ */
+export const getRepresentativeIdForDate = (request, dateStr) => {
+  if (!request || !dateStr) return null;
+  if (request.status === 'rejected' || request.status === 'deleted') return null;
+
+  if (Array.isArray(request.substitutes) && request.substitutes.length > 0) {
+    const sub = request.substitutes.find(s => 
+      (s.dates && s.dates.includes(dateStr)) || 
+      (s.from && s.to && dateStr >= s.from && dateStr <= s.to)
+    );
+    if (sub) {
+      if (sub.vertreterId === 'none' || sub.vertreter === 'Kein Vertreter nötig' || !sub.vertreterId) {
+        return null;
+      }
+      return sub.vertreterId;
+    }
+    return null;
+  }
+
+  if (request.dates && request.dates.includes(dateStr)) {
+    if (request.vertreterId === 'none' || request.vertreter === 'Kein Vertreter nötig' || !request.vertreterId) {
+      return null;
+    }
+    return request.vertreterId;
+  }
+
+  return null;
+};

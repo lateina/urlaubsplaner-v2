@@ -1443,7 +1443,7 @@ const App = () => {
 
   const actionRequiredCount = appData.requests.filter(r => {
     // Show badge if I am the requested vertreter or supervisor (cross-profile or native)
-    if ((r.status === 'pending_vertreter' && r.vertreterId === resolvedUser?.id) || 
+    if ((r.status === 'pending_vertreter' && (r.vertreterId === resolvedUser?.id || (Array.isArray(r.substitutes) && r.substitutes.some(s => s.vertreterId === resolvedUser?.id)))) || 
         (r.status === 'pending_supervisor' && r.supervisorId === resolvedUser?.id)) {
         return true;
     }

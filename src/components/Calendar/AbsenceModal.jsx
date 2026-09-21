@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { getSpecialDayInfo, getLastNameSortKey } from '../../utils/calendarUtils';
+import { getSpecialDayInfo, getLastNameSortKey, getRepresentativeIdForDate } from '../../utils/calendarUtils';
 import Modal from '../UI/Modal';
 
 const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isAdmin, perms = {}, currentUser, skills = [], absences = {}, requests = [], vacationStats = {}, planerType, rotationData = [] }) => {
@@ -442,7 +442,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
                     ownReqDates.push(d);
                 }
                 // Check if representative is already representing someone else
-                const existingReps = requests.filter(r => r.vertreterId === vId && r.dates.includes(d) && r.status !== 'rejected');
+                const existingReps = requests.filter(r => getRepresentativeIdForDate(r, d) === vId);
                 
                 let isBlocked = false;
                 if (existingReps.length > 0) {
@@ -486,7 +486,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
         // 2. Check if Requester is currently acting as a representative
         const iAmRepDates = [];
         for (const d of dates) {
-            const iAmRep = requests.find(r => r.vertreterId === effectiveEmpId && r.dates.includes(d) && r.status !== 'rejected');
+            const iAmRep = requests.find(r => r.empId !== effectiveEmpId && getRepresentativeIdForDate(r, d) === effectiveEmpId);
             if (iAmRep) {
                 iAmRepDates.push(d);
             }
