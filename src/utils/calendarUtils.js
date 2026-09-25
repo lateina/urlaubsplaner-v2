@@ -128,3 +128,78 @@ export const getRepresentativeIdForDate = (request, dateStr) => {
 
   return null;
 };
+
+/**
+ * Checks whether an employee is in a rotation area that does not require a representative
+ * (Labor/Forschungsfrei or Studienambulanz) for a given date range [startDate, endDate].
+ *
+ * Returns:
+ * {
+ *   isExempt: boolean,  // true if EVERY month in [startDate, endDate] is in Labor or Studienambulanz
+ *   isPartial: boolean, // true if SOME (but not all) months in [startDate, endDate] are in Labor or Studienambulanz
+ *   type: 'labor' | 'studienambulanz' | 'both' | null
+ * }
+ */
+export const getRotationExemptionInfo = (empId, startDate, endDate, rotationData) => {
+  const empty = { isExempt: false, isPartial: false, type: null };
+  if (!empId || !startDate || !endDate) return empty;
+  if (endDate < startDate) return empty;
+  if (!Array.isArray(rotationData) || rotationData.length === 0) return empty;
+
+  const [fy, fm, fd] = startDate.split('-').map(Number);
+  const [ty, tm, td] = endDate.split('-').map(Number);
+  let curr = new Date(fy, fm - 1, fd);
+  const end = new Date(ty, tm - 1, td);
+
+  const months = new Set();
+  while (curr <= end) {
+    const y = curr.getFullYear();
+    const m = String(curr.getMonth() + 1).padStart(2, '0');
+    months.add(`${y}_${m}`);
+    curr.setDate(curr.getDate() + 1);
+  }
+  if (months.size === 0) return empty;
+
+  let exemptMonthsCount = 0;
+  let foundLabor = false;
+  let foundStudienambulanz = false;
+
+  for (const mStr of months) {
+    const mNoZero = mStr.replace('_0', '_');
+    let monthHasLabor = false;
+    let monthHasStudienambulanz = false;
+
+    for (const r of rotationData) {
+      const mId = String(r.monat_id || r.mi || '').replace('month_', '').replace('-', '_');
+      const rEmpId = String(r.mitarbeiter_id || r.mi_id || r.ei || r.employee_id);
+      if ((mId !== mStr && mId !== mNoZero) || rEmpId !== String(empId)) continue;
+
+      const areaId = (r.ai || r.bi || r.area_id || '').replace(/_/g, '').toLowerCase();
+      if (areaId === 'labor' || (areaId.includes('labor') && !areaId.includes('echo') && !areaId.includes('schlaf') && !areaId.includes('katheter'))) {
+        monthHasLabor = true;
+      }
+      if (areaId === 'studienambulanz' || areaId.includes('studienambulanz')) {
+        monthHasStudienambulanz = true;
+      }
+    }
+
+    if (monthHasLabor || monthHasStudienambulanz) {
+      exemptMonthsCount++;
+      if (monthHasLabor) foundLabor = true;
+      if (monthHasStudienambulanz) foundStudienambulanz = true;
+    }
+  }
+
+  const type = (foundLabor && foundStudienambulanz)
+    ? 'both'
+    : foundStudienambulanz
+    ? 'studienambulanz'
+    : foundLabor
+    ? 'labor'
+    : null;
+
+  const isExempt = exemptMonthsCount === months.size && months.size > 0;
+  const isPartial = !isExempt && exemptMonthsCount > 0;
+
+  return { isExempt, isPartial, type };
+};

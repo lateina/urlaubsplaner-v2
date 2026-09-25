@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import Modal from '../UI/Modal';
 import { User, Calendar, Plus, Trash2, AlertTriangle, CheckCircle2, Split, Clock, ArrowRight } from 'lucide-react';
-import { getLastNameSortKey, getRepresentativeIdForDate } from '../../utils/calendarUtils';
+import { getLastNameSortKey, getRepresentativeIdForDate, getRotationExemptionInfo } from '../../utils/calendarUtils';
 
 const EditRepresentativesModal = ({
   isOpen,
@@ -133,45 +133,13 @@ const EditRepresentativesModal = ({
 
   const requesterEmp = employees.find(e => e.id === request.empId);
 
-  // Dynamic check: Is the employee in Labor/Forschungsfrei for the ENTIRE requested period?
-  const isLaborPeriod = useMemo(() => {
-    if (!request?.empId || !minDate || !maxDate) return false;
-    if (maxDate < minDate) return false;
-    if (!rotationData || rotationData.length === 0) return false;
-
-    const [fy, fm, fd] = minDate.split('-').map(Number);
-    const [ty, tm, td] = maxDate.split('-').map(Number);
-    let curr = new Date(fy, fm - 1, fd);
-    const end = new Date(ty, tm - 1, td);
-
-    const months = new Set();
-    while (curr <= end) {
-      const y = curr.getFullYear();
-      const m = String(curr.getMonth() + 1).padStart(2, '0');
-      months.add(`${y}_${m}`);
-      curr.setDate(curr.getDate() + 1);
-    }
-    if (months.size === 0) return false;
-
-    for (const mStr of months) {
-      const mNoZero = mStr.replace('_0', '_');
-      const hasLabor = rotationData.some(r => {
-        const mId = String(r.monat_id || r.mi || '').replace('month_', '').replace('-', '_');
-        const empId = String(r.mitarbeiter_id || r.mi_id || r.ei || r.employee_id);
-        const areaId = (r.ai || r.bi || r.area_id || '').replace(/_/g, '').toLowerCase();
-
-        const matchesMonth = (mId === mStr || mId === mNoZero);
-        const matchesEmp = (empId === String(request.empId));
-        const isLabor = (areaId === 'labor' || (areaId.includes('labor') && !areaId.includes('echo') && !areaId.includes('schlaf')));
-
-        return matchesMonth && matchesEmp && isLabor;
-      });
-
-      if (!hasLabor) return false;
-    }
-
-    return true;
+  // Dynamic check: Is the employee in Labor/Forschungsfrei or Studienambulanz for the ENTIRE requested period?
+  const rotationExemption = useMemo(() => {
+    return getRotationExemptionInfo(request?.empId, minDate, maxDate, rotationData);
   }, [request?.empId, minDate, maxDate, rotationData]);
+
+  const isLaborPeriod = rotationExemption.isExempt;
+  const exemptionType = rotationExemption.type;
 
   // Conflict detector
   const checkConflicts = (vId, dateList) => {
@@ -459,7 +427,11 @@ const EditRepresentativesModal = ({
                   alignItems: 'center',
                   gap: '4px'
                 }}>
-                  🔬 Labor / Forschung
+                  {exemptionType === 'studienambulanz'
+                    ? '📋 Studienambulanz'
+                    : exemptionType === 'both'
+                    ? '🔬 Labor / Studienambulanz'
+                    : '🔬 Labor / Forschung'}
                 </span>
               )}
             </div>
@@ -480,7 +452,13 @@ const EditRepresentativesModal = ({
           </div>
           {isLaborPeriod && (
             <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed #c7d2fe', fontSize: '0.78rem', color: '#4338ca', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span>ℹ️ Mitarbeiter ist im Zeitraum forschungsfrei (Labor). Keine Vertretung zwingend nötig.</span>
+              <span>
+                ℹ️ {exemptionType === 'studienambulanz'
+                  ? 'Mitarbeiter ist im Zeitraum in der Studienambulanz eingeteilt. Keine Vertretung zwingend nötig.'
+                  : exemptionType === 'both'
+                  ? 'Mitarbeiter ist im Zeitraum im Labor / in der Studienambulanz eingeteilt. Keine Vertretung zwingend nötig.'
+                  : 'Mitarbeiter ist im Zeitraum forschungsfrei (Labor). Keine Vertretung zwingend nötig.'}
+              </span>
             </div>
           )}
         </div>

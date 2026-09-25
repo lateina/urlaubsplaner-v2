@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { getSpecialDayInfo, getLastNameSortKey, getRepresentativeIdForDate } from '../../utils/calendarUtils';
+import { getSpecialDayInfo, getLastNameSortKey, getRepresentativeIdForDate, getRotationExemptionInfo } from '../../utils/calendarUtils';
 import Modal from '../UI/Modal';
 
 const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isAdmin, perms = {}, currentUser, skills = [], absences = {}, requests = [], vacationStats = {}, planerType, rotationData = [] }) => {
@@ -284,75 +284,14 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
     });
   }, [effectiveEmpId, employees, skills]);
 
-  // Dynamic check: Is the employee in Labor/Forschungsfrei for the ENTIRE requested period?
-  const isLaborPeriod = useMemo(() => {
-    if (!effectiveEmpId || !formData.startDate || !formData.endDate) return false;
-    if (formData.endDate < formData.startDate) return false;
-    if (!rotationData || rotationData.length === 0) return false;
-
-    const [fy, fm, fd] = formData.startDate.split('-').map(Number);
-    const [ty, tm, td] = formData.endDate.split('-').map(Number);
-    let curr = new Date(fy, fm - 1, fd);
-    const end = new Date(ty, tm - 1, td);
-
-    const months = new Set();
-    while (curr <= end) {
-      const y = curr.getFullYear();
-      const m = String(curr.getMonth() + 1).padStart(2, '0');
-      months.add(`${y}_${m}`);
-      curr.setDate(curr.getDate() + 1);
-    }
-    if (months.size === 0) return false;
-
-    for (const mStr of months) {
-      const mNoZero = mStr.replace('_0', '_');
-      const hasLabor = rotationData.some(r => {
-        const mId = String(r.monat_id || r.mi || '').replace('month_', '').replace('-', '_');
-        const empId = String(r.mitarbeiter_id || r.mi_id || r.ei || r.employee_id);
-        const areaId = (r.ai || r.bi || r.area_id || '').replace(/_/g, '').toLowerCase();
-
-        const matchesMonth = (mId === mStr || mId === mNoZero);
-        const matchesEmp = (empId === String(effectiveEmpId));
-        const isLabor = (areaId === 'labor' || (areaId.includes('labor') && !areaId.includes('echo') && !areaId.includes('schlaf')));
-
-        return matchesMonth && matchesEmp && isLabor;
-      });
-
-      if (!hasLabor) return false;
-    }
-
-    return true;
+  // Dynamic check: Is the employee in Labor/Forschungsfrei or Studienambulanz for the ENTIRE requested period?
+  const rotationExemption = useMemo(() => {
+    return getRotationExemptionInfo(effectiveEmpId, formData.startDate, formData.endDate, rotationData);
   }, [effectiveEmpId, formData.startDate, formData.endDate, rotationData]);
 
-  // Check if partially in labor (some days in labor, but not all)
-  const isPartialLabor = useMemo(() => {
-    if (isLaborPeriod || !effectiveEmpId || !formData.startDate || !formData.endDate) return false;
-    if (formData.endDate < formData.startDate) return false;
-    if (!rotationData || rotationData.length === 0) return false;
-
-    const [fy, fm, fd] = formData.startDate.split('-').map(Number);
-    const [ty, tm, td] = formData.endDate.split('-').map(Number);
-    let curr = new Date(fy, fm - 1, fd);
-    const end = new Date(ty, tm - 1, td);
-
-    while (curr <= end) {
-      const y = curr.getFullYear();
-      const m = String(curr.getMonth() + 1).padStart(2, '0');
-      const mStr = `${y}_${m}`;
-      const mNoZero = mStr.replace('_0', '_');
-
-      const hasLabor = rotationData.some(r => {
-        const mId = String(r.monat_id || r.mi || '').replace('month_', '').replace('-', '_');
-        const empId = String(r.mitarbeiter_id || r.mi_id || r.ei || r.employee_id);
-        const areaId = (r.ai || r.bi || r.area_id || '').replace(/_/g, '').toLowerCase();
-        return (mId === mStr || mId === mNoZero) && empId === String(effectiveEmpId) && (areaId === 'labor' || (areaId.includes('labor') && !areaId.includes('echo') && !areaId.includes('schlaf')));
-      });
-
-      if (hasLabor) return true;
-      curr.setDate(curr.getDate() + 1);
-    }
-    return false;
-  }, [isLaborPeriod, effectiveEmpId, formData.startDate, formData.endDate, rotationData]);
+  const isLaborPeriod = rotationExemption.isExempt;
+  const isPartialLabor = rotationExemption.isPartial;
+  const exemptionType = rotationExemption.type;
 
   const isVertreterRequired = !isStaticNoVertreter && !isLaborPeriod;
 
@@ -750,9 +689,16 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
             maxWidth: 320,
             boxSizing: 'border-box'
           }}>
-            <span style={{ fontSize: '1.1rem' }}>🔬</span>
+            <span style={{ fontSize: '1.1rem' }}>{exemptionType === 'studienambulanz' ? '📋' : '🔬'}</span>
             <span>
-              <strong>Forschungsfrei / Labor:</strong> In diesem Zeitraum ist keine Vertretung erforderlich (optional).
+              <strong>
+                {exemptionType === 'studienambulanz'
+                  ? 'Studienambulanz:'
+                  : exemptionType === 'both'
+                  ? 'Labor / Studienambulanz:'
+                  : 'Forschungsfrei / Labor:'}
+              </strong>{' '}
+              In diesem Zeitraum ist keine Vertretung erforderlich (optional).
             </span>
           </div>
         )}
@@ -769,13 +715,21 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
             maxWidth: 320,
             boxSizing: 'border-box'
           }}>
-            ℹ️ <strong>Hinweis:</strong> Der Zeitraum liegt nur teilweise im Labor/Forschungsfrei. Für die übrigen Tage ist eine Vertretung erforderlich.
+            ℹ️ <strong>Hinweis:</strong> Der Zeitraum liegt nur teilweise {exemptionType === 'studienambulanz' ? 'in der Studienambulanz' : exemptionType === 'both' ? 'im Labor / in der Studienambulanz' : 'im Labor/Forschungsfrei'}. Für die übrigen Tage ist eine Vertretung erforderlich.
           </div>
         )}
 
         <div className="form-group" style={{ position: 'relative', maxWidth: 320 }}>
           <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 6, color: '#000000' }}>
-            Vertreter {isVertreterRequired ? '(Pflicht)' : (isLaborPeriod ? '(Optional – Labor/Forschungsfrei)' : '(Optional)')}
+            Vertreter {isVertreterRequired
+              ? '(Pflicht)'
+              : (isLaborPeriod
+                ? (exemptionType === 'studienambulanz'
+                  ? '(Optional – Studienambulanz)'
+                  : exemptionType === 'both'
+                  ? '(Optional – Labor/Studienambulanz)'
+                  : '(Optional – Labor/Forschungsfrei)')
+                : '(Optional)')}
           </label>
           <input 
             type="text"
