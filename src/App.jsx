@@ -1397,6 +1397,7 @@ const App = () => {
   const isFullAdmin = auth.user?.id === 'admin';
   const isSekretariat = auth.user?.id === 'sekretariat';
   const isSpokesperson = auth.user?.id === 'assistentensprecher' || auth.user?.role === 'assistentensprecher';
+  const isOA = auth.user?.role === 'Oberarzt' || auth.user?.isOberarzt === true || (Array.isArray(auth.user?.groups) && auth.user?.groups.includes('skill_funktionsoberarzt'));
   const isAdmin = isFullAdmin || isSekretariat || isSpokesperson;
   const isCalendarAdmin = isFullAdmin || isSekretariat;
 
@@ -1410,7 +1411,7 @@ const App = () => {
     canICalExport: isFullAdmin || isSekretariat,
     canEnterDirectly: isFullAdmin,
     canDeleteAbsences: isFullAdmin,
-    canSwitchPlaner: isFullAdmin || isSekretariat,
+    canSwitchPlaner: isFullAdmin || isSekretariat || isOA,
     forcePlanerAss: isSpokesperson,
     canEditSpecialAccounts: isFullAdmin,
     canSeePOKarte: isFullAdmin || isSekretariat,
@@ -1459,16 +1460,18 @@ const App = () => {
 
 
   const togglePlaner = () => {
-    if (!isAdmin) return;
+    if (!isAdmin && !isOA) return;
     if (isSaving) {
       if (!window.confirm('Es wird gerade noch gespeichert. Möchten Sie trotzdem den Planer wechseln? (Möglicher Datenverlust)')) {
         return;
       }
     }
     const next = planerType === 'ass' ? 'oa' : 'ass';
+    if (auth.user) {
+      localStorage.setItem(`${next}_logged_user`, JSON.stringify(auth.user));
+      localStorage.setItem(`${next}_auth_profile`, next);
+    }
     setPlanerType(next);
-    // We NO LONGER modify the URL here to keep PWAs stable.
-    // The state and localStorage change will handle the profile switch.
   };
 
 

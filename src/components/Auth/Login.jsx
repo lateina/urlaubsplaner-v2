@@ -73,14 +73,10 @@ const Login = ({ onLogin, binId, planerType }) => {
     const isMaier = emp.id === 'maier';
 
     if (planerType === 'oa') {
-      // In OA Planer: show only OAs, system users, FOAs, and maier
+      // In OA Planer: show only OAs, system users, FOAs, and maier (assistants cannot log into OA planner)
       if (!isOA && !isSystemUser && !isMaier) return false;
-    } else {
-      // In ASS Planer: show only Assistenten and FOAs. System users shouldn't be in the regular list,
-      // but they need to log in to ASS planner too to manage it! 
-      // Wait, if Admin needs to log into ASS planer, they MUST be visible.
-      if (!isSystemUser && isOA && !isFOA && !isMaier) return false;
     }
+    // In ASS Planer: all active clinic employees (Assistants, FOAs, Oberärzte as supervisors, Admins) can log in
     
     const s = search.toLowerCase();
     return emp.name.toLowerCase().includes(s) || 
