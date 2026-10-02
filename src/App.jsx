@@ -1409,13 +1409,13 @@ const App = () => {
     canBulkImport: isFullAdmin,
     canRequestAbsence: true,
     canICalExport: isFullAdmin || isSekretariat,
-    canEnterDirectly: isFullAdmin,
-    canDeleteAbsences: isFullAdmin,
+    canEnterDirectly: isFullAdmin || isSekretariat,
+    canDeleteAbsences: isFullAdmin || isSekretariat,
     canSwitchPlaner: isFullAdmin || isSekretariat || isOA,
     forcePlanerAss: isSpokesperson,
     canEditSpecialAccounts: isFullAdmin,
     canSeePOKarte: isFullAdmin || isSekretariat,
-    canShowCalendarEntry: !isSekretariat,
+    canShowCalendarEntry: !isSpokesperson,
     canDeleteRequests: isFullAdmin,
     canApproveRequests: isFullAdmin
   };

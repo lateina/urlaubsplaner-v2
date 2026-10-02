@@ -497,30 +497,6 @@ const CalendarView = ({
     }
   };
 
-  const handleSaveAbsence = (formData) => {
-    const newAbsences = { ...absences };
-    const empId = formData.employeeId;
-    if (!newAbsences[empId]) newAbsences[empId] = {};
-    
-    const entryUid = 'direct_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
-    const updatedAt = new Date().toISOString();
-    
-    while (curr <= end) {
-      const dStr = curr.toISOString().split('T')[0];
-      newAbsences[empId][dStr] = {
-        type: formData.type,
-        text: formData.remarks,
-        vertreter: formData.vertreter,
-        vertreterId: formData.vertreterId,
-        uid: entryUid,
-        updatedAt: updatedAt
-      };
-      curr.setDate(curr.getDate() + 1);
-    }
-    if (onSaveAbsences) onSaveAbsences(newAbsences);
-    setIsModalOpen(false);
-  };
-
   useEffect(() => {
     const handleMouseUp = () => {
       if (isDragging && draggedEmpId) {

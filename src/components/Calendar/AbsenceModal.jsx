@@ -155,13 +155,15 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
         setFormData(prev => ({ ...prev, employeeId: currentUser.id }));
       }
     } else {
-      if (!formData.employeeId || formData.employeeId === 'admin') {
-        const firstEmp = employees.find(e => 
+      if (!formData.employeeId || formData.employeeId === 'admin' || formData.employeeId === 'sekretariat' || formData.employeeId === 'assistentensprecher') {
+        const firstEmp = [...employees].filter(e => 
           e.id !== 'admin' && 
           e.id !== 'sekretariat' && 
           e.id !== 'assistentensprecher' &&
-          !e.name?.toLowerCase().includes('administrator')
-        );
+          !e.name?.toLowerCase().includes('administrator') &&
+          !e.name?.toLowerCase().includes('assistentensprecher') &&
+          !e._isCrossProfile
+        ).sort((a, b) => getLastNameSortKey(a.name).localeCompare(getLastNameSortKey(b.name), 'de'))[0];
         if (firstEmp) {
           setFormData(prev => ({ ...prev, employeeId: firstEmp.id }));
         }
