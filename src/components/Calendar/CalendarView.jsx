@@ -669,7 +669,7 @@ const CalendarView = ({
       if (target) {
         const typeLabel = { U: 'Urlaub', V: 'Urlaub', FZA: 'Freizeitausgleich', D: 'Dienstreise', F: 'Fortbildung', S: 'Sonstiges', T: 'Sonstiges' };
         const statusLabel = { 
-          pending_vertreter: 'Vertreter-Zustimmung ausstehend', 
+          pending_vertreter: emp.id === 'maier' ? 'Kenntnisnahme Vertreter ausstehend' : 'Vertreter-Zustimmung ausstehend', 
           pending_supervisor: 'Vorgesetzten-Zustimmung ausstehend',
           pending_admin: 'LOA-Freigabe ausstehend' 
         };

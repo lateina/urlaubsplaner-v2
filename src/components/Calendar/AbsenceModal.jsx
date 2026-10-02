@@ -12,11 +12,12 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
     supervisor: '',
     supervisorId: '',
     remarks: '',
-    employeeId: currentUser?.id || '',
+    employeeId: currentUser?.id === 'sekretariat' ? 'maier' : (currentUser?.id || ''),
     forwardSeparately: false
   });
 
-  const effectiveEmpId = formData.employeeId || currentUser?.id || '';
+  const isSekretariat = currentUser?.id === 'sekretariat';
+  const effectiveEmpId = isSekretariat ? 'maier' : (formData.employeeId || currentUser?.id || '');
 
   // Calculate vacation days in range
   const vacationInfo = useMemo(() => {
@@ -150,12 +151,16 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
   // Ensure employeeId is initialized and synced
   React.useEffect(() => {
     if (!isOpen) return;
+    if (isSekretariat) {
+      setFormData(prev => ({ ...prev, employeeId: 'maier' }));
+      return;
+    }
     if (!isAdmin) {
       if (currentUser?.id && formData.employeeId !== currentUser.id) {
         setFormData(prev => ({ ...prev, employeeId: currentUser.id }));
       }
     } else {
-      if (!formData.employeeId || formData.employeeId === 'admin' || formData.employeeId === 'sekretariat' || formData.employeeId === 'assistentensprecher') {
+      if (!formData.employeeId || formData.employeeId === 'admin' || formData.employeeId === 'assistentensprecher') {
         const firstEmp = [...employees].filter(e => 
           e.id !== 'admin' && 
           e.id !== 'sekretariat' && 
@@ -169,7 +174,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
         }
       }
     }
-  }, [isOpen, isAdmin, currentUser?.id, employees]);
+  }, [isOpen, isAdmin, isSekretariat, currentUser?.id, employees]);
 
   const [vertreterSearch, setVertreterSearch] = useState('');
 
@@ -234,7 +239,10 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
       // Rule 4: Proper OA representing FOA (in both OA and ASS Planner - proper OAs can always represent FOAs)
       const isProperOaForFoa = myIsFOA && theirIsOA && !theirIsFOA;
 
-      if (!hasMatchingSkill && !isHigherOrEqual && !isFoaSpecial && !isProperOaForFoa) return false;
+      // Rule 5: Any Oberarzt can represent Chefarzt (Prof. Maier)
+      const isOaForChef = (myEmp?.id === 'maier' || mySkills.includes('skill_chef')) && theirIsOA;
+
+      if (!hasMatchingSkill && !isHigherOrEqual && !isFoaSpecial && !isProperOaForFoa && !isOaForChef) return false;
     }
 
     return e.name?.toLowerCase().includes(vertreterSearch.toLowerCase());
@@ -278,16 +286,16 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
     setShowVertreterResults(false);
   };
 
-  // Static check based on role/skills (Chef / Kein Vertreter nötig)
+  // Static check based on role/skills (Kein Vertreter nötig)
   const isStaticNoVertreter = useMemo(() => {
     const emp = employees.find(e => e.id === effectiveEmpId);
     if (!emp) return false;
     
     const gIds = Array.isArray(emp.groups) ? emp.groups : [];
     return gIds.some(gid => {
-      if (gid === 'skill_chef' || gid === 'skill_keinvertreternotig' || gid === 'Chef') return true;
+      if (gid === 'skill_keinvertreternotig') return true;
       const skillObj = skills.find(s => s.id === gid);
-      if (skillObj && (skillObj.name === 'Chef' || skillObj.name === 'Kein Vertreter nötig')) return true;
+      if (skillObj && skillObj.name === 'Kein Vertreter nötig') return true;
       return false;
     });
   }, [effectiveEmpId, employees, skills]);
@@ -304,6 +312,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
   const isVertreterRequired = !isStaticNoVertreter && !isLaborPeriod;
 
   const isSupervisorRequired = useMemo(() => {
+    if (effectiveEmpId === 'maier') return false;
     if (isStaticNoVertreter) return false;
 
     const reqEmp = employees.find(e => e.id === effectiveEmpId);
@@ -445,6 +454,8 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
     }
 
 
+    const isMaier = effectiveEmpId === 'maier';
+
     // Always create a request object
     const request = {
       id: 'req_' + Date.now(),
@@ -457,19 +468,19 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
       supervisorId: formData.supervisorId,
       forwardSeparately: formData.type === 'D' ? formData.forwardSeparately : null,
       dates: dates,
-      status: isDirect ? 'approved' : (formData.vertreterId ? 'pending_vertreter' : (formData.supervisorId ? 'pending_supervisor' : 'pending_admin')),
+      status: isDirect ? 'approved' : (formData.vertreterId ? 'pending_vertreter' : (isMaier ? 'approved' : (formData.supervisorId ? 'pending_supervisor' : 'pending_admin'))),
       createdAt: new Date().toISOString().split('T')[0],
       stamps: {
         submitted: {
           at: new Date().toISOString(),
           uid: currentUser.id,
-          name: currentUser.stampAlias || currentUser.name
+          name: currentUser.id === 'sekretariat' ? 'Sekretariat (i.A. Prof. Maier)' : (currentUser.stampAlias || currentUser.name)
         }
       }
     };
 
-    if (isDirect) {
-      // Add auto-approval stamps for direct entry
+    if (isDirect || (isMaier && !formData.vertreterId)) {
+      // Add auto-approval stamps for direct entry or Maier without representative
       request.stamps.vertreter = {
         at: new Date().toISOString(),
         uid: currentUser.id,
@@ -479,10 +490,9 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
       request.stamps.admin = {
         at: new Date().toISOString(),
         uid: currentUser.id,
-        name: currentUser.stampAlias || currentUser.name,
+        name: isMaier ? 'Keine Genehmigung erforderlich (Chefarzt)' : (currentUser.stampAlias || currentUser.name),
         isAuto: true
       };
-
     }
     
     if (onSubmitRequest) onSubmitRequest(request);
@@ -498,7 +508,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
       supervisor: '',
       supervisorId: '',
       remarks: '',
-      employeeId: currentUser?.id || '',
+      employeeId: isSekretariat ? 'maier' : (currentUser?.id || ''),
       forwardSeparately: false
     });
     setVertreterSearch('');
@@ -507,33 +517,49 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
 
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={perms.canEnterDirectly ? "Abwesenheit eintragen (Direkt)" : "Abwesenheit beantragen"}>
+    <Modal isOpen={isOpen} onClose={onClose} title={isSekretariat ? "Abwesenheit für Prof. Maier eintragen" : (perms.canEnterDirectly ? "Abwesenheit eintragen (Direkt)" : "Abwesenheit beantragen")}>
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 420, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
         
         {isAdmin && (
           <div className="form-group" style={{ marginBottom: 4, maxWidth: 320 }}>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 6, color: '#000000' }}>Mitarbeiter</label>
-            <select 
-              name="employeeId" 
-              value={formData.employeeId} 
-              onChange={handleChange}
-              style={{ 
+            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 6, color: '#000000' }}>
+              Mitarbeiter {isSekretariat ? '(für Prof. Maier)' : ''}
+            </label>
+            {isSekretariat ? (
+              <div style={{ 
                 width: '100%', padding: '12px 16px', borderRadius: 14, 
-                border: '2px solid rgba(0, 0, 0, 0.4)', background: 'white',
-                color: '#000000', fontWeight: 500, outline: 'none', fontSize: '1rem', boxSizing: 'border-box'
-              }}
-            >
-              {[...employees].filter(e => 
-                e.id !== 'admin' && 
-                e.id !== 'sekretariat' && 
-                e.id !== 'assistentensprecher' &&
-                !e.name?.toLowerCase().includes('administrator') &&
-                !e.name?.toLowerCase().includes('assistentensprecher') &&
-                !e._isCrossProfile
-              ).sort((a, b) => getLastNameSortKey(a.name).localeCompare(getLastNameSortKey(b.name), 'de')).map(emp => (
-                <option key={emp.id} value={emp.id}>{emp.name}</option>
-              ))}
-            </select>
+                border: '2px solid rgba(0, 0, 0, 0.4)', background: '#f8fafc',
+                color: '#000000', fontWeight: 600, fontSize: '1rem', boxSizing: 'border-box',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+              }}>
+                <span>Prof. Dr. Lars Maier</span>
+                <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500, background: '#e2e8f0', padding: '2px 8px', borderRadius: 6 }}>
+                  Chefarzt
+                </span>
+              </div>
+            ) : (
+              <select 
+                name="employeeId" 
+                value={formData.employeeId} 
+                onChange={handleChange}
+                style={{ 
+                  width: '100%', padding: '12px 16px', borderRadius: 14, 
+                  border: '2px solid rgba(0, 0, 0, 0.4)', background: 'white',
+                  color: '#000000', fontWeight: 500, outline: 'none', fontSize: '1rem', boxSizing: 'border-box'
+                }}
+              >
+                {[...employees].filter(e => 
+                  e.id !== 'admin' && 
+                  e.id !== 'sekretariat' && 
+                  e.id !== 'assistentensprecher' &&
+                  !e.name?.toLowerCase().includes('administrator') &&
+                  !e.name?.toLowerCase().includes('assistentensprecher') &&
+                  !e._isCrossProfile
+                ).sort((a, b) => getLastNameSortKey(a.name).localeCompare(getLastNameSortKey(b.name), 'de')).map(emp => (
+                  <option key={emp.id} value={emp.id}>{emp.name}</option>
+                ))}
+              </select>
+            )}
           </div>
         )}
 
@@ -813,7 +839,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
         <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
           <button type="button" onClick={onClose} style={{ flex: 1, padding: '14px', borderRadius: 14, border: '1px solid rgba(0,0,0,0.2)', background: '#f1f5f9', color: '#000000', fontWeight: 600, fontSize: '1.1rem', cursor: 'pointer' }}>Abbrechen</button>
           <button type="submit" style={{ flex: 2, padding: '14px', borderRadius: 14, border: 'none', background: 'var(--primary)', color: 'white', fontWeight: 700, fontSize: '1.1rem', cursor: 'pointer', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
-            {perms.canEnterDirectly ? 'Direkt Speichern' : 'Antrag stellen'}
+            {isSekretariat ? 'Abwesenheit eintragen' : (perms.canEnterDirectly ? 'Direkt Speichern' : 'Antrag stellen')}
           </button>
         </div>
       </form>

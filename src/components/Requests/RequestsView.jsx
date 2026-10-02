@@ -177,7 +177,7 @@ const RequestsView = ({
             <span>{getEmpName(req.empId)}</span>
           </div>
           <span className="request-card-status" style={{ backgroundColor: `${statusColor[effectiveStatus]}15`, color: statusColor[effectiveStatus] }}>
-            {statusLabel[effectiveStatus]}
+            {(req.empId === 'maier' && effectiveStatus === 'pending_vertreter') ? 'Kenntnisnahme Vertreter ausstehend' : statusLabel[effectiveStatus]}
           </span>
         </div>
 
@@ -478,7 +478,11 @@ const RequestsView = ({
             ) : req.stamps?.vertreter ? (
               <div style={{ fontSize: '0.75rem', color: '#0ea5e9', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Check size={12} />
-                <span>Vertretung zugestimmt von {req.stamps.vertreter.name} am {formatDate(req.stamps.vertreter.at.split('T')[0])} {req.stamps.vertreter.isAuto ? '(Autom.)' : ''}</span>
+                <span>
+                  {req.empId === 'maier'
+                    ? `Zur Kenntnis genommen von ${req.stamps.vertreter.name} am ${formatDate(req.stamps.vertreter.at.split('T')[0])}`
+                    : `Vertretung zugestimmt von ${req.stamps.vertreter.name} am ${formatDate(req.stamps.vertreter.at.split('T')[0])} ${req.stamps.vertreter.isAuto ? '(Autom.)' : ''}`}
+                </span>
               </div>
             ) : null}
             {req.stamps?.supervisor && (
@@ -516,7 +520,7 @@ const RequestsView = ({
                 onClick={() => onApprove(req.id, isPendingVertreterForMe ? 'vertreter' : (isPendingSupervisorForMe ? 'supervisor' : 'admin'))}
               >
                 <Check size={16} />
-                <span>{isPendingVertreterForMe ? 'Zustimmen' : (isPendingSupervisorForMe ? 'Freigeben' : 'Genehmigen')}</span>
+                <span>{isPendingVertreterForMe ? (req.empId === 'maier' ? 'Zur Kenntnis genommen' : 'Zustimmen') : (isPendingSupervisorForMe ? 'Freigeben' : 'Genehmigen')}</span>
               </button>
               <button 
                 className="btn-reject" 
@@ -593,7 +597,7 @@ const RequestsView = ({
               </button>
             )
           ) : (
-            perms.canDeleteRequests && (
+            (perms.canDeleteRequests || (currentUser?.id === 'sekretariat' && req.empId === 'maier')) && (
               <button className="btn-delete" onClick={() => { if(confirm('Antrag wirklich in den Papierkorb verschieben?')) onDelete(req.id); }}>
                 <Trash2 size={16} />
               </button>

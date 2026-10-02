@@ -955,8 +955,67 @@ const App = () => {
       const updatedRequests = [...appData.requests];
 
       if (byType === 'vertreter') {
-        request.status = request.supervisorId ? 'pending_supervisor' : 'pending_admin';
         request.stamps = { ...request.stamps, vertreter: makeStamp(auth.user) };
+
+        if (request.empId === 'maier') {
+          // Prof. Maier needs NO admin approval process: once the representative documents that they have seen it,
+          // the request is immediately approved and absences are confirmed!
+          request.status = 'approved';
+          request.stamps.admin = {
+            at: new Date().toISOString(),
+            uid: 'system',
+            name: 'Keine Genehmigung erforderlich (Chefarzt)',
+            isAuto: true
+          };
+
+          const newAbsences = { ...appData.absences };
+          if (!newAbsences[request.empId]) newAbsences[request.empId] = {};
+          request.dates.forEach(date => {
+            let repName = request.vertreter;
+            let repId = request.vertreterId;
+            if (Array.isArray(request.substitutes) && request.substitutes.length > 0) {
+              const sub = request.substitutes.find(s => (s.dates && s.dates.includes(date)) || (date >= s.from && date <= s.to));
+              if (sub) {
+                repName = sub.vertreter;
+                repId = sub.vertreterId;
+              }
+            }
+            newAbsences[request.empId][date] = {
+              type: request.type,
+              text: request.text,
+              vertreter: repName,
+              vertreterId: repId,
+              status: 'confirmed',
+              uid: request.id,
+              updatedAt: new Date().toISOString()
+            };
+          });
+
+          updatedRequests[reqIndex] = request;
+
+          await Promise.all([
+            firestoreService.saveRequest(getEmployeeProfileType(request.empId), request),
+            firestoreService.saveAbsence(getEmployeeProfileType(request.empId), request.empId, newAbsences[request.empId])
+          ]);
+
+          setAppData(prev => {
+            const newRequests = [...prev.requests];
+            const idx = newRequests.findIndex(r => r.id === reqId);
+            if (idx !== -1) newRequests[idx] = request;
+
+            const nextAppData = {
+              ...prev,
+              requests: newRequests,
+              absences: { ...prev.absences, [request.empId]: newAbsences[request.empId] }
+            };
+            nextAppData.vacationStats = updateVacationStats(nextAppData.absences, prev.employees, prev.vacationStats, nextAppData.requests);
+            firestoreService.saveConfig({ vacationStats: nextAppData.vacationStats }).catch(e => console.error("Background save failed:", e));
+            return nextAppData;
+          });
+          return;
+        }
+
+        request.status = request.supervisorId ? 'pending_supervisor' : 'pending_admin';
         updatedRequests[reqIndex] = request;
 
         await firestoreService.saveRequest(getEmployeeProfileType(request.empId), request);
@@ -1409,8 +1468,8 @@ const App = () => {
     canBulkImport: isFullAdmin,
     canRequestAbsence: true,
     canICalExport: isFullAdmin || isSekretariat,
-    canEnterDirectly: isFullAdmin || isSekretariat,
-    canDeleteAbsences: isFullAdmin || isSekretariat,
+    canEnterDirectly: isFullAdmin,
+    canDeleteAbsences: isFullAdmin,
     canSwitchPlaner: isFullAdmin || isSekretariat || isOA,
     forcePlanerAss: isSpokesperson,
     canEditSpecialAccounts: isFullAdmin,
