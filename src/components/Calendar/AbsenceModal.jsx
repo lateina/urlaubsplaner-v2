@@ -286,16 +286,17 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
     setShowVertreterResults(false);
   };
 
-  // Static check based on role/skills (Kein Vertreter nötig)
+  // Static check based on role/skills (Chef / Kein Vertreter nötig)
   const isStaticNoVertreter = useMemo(() => {
     const emp = employees.find(e => e.id === effectiveEmpId);
     if (!emp) return false;
+    if (emp.id === 'maier') return true;
     
     const gIds = Array.isArray(emp.groups) ? emp.groups : [];
     return gIds.some(gid => {
-      if (gid === 'skill_keinvertreternotig') return true;
+      if (gid === 'skill_chef' || gid === 'skill_keinvertreternotig' || gid === 'Chef') return true;
       const skillObj = skills.find(s => s.id === gid);
-      if (skillObj && skillObj.name === 'Kein Vertreter nötig') return true;
+      if (skillObj && (skillObj.name === 'Chef' || skillObj.name === 'Kein Vertreter nötig')) return true;
       return false;
     });
   }, [effectiveEmpId, employees, skills]);
@@ -309,7 +310,8 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
   const isPartialLabor = rotationExemption.isPartial;
   const exemptionType = rotationExemption.type;
 
-  const isVertreterRequired = !isStaticNoVertreter && !isLaborPeriod;
+  const isMaier = effectiveEmpId === 'maier';
+  const isVertreterRequired = !isMaier && !isStaticNoVertreter && !isLaborPeriod;
 
   const isSupervisorRequired = useMemo(() => {
     if (effectiveEmpId === 'maier') return false;
@@ -774,7 +776,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
               if (!e.target.value) setFormData(prev => ({ ...prev, vertreter: '', vertreterId: '' }));
             }}
             onFocus={() => setShowVertreterResults(true)}
-            placeholder={isLaborPeriod ? "Optional: Kollegen suchen..." : "Kollegen suchen..."}
+            placeholder={!isVertreterRequired ? "Optional: Kollegen suchen..." : "Kollegen suchen..."}
             required={isVertreterRequired}
             style={{ width: '100%', padding: '12px 16px', borderRadius: 14, border: '2px solid rgba(0, 0, 0, 0.4)', background: 'white', color: '#000000', fontWeight: 500, fontSize: '1rem', boxSizing: 'border-box' }} 
           />
