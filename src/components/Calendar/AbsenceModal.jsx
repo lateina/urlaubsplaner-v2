@@ -174,6 +174,11 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
   const [showVertreterResults, setShowVertreterResults] = useState(false);
 
   // Filter employees for representative search (exclude self and special roles)
+  const myEmp = employees.find(emp => emp.id === effectiveEmpId);
+  const myGroups = Array.isArray(myEmp?.groups) ? myEmp.groups : (myEmp?.group ? [myEmp.group] : []);
+  const myIsFOA = myGroups.some(g => g === 'skill_funktionsoberarzt' || (typeof g === 'string' && g.toLowerCase().includes('funktionsoberarzt'))) || !!myEmp?._isCrossProfileFoa;
+  const myIsOA = myEmp?.role === 'Oberarzt' || myEmp?.isOberarzt === true || !!myEmp?._isCrossProfileOa;
+
   const vertreterCandidates = employees.filter(e => {
     const isSelf = e.id === effectiveEmpId;
     const isSpecial = ['admin', 'sekretariat', 'assistentensprecher'].includes(e.id) || 
@@ -181,7 +186,10 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
                       e.name?.toLowerCase().includes('assistentensprecher');
     
     if (isSelf || isSpecial || e.active === false) return false;
-    if (planerType === 'ass' && e._isCrossProfileOa && !e._isCrossProfileFoa) return false;
+
+    // In ASS planer, regular assistants cannot select cross-profile OAs,
+    // but FOAs and OAs CAN select OAs.
+    if (planerType === 'ass' && e._isCrossProfileOa && !e._isCrossProfileFoa && !myIsFOA && !myIsOA) return false;
     
     // Check if representative is active during the requested time
     if (formData.startDate) {
@@ -192,10 +200,11 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
     }
 
     // Filter by skill hierarchy compatibility
-    const myEmp = employees.find(emp => emp.id === effectiveEmpId);
     if (myEmp) {
-      const mySkills = Array.isArray(myEmp.groups) ? myEmp.groups : [];
-      const theirSkills = Array.isArray(e.groups) ? e.groups : [];
+      const mySkills = Array.isArray(myEmp.groups) ? myEmp.groups : (myEmp.group ? [myEmp.group] : []);
+      const theirSkills = Array.isArray(e.groups) ? e.groups : (e.group ? [e.group] : []);
+      const theirIsOA = e.role === 'Oberarzt' || e.isOberarzt === true || !!e._isCrossProfileOa;
+      const theirIsFOA = theirSkills.some(g => g === 'skill_funktionsoberarzt' || (typeof g === 'string' && g.toLowerCase().includes('funktionsoberarzt'))) || !!e._isCrossProfileFoa;
       
       // Get skill priority (lower index = higher skill)
       const getMinIndex = (grpIds) => {
@@ -218,13 +227,10 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
       const isHigherOrEqual = theirBestIdx <= myBestIdx;
 
       // Rule 3: FOA Special Rule (Assistants represent FOAs)
-      const isFoaSpecial = myEmp._isCrossProfileFoa && !e._isCrossProfile;
+      const isFoaSpecial = myIsFOA && !theirIsOA;
 
-      // Rule 4: Proper OA representing FOA in OA Planner (proper OAs can always represent FOAs)
-      const isProperOaForFoa = planerType === 'oa' &&
-        (mySkills.includes('skill_funktionsoberarzt') || myEmp._isCrossProfileFoa) &&
-        (e.role === 'Oberarzt' || e.isOberarzt === true) &&
-        !theirSkills.includes('skill_funktionsoberarzt');
+      // Rule 4: Proper OA representing FOA (in both OA and ASS Planner - proper OAs can always represent FOAs)
+      const isProperOaForFoa = myIsFOA && theirIsOA && !theirIsFOA;
 
       if (!hasMatchingSkill && !isHigherOrEqual && !isFoaSpecial && !isProperOaForFoa) return false;
     }
