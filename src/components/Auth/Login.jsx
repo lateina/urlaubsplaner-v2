@@ -123,15 +123,32 @@ const Login = ({ onLogin, binId, planerType }) => {
                 </div>
                 <div className="user-list">
                   {filteredEmployees.length > 0 ? (
-                    filteredEmployees.map(emp => (
-                      <div 
-                        key={emp.id}
-                        className={`user-item ${selectedUser?.id === emp.id ? 'active' : ''}`}
-                        onClick={() => setSelectedUser(emp)}
-                      >
-                        {emp.name} {emp.stampAlias ? `(${emp.stampAlias})` : ''}
-                      </div>
-                    ))
+                    filteredEmployees.map(emp => {
+                      const grps = Array.isArray(emp.groups) ? emp.groups : (emp.group ? [emp.group] : []);
+                      const isFoa = grps.some(g => String(g).toLowerCase().includes('funktionsoberarzt'));
+                      const isOa = (emp.role === 'Oberarzt' || emp.isOberarzt === true) && !isFoa;
+
+                      return (
+                        <div 
+                          key={emp.id}
+                          className={`user-item ${selectedUser?.id === emp.id ? 'active' : ''}`}
+                          onClick={() => setSelectedUser(emp)}
+                          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                        >
+                          <span>{emp.name} {emp.stampAlias ? `(${emp.stampAlias})` : ''}</span>
+                          {isOa && (
+                            <span style={{ fontSize: '0.72rem', padding: '1px 6px', borderRadius: '4px', background: 'rgba(139, 92, 246, 0.12)', color: '#8b5cf6', fontWeight: 600 }}>
+                              OA
+                            </span>
+                          )}
+                          {isFoa && (
+                            <span style={{ fontSize: '0.72rem', padding: '1px 6px', borderRadius: '4px', background: 'rgba(14, 165, 233, 0.12)', color: '#0ea5e9', fontWeight: 600 }}>
+                              FOA
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })
                   ) : (
                     <div className="user-item empty">Keine Mitarbeiter gefunden</div>
                   )}

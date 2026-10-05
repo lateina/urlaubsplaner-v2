@@ -30,12 +30,17 @@ const RequestsView = ({
   const [editDateEnd, setEditDateEnd] = useState('');
   const [repModalReq, setRepModalReq] = useState(null);
 
-  // Initialize subTab correctly for admins
+  // Initialize subTab correctly for admins and Oberärzte
   React.useEffect(() => {
     if (isAdmin && subTab === 'meine') {
       setSubTab('admin_list');
+    } else if (subTab === 'meine') {
+      const isOA = currentUser?.role === 'Oberarzt' || currentUser?.isOberarzt === true;
+      if (isOA && planerType === 'ass') {
+        setSubTab('vertreter');
+      }
     }
-  }, [isAdmin]);
+  }, [isAdmin, currentUser, planerType]);
 
   const typeLabel = { U: 'Urlaub', FZA: 'Freizeitausgleich', D: 'Dienstreise', F: 'Fortbildung', S: 'Sonstiges' };
   const statusLabel = {
