@@ -352,41 +352,65 @@ const App = () => {
       });
       const allEmployees = Array.from(uniqueRawMap.values());
 
-      // Auto-Sync Funktionsoberarzt (FOA) from Planer570 (qualifikation === 'oberarzt')
-      let foaSyncNeeded = false;
+      // Auto-Sync Funktionsoberarzt (FOA) and Oberarzt (OA) from Planer570
+      let roleSyncNeeded = false;
       if (Array.isArray(planerEmployees) && planerEmployees.length > 0) {
         planerEmployees.forEach(pe => {
           const q = (pe.qualifikation || '').toLowerCase();
           const notes = (pe.notizen || '').toLowerCase();
+          const isPlanerOA = q === 'oa';
           const isPlanerFOA = q === 'oberarzt' || notes.includes('funktionsoberarzt');
 
-          if (isPlanerFOA) {
+          if (isPlanerOA || isPlanerFOA) {
             const pId = String(pe.mitarbeiter_id || pe.id || '');
             const pName = (pe.mitarbeiter_name || pe.name || '').trim();
             const target = allEmployees.find(e => 
               (pId && String(e.id) === pId) || 
               (pName && pName.length >= 3 && e.name && (
                 e.name.toLowerCase() === pName.toLowerCase() ||
-                e.name.toLowerCase().split(/\s+/).includes(pName.toLowerCase())
+                e.name.toLowerCase().split(/\s+/).includes(pName.toLowerCase()) ||
+                pName.toLowerCase().split(/\s+/).includes(e.name.toLowerCase())
               ))
             );
 
-            if (target && target.showInAss !== false) {
+            if (target) {
               const currentGroups = Array.isArray(target.groups) ? target.groups : (target.group ? [target.group] : []);
-              if (!currentGroups.includes('skill_funktionsoberarzt')) {
-                console.log(`[Auto-Sync] Adding Funktionsoberarzt to ${target.name} based on Planer570`);
-                target.groups = [...currentGroups, 'skill_funktionsoberarzt'];
-                foaSyncNeeded = true;
+              if (isPlanerOA) {
+                // Echter Oberarzt (Planer570: Qualifikation 'Oberarzt' / value 'oa')
+                let updated = false;
+                if (target.role !== 'Oberarzt') {
+                  target.role = 'Oberarzt';
+                  updated = true;
+                }
+                if (!target.isOberarzt) {
+                  target.isOberarzt = true;
+                  updated = true;
+                }
+                if (currentGroups.includes('skill_funktionsoberarzt')) {
+                  console.log(`[Auto-Sync] Removing Funktionsoberarzt from ${target.name} (echter Oberarzt)`);
+                  target.groups = currentGroups.filter(g => g !== 'skill_funktionsoberarzt');
+                  updated = true;
+                }
+                if (updated) roleSyncNeeded = true;
+              } else if (isPlanerFOA) {
+                // Funktionsoberarzt (Planer570: Qualifikation 'Funktionsoberarzt' / value 'oberarzt')
+                if (target.showInAss !== false) {
+                  if (!currentGroups.includes('skill_funktionsoberarzt')) {
+                    console.log(`[Auto-Sync] Adding Funktionsoberarzt to ${target.name} based on Planer570`);
+                    target.groups = [...currentGroups, 'skill_funktionsoberarzt'];
+                    roleSyncNeeded = true;
+                  }
+                }
               }
             }
           }
         });
 
-        if (foaSyncNeeded) {
+        if (roleSyncNeeded) {
           firestoreService.saveConfig({
             ...sourceData,
             employees: allEmployees
-          }).catch(err => console.warn('[Auto-Sync] Background FOA update failed:', err));
+          }).catch(err => console.warn('[Auto-Sync] Background role update failed:', err));
         }
       }
 

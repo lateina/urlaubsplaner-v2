@@ -80,6 +80,7 @@ const EmployeeAdmin = ({ employees, planerEmployees = [], skills, onSave, perms 
           groups: newGroups,
           active: true,
           role: newRole,
+          isOberarzt: role === 'OA' || role === 'FOA',
           entryDate: currentImport.startdatum || '',
           exitDate: currentImport.enddatum || ''
         };
