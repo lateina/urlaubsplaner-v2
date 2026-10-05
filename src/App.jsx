@@ -352,6 +352,44 @@ const App = () => {
       });
       const allEmployees = Array.from(uniqueRawMap.values());
 
+      // Auto-Sync Funktionsoberarzt (FOA) from Planer570 (qualifikation === 'oberarzt')
+      let foaSyncNeeded = false;
+      if (Array.isArray(planerEmployees) && planerEmployees.length > 0) {
+        planerEmployees.forEach(pe => {
+          const q = (pe.qualifikation || '').toLowerCase();
+          const notes = (pe.notizen || '').toLowerCase();
+          const isPlanerFOA = q === 'oberarzt' || notes.includes('funktionsoberarzt');
+
+          if (isPlanerFOA) {
+            const pId = String(pe.mitarbeiter_id || pe.id || '');
+            const pName = (pe.mitarbeiter_name || pe.name || '').trim();
+            const target = allEmployees.find(e => 
+              (pId && String(e.id) === pId) || 
+              (pName && pName.length >= 3 && e.name && (
+                e.name.toLowerCase() === pName.toLowerCase() ||
+                e.name.toLowerCase().split(/\s+/).includes(pName.toLowerCase())
+              ))
+            );
+
+            if (target && target.showInAss !== false) {
+              const currentGroups = Array.isArray(target.groups) ? target.groups : (target.group ? [target.group] : []);
+              if (!currentGroups.includes('skill_funktionsoberarzt')) {
+                console.log(`[Auto-Sync] Adding Funktionsoberarzt to ${target.name} based on Planer570`);
+                target.groups = [...currentGroups, 'skill_funktionsoberarzt'];
+                foaSyncNeeded = true;
+              }
+            }
+          }
+        });
+
+        if (foaSyncNeeded) {
+          firestoreService.saveConfig({
+            ...sourceData,
+            employees: allEmployees
+          }).catch(err => console.warn('[Auto-Sync] Background FOA update failed:', err));
+        }
+      }
+
       let groupColors = {
         ...DEFAULT_GROUP_COLORS,
         ...(profile.defaultColors || {}),

@@ -252,11 +252,11 @@ const EmployeeAdmin = ({ employees, planerEmployees = [], skills, onSave, perms 
                 Assistenzarzt / User
               </label>
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                <input type="radio" name="importRole" value="OA" defaultChecked={(currentImport.qualifikation || '').toLowerCase().includes('oberarzt') && !(currentImport.qualifikation || '').toLowerCase().includes('funktions')} />
+                <input type="radio" name="importRole" value="OA" defaultChecked={(currentImport.qualifikation || '').toLowerCase() === 'oa'} />
                 Oberarzt
               </label>
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                <input type="radio" name="importRole" value="FOA" defaultChecked={(currentImport.qualifikation || '').toLowerCase().includes('funktionsoberarzt')} />
+                <input type="radio" name="importRole" value="FOA" defaultChecked={(currentImport.qualifikation || '').toLowerCase() === 'oberarzt' || (currentImport.qualifikation || '').toLowerCase().includes('funktionsoberarzt')} />
                 Funktionsoberarzt (erscheint in beiden Planern)
               </label>
             </div>
