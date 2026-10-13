@@ -270,7 +270,7 @@ async function run() {
             // 4. Rejected -> Digest
             if (req.status === 'rejected' && !notified.rejected) {
                 if (emp?.email) {
-                    const by = req.rejectedBy === 'vertreter' ? 'deinem Vertreter' : 'dem Leitenden Oberarzt';
+                    const by = req.rejectedBy === 'vertreter' ? 'deinem Vertreter' : (req.rejectedBy === 'supervisor' ? 'deinem Vorgesetzten' : 'dem Leitenden Oberarzt');
                     if (!personDigests[emp.email]) personDigests[emp.email] = { name: empName, items: [] };
                     personDigests[emp.email].items.push(`• Dein Antrag auf ${typeLabel} (${datesStr}) wurde von ${by} ABGELEHNT.${req.rejectionNote ? ` Grund: ${req.rejectionNote}` : ''}${link}`);
                     notified.rejected = true;

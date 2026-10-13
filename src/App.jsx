@@ -1181,7 +1181,7 @@ const App = () => {
       const updatedRequests = [...appData.requests];
       updatedRequests[reqIndex] = request;
       
-      await firestoreService.saveRequest(planerType, request);
+      await firestoreService.saveRequest(getEmployeeProfileType(request.empId), request);
       setAppData(prev => {
         const newRequests = [...prev.requests];
         const idx = newRequests.findIndex(r => r.id === reqId);
@@ -1246,7 +1246,7 @@ const App = () => {
       const updatedRequests = [...appData.requests];
       updatedRequests[reqIndex] = request;
 
-      await firestoreService.saveRequest(planerType, request);
+      await firestoreService.saveRequest(getEmployeeProfileType(request.empId), request);
       
       let nextAbsences = appData.absences;
       if (appData.requests[reqIndex].status === 'approved' && updates.status && updates.status !== 'approved') {
