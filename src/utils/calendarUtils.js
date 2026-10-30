@@ -203,3 +203,65 @@ export const getRotationExemptionInfo = (empId, startDate, endDate, rotationData
 
   return { isExempt, isPartial, type };
 };
+
+/**
+ * Checks if an employee is a Funktionsoberarzt (FOA) or Oberarzt (OA) in Pneumologie.
+ */
+export const isFoaOrOaInPneumo = (emp) => {
+  if (!emp) return false;
+  const groups = Array.isArray(emp.groups) ? emp.groups : (emp.group ? [emp.group] : []);
+  const isPneumo = groups.some(g => String(g).toLowerCase().includes('pneumo'));
+  const isOA = emp.role === 'Oberarzt' || emp.isOberarzt === true;
+  const isFOA = groups.some(g => String(g).toLowerCase().includes('funktionsoberarzt'));
+  return isPneumo && (isOA || isFOA);
+};
+
+/**
+ * Returns any warnings if a representative in this request simultaneously represents
+ * other colleagues on any overlapping dates.
+ * Format of warning string: "Achtung XY vertritt gleichzeitig auch XZ"
+ */
+export const getSimultaneousRepresentationWarnings = (request, allRequests = [], allEmployees = []) => {
+  if (!request || !request.dates || !Array.isArray(request.dates) || request.dates.length === 0) {
+    return [];
+  }
+  if (request.status === 'rejected' || request.status === 'deleted') {
+    return [];
+  }
+
+  // Map: repId -> Set of other employee names
+  const repToOthersMap = new Map();
+
+  for (const dateStr of request.dates) {
+    const repId = getRepresentativeIdForDate(request, dateStr);
+    if (!repId || repId === 'none') continue;
+
+    for (const otherReq of allRequests) {
+      if (!otherReq || otherReq.id === request.id) continue;
+      if (otherReq.status === 'rejected' || otherReq.status === 'deleted') continue;
+      if (otherReq.empId === request.empId) continue;
+
+      const otherRepId = getRepresentativeIdForDate(otherReq, dateStr);
+      if (otherRepId === repId) {
+        if (!repToOthersMap.has(repId)) {
+          repToOthersMap.set(repId, new Set());
+        }
+        const otherEmp = allEmployees.find(e => e.id === otherReq.empId);
+        const otherName = otherEmp?.name || otherReq.empId;
+        repToOthersMap.get(repId).add(otherName);
+      }
+    }
+  }
+
+  const warnings = [];
+  repToOthersMap.forEach((otherNamesSet, repId) => {
+    if (otherNamesSet.size > 0) {
+      const repEmp = allEmployees.find(e => e.id === repId);
+      const repName = repEmp?.name || repId;
+      const otherNamesList = Array.from(otherNamesSet).sort().join(', ');
+      warnings.push(`Achtung ${repName} vertritt gleichzeitig auch ${otherNamesList}`);
+    }
+  });
+
+  return warnings;
+};

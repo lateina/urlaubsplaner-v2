@@ -7,6 +7,7 @@ import AbsenceModal from './AbsenceModal';
 import BulkImport from './BulkImport';
 import Tooltip from '../UI/Tooltip';
 import { MONTH_AREA_MAPPING, MONTH_AREA_ORDER, getAreaColor } from '../../config/rotationConfig';
+import { getRepresentativeIdForDate } from '../../utils/calendarUtils';
 
 const CalendarView = ({ 
   planerType,
@@ -702,6 +703,21 @@ const CalendarView = ({
             lines.push('Kein Vertreter nötig');
           } else {
             lines.push(`Vertreter: ${target.vertreter}`);
+            const vId = target.vertreterId;
+            if (vId) {
+              const otherRepsOnDay = new Set();
+              requests.forEach(r => {
+                if (r.empId !== emp.id && r.status !== 'rejected' && r.status !== 'deleted') {
+                  if (getRepresentativeIdForDate(r, day.dateString) === vId) {
+                    const oEmp = employees.find(e => e.id === r.empId);
+                    otherRepsOnDay.add(oEmp?.name || r.empId);
+                  }
+                }
+              });
+              if (otherRepsOnDay.size > 0) {
+                lines.push(`⚠️ Achtung ${target.vertreter} vertritt heute auch: ${Array.from(otherRepsOnDay).join(', ')}`);
+              }
+            }
           }
         }
         if (target.supervisor) {

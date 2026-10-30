@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import Modal from '../UI/Modal';
 import { User, Calendar, Plus, Trash2, AlertTriangle, CheckCircle2, Split, Clock, ArrowRight } from 'lucide-react';
-import { getLastNameSortKey, getRepresentativeIdForDate, getRotationExemptionInfo } from '../../utils/calendarUtils';
+import { getLastNameSortKey, getRepresentativeIdForDate, getRotationExemptionInfo, isFoaOrOaInPneumo, getSimultaneousRepresentationWarnings } from '../../utils/calendarUtils';
 
 const EditRepresentativesModal = ({
   isOpen,
@@ -159,7 +159,9 @@ const EditRepresentativesModal = ({
       }
       const existingReps = requests.filter(r => r.id !== request.id && getRepresentativeIdForDate(r, d) === vId);
       if (existingReps.length > 0) {
-        if (existingReps.length >= 2) {
+        if (isFoaOrOaInPneumo(repEmp)) {
+          // Sonderregelung Pneumologie: FOA/OA in der Pneumologie dürfen mehrere Kollegen gleichzeitig vertreten
+        } else if (existingReps.length >= 2) {
           conflicts.push({ date: d, reason: 'Bereits 2x Vertretung' });
         } else {
           const reqIsEpu = requesterEmp && ((requesterEmp.role === 'Oberarzt' || requesterEmp.isOberarzt || (requesterEmp.groups || []).includes('skill_funktionsoberarzt')) && (requesterEmp.groups || []).includes('skill_epu'));
@@ -179,6 +181,14 @@ const EditRepresentativesModal = ({
   const singleConflicts = useMemo(() => {
     return checkConflicts(singleVertreterId, dates);
   }, [singleVertreterId, dates, absences, requests]);
+
+  const singlePneumoWarnings = useMemo(() => {
+    if (!singleVertreterId || singleVertreterId === 'none') return [];
+    const repEmp = employees.find(e => e.id === singleVertreterId);
+    if (!isFoaOrOaInPneumo(repEmp)) return [];
+    const dummyReq = { ...request, vertreterId: singleVertreterId, dates };
+    return getSimultaneousRepresentationWarnings(dummyReq, requests, employees);
+  }, [singleVertreterId, dates, request, requests, employees]);
 
   // Segment operations
   const handleAddSegment = () => {
@@ -569,6 +579,18 @@ const EditRepresentativesModal = ({
                   </div>
                   <div style={{ marginTop: '4px', fontSize: '0.75rem', color: '#7f1d1d' }}>
                     💡 Tipp: Nutzen Sie "Zeitlich aufteilen", um nur die unkritischen Tage zuzuweisen.
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {singleConflicts.length === 0 && singlePneumoWarnings.length > 0 && (
+              <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '10px', padding: '10px 12px', fontSize: '0.8rem', color: '#dc2626', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <AlertTriangle size={16} style={{ flexShrink: 0 }} />
+                <div>
+                  <strong>{singlePneumoWarnings.join('; ')}</strong>
+                  <div style={{ fontSize: '0.75rem', marginTop: '2px', color: '#7f1d1d' }}>
+                    Sonderregelung Pneumologie aktiv: Mehrfachvertretung ist zulässig und wird auf der Urlaubskarte rot vermerkt.
                   </div>
                 </div>
               </div>

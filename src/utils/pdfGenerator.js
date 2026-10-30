@@ -1,5 +1,5 @@
 import { PDFDocument, rgb } from 'pdf-lib';
-import { getSpecialDayInfo } from './calendarUtils';
+import { getSpecialDayInfo, getSimultaneousRepresentationWarnings } from './calendarUtils';
 
 /**
  * Generates and downloads a travel or vacation request PDF.
@@ -7,8 +7,9 @@ import { getSpecialDayInfo } from './calendarUtils';
  * 
  * @param {Object} req - The request object from state
  * @param {Array} employees - List of employees to find the name
+ * @param {Array} requests - List of all requests to check simultaneous representations
  */
-export async function generateAndDownloadPDF(req, employees = []) {
+export async function generateAndDownloadPDF(req, employees = [], requests = []) {
   try {
     if (!req) return alert('Antrag nicht gefunden.');
     const emp = employees.find(e => e.id === req.empId);
@@ -95,6 +96,20 @@ export async function generateAndDownloadPDF(req, employees = []) {
         const vText = req.vertreter === 'Kein Vertreter nötig' ? 'Kein Vertreter nötig' : fmtStampText(req.stamps?.vertreter, req.vertreter || 'Vertreter', 'Zustimmung');
         const vColor = req.vertreter === 'Kein Vertreter nötig' ? rgb(0.4, 0.4, 0.4) : rgb(1,0,0);
         firstPage.drawText(vText, { x: rect.x, y: rect.y - 18, size: 10, color: vColor });
+        
+        if (req.vertreter !== 'Kein Vertreter nötig') {
+          const repWarnings = getSimultaneousRepresentationWarnings(req, requests, employees);
+          if (repWarnings && repWarnings.length > 0) {
+            repWarnings.forEach((warn, idx) => {
+              firstPage.drawText(warn, {
+                x: rect.x,
+                y: rect.y - 28 - (idx * 8),
+                size: 7.5,
+                color: rgb(0.85, 0, 0)
+              });
+            });
+          }
+        }
         
         if (req.stamps?.supervisor) {
           const sText = fmtStampText(req.stamps.supervisor, req.supervisor || 'Vorgesetzter', 'Freigabe Vorgesetzter');

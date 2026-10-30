@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Check, X, Trash2, FileText, Clock, User, Calendar as CalendarIcon, MessageSquare, ShieldCheck, Search, Mail } from 'lucide-react';
+import { Check, X, Trash2, FileText, Clock, User, Calendar as CalendarIcon, MessageSquare, ShieldCheck, Search, Mail, AlertTriangle } from 'lucide-react';
 import { generateAndDownloadPDF } from '../../utils/pdfGenerator';
-import { getLastNameSortKey, getRepresentativeIdForDate } from '../../utils/calendarUtils';
+import { getLastNameSortKey, getRepresentativeIdForDate, isFoaOrOaInPneumo, getSimultaneousRepresentationWarnings } from '../../utils/calendarUtils';
 import EditRepresentativesModal from './EditRepresentativesModal';
 
 
@@ -173,6 +173,7 @@ const RequestsView = ({
     const isPendingAdmin = perms.canApproveRequests && effectiveStatus === 'pending_admin';
     const canApprove = isPendingVertreterForMe || isPendingSupervisorForMe || isPendingAdmin;
     const showPOCheckbox = subTab === 'po_transfer' || (isAdmin && effectiveStatus === 'approved');
+    const repWarnings = getSimultaneousRepresentationWarnings(req, requests, employees);
 
     return (
       <div key={req.id} className="request-card">
@@ -265,31 +266,81 @@ const RequestsView = ({
                         </div>
                       ))}
                     </div>
-                  </div>
-                ) : (
-                  <span style={req.vertreter === 'Kein Vertreter nötig' ? { color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' } : { display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <User size={14} />
-                    {req.vertreter === 'Kein Vertreter nötig' ? 'Kein Vertreter nötig' : `Vertreter: ${req.vertreter || 'Keine Angabe'}`}
-                    {isAdmin && req.status === 'pending_vertreter' && req.vertreterId && (
-                      <div className="mail-tooltip-container">
-                        <button 
-                          onClick={() => {
-                            onUpdateRequest(req.id, { notified: { ...(req.notified || {}), pending_vertreter: false } });
-                            alert('Erinnerungs-E-Mail wurde in die Warteschlange gestellt (Versand erfolgt beim nächsten Systemlauf in ca. 15-30 Min).');
-                          }}
-                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: '#3b82f6' }}
-                        >
-                          <Mail size={14} />
-                        </button>
-                        <div className="mail-tooltip">
-                          Hallo {getEmpName(req.vertreterId)},<br/><br/>
-                          es gibt neue Benachrichtigungen für dich im Urlaubsplaner:<br/><br/>
-                          • Vertretungsanfrage von {getEmpName(req.empId)}: {typeLabel[req.type]} ({formatDateRange(req.dates)})<br/>
-                          Zum Urlaubsplaner: {req.planerType === 'ass' ? 'https://lateina.github.io/urlaubsplaner-v2/assistenz.html' : 'https://lateina.github.io/urlaubsplaner-v2/'}
-                        </div>
+                    {repWarnings.length > 0 && (
+                      <div style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        {repWarnings.map((warn, wIdx) => (
+                          <div 
+                            key={wIdx} 
+                            style={{ 
+                              color: '#dc2626', 
+                              fontWeight: 700, 
+                              fontSize: '0.8rem', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '6px', 
+                              background: 'rgba(239, 68, 68, 0.08)', 
+                              padding: '3px 8px', 
+                              borderRadius: '6px', 
+                              border: '1px solid rgba(239, 68, 68, 0.2)' 
+                            }}
+                          >
+                            <AlertTriangle size={13} style={{ color: '#dc2626', flexShrink: 0 }} />
+                            <span>{warn}</span>
+                          </div>
+                        ))}
                       </div>
                     )}
-                  </span>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                    <span style={req.vertreter === 'Kein Vertreter nötig' ? { color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' } : { display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <User size={14} />
+                      {req.vertreter === 'Kein Vertreter nötig' ? 'Kein Vertreter nötig' : `Vertreter: ${req.vertreter || 'Keine Angabe'}`}
+                      {isAdmin && req.status === 'pending_vertreter' && req.vertreterId && (
+                        <div className="mail-tooltip-container">
+                          <button 
+                            onClick={() => {
+                              onUpdateRequest(req.id, { notified: { ...(req.notified || {}), pending_vertreter: false } });
+                              alert('Erinnerungs-E-Mail wurde in die Warteschlange gestellt (Versand erfolgt beim nächsten Systemlauf in ca. 15-30 Min).');
+                            }}
+                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: '#3b82f6' }}
+                          >
+                            <Mail size={14} />
+                          </button>
+                          <div className="mail-tooltip">
+                            Hallo {getEmpName(req.vertreterId)},<br/><br/>
+                            es gibt neue Benachrichtigungen für dich im Urlaubsplaner:<br/><br/>
+                            • Vertretungsanfrage von {getEmpName(req.empId)}: {typeLabel[req.type]} ({formatDateRange(req.dates)})<br/>
+                            Zum Urlaubsplaner: {req.planerType === 'ass' ? 'https://lateina.github.io/urlaubsplaner-v2/assistenz.html' : 'https://lateina.github.io/urlaubsplaner-v2/'}
+                          </div>
+                        </div>
+                      )}
+                    </span>
+                    {repWarnings.length > 0 && (
+                      <div style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        {repWarnings.map((warn, wIdx) => (
+                          <div 
+                            key={wIdx} 
+                            style={{ 
+                              color: '#dc2626', 
+                              fontWeight: 700, 
+                              fontSize: '0.8rem', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '6px', 
+                              background: 'rgba(239, 68, 68, 0.08)', 
+                              padding: '3px 8px', 
+                              borderRadius: '6px', 
+                              border: '1px solid rgba(239, 68, 68, 0.2)' 
+                            }}
+                          >
+                            <AlertTriangle size={13} style={{ color: '#dc2626', flexShrink: 0 }} />
+                            <span>{warn}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
               { (isAdmin || (req.empId === currentUser.id && req.status === 'rejected' && req.rejectedBy === 'vertreter')) && (
@@ -327,7 +378,11 @@ const RequestsView = ({
                                   
                                   let isBlocked = false;
                                   if (existingReps.length > 0) {
-                                      if (existingReps.length >= 2) {
+                                      const vertreterEmp = newEmp;
+                                      if (isFoaOrOaInPneumo(vertreterEmp)) {
+                                          // Sonderregelung Pneumologie: FOA/OA in der Pneumologie dürfen mehrere Kollegen gleichzeitig vertreten
+                                          isBlocked = false;
+                                      } else if (existingReps.length >= 2) {
                                           isBlocked = true; // Maximum 2 representations even for EPU
                                       } else {
                                           // Exactly 1 existing representation. Check if EPU exception applies
@@ -336,7 +391,6 @@ const RequestsView = ({
                                           const otherEmp = employees.find(e => e.id === existingReps[0].empId);
                                           const otherIsEpuException = otherEmp && ((otherEmp.role === 'Oberarzt' || otherEmp.isOberarzt || (otherEmp.groups || []).includes('skill_funktionsoberarzt')) && (otherEmp.groups || []).includes('skill_epu'));
                                           
-                                          const vertreterEmp = newEmp;
                                           const vertreterIsEpu = vertreterEmp && (vertreterEmp.groups || []).includes('skill_epu');
                                           
                                           if (!reqIsEpuException || !otherIsEpuException || !vertreterIsEpu) {
@@ -545,7 +599,7 @@ const RequestsView = ({
             <button 
               className="btn-pdf" 
               title="PO Karte PDF"
-              onClick={() => generateAndDownloadPDF(req, employees)}
+              onClick={() => generateAndDownloadPDF(req, employees, requests)}
             >
               <FileText size={16} />
               <span>PDF</span>

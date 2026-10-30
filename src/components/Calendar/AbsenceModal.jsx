@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { getSpecialDayInfo, getLastNameSortKey, getRepresentativeIdForDate, getRotationExemptionInfo } from '../../utils/calendarUtils';
+import { getSpecialDayInfo, getLastNameSortKey, getRepresentativeIdForDate, getRotationExemptionInfo, isFoaOrOaInPneumo } from '../../utils/calendarUtils';
 import Modal from '../UI/Modal';
 
 const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isAdmin, perms = {}, currentUser, skills = [], absences = {}, requests = [], vacationStats = {}, planerType, rotationData = [] }) => {
@@ -404,7 +404,11 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
                 
                 let isBlocked = false;
                 if (existingReps.length > 0) {
-                    if (existingReps.length >= 2) {
+                    const vertreterEmp = employees.find(e => e.id === vId);
+                    if (isFoaOrOaInPneumo(vertreterEmp)) {
+                        // Sonderregelung Pneumologie: FOA/OA in der Pneumologie dürfen mehrere Kollegen gleichzeitig vertreten
+                        isBlocked = false;
+                    } else if (existingReps.length >= 2) {
                         isBlocked = true; // Maximum 2 representations even for EPU
                     } else {
                         // Exactly 1 existing representation. Check if EPU exception applies
@@ -413,7 +417,6 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
                         const otherEmp = employees.find(e => e.id === existingReps[0].empId);
                         const otherIsEpuException = otherEmp && ((otherEmp.role === 'Oberarzt' || otherEmp.isOberarzt || (otherEmp.groups || []).includes('skill_funktionsoberarzt')) && (otherEmp.groups || []).includes('skill_epu'));
                         
-                        const vertreterEmp = employees.find(e => e.id === vId);
                         const vertreterIsEpu = vertreterEmp && (vertreterEmp.groups || []).includes('skill_epu');
                         
                         if (!reqIsEpuException || !otherIsEpuException || !vertreterIsEpu) {
