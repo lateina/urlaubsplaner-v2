@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Bell, Users, Settings, ClipboardList, ShieldCheck, Download, MoreHorizontal, LayoutGrid, Info, AlertTriangle } from 'lucide-react';
+import { Calendar, Bell, Users, Settings, ClipboardList, ShieldCheck, Download, MoreHorizontal, LayoutGrid, Info, AlertTriangle, History } from 'lucide-react';
 
 const MobileNav = ({ activeTab, onTabChange, badgeCount, isAdmin, perms, onOpenICal, onOpenLegal }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -13,6 +13,7 @@ const MobileNav = ({ activeTab, onTabChange, badgeCount, isAdmin, perms, onOpenI
     ...(perms?.canSeeSummary ? [{ id: 'summary', icon: ClipboardList, label: 'Report' }] : []),
     ...(perms?.canAdminEmployees ? [{ id: 'employees', icon: Users, label: 'Mitarbeiter' }] : []),
     ...(perms?.canAdminSkills ? [{ id: 'skills', icon: ShieldCheck, label: 'Skills' }] : []),
+    ...(isAdmin ? [{ id: 'audit', icon: History, label: 'Audit Trail' }] : []),
     ...(perms?.canICalExport ? [{ id: 'ical', icon: Download, label: 'iCal Export' }] : []),
     { id: 'settings', icon: Settings, label: 'Einstellungen' },
     { id: 'legal', icon: Info, label: 'Impressum' },

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, ClipboardList, Users, ShieldCheck, Settings, Bell, ChevronsLeftRight, Download, Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Calendar, ClipboardList, Users, ShieldCheck, Settings, Bell, ChevronsLeftRight, Download, Menu, History } from 'lucide-react';
 import { PLANER_PROFILES } from '../../config/planerConfig';
 
 const Sidebar = ({ activeTab, onTabChange, planerType, onPlanerSwitch, isAdmin, perms, badgeCount, currentUser, onOpenICal, onOpenLegal, isCollapsed, onToggleCollapse, isSaving }) => {
@@ -12,7 +12,7 @@ const Sidebar = ({ activeTab, onTabChange, planerType, onPlanerSwitch, isAdmin, 
     ...(perms.canAdminEmployees ? [{ id: 'employees', label: 'Mitarbeiter', icon: Users }] : []),
     ...(perms.canAdminSkills ? [{ id: 'skills', label: 'Skills', icon: ShieldCheck }] : []),
     ...(perms.canAdminAreas && planerType !== 'oa' ? [{ id: 'areas', label: 'Bereiche', icon: ChevronsLeftRight }] : []),
-
+    ...(isAdmin ? [{ id: 'audit', label: 'Audit Trail', icon: History }] : []),
     ...(perms.canICalExport ? [{ id: 'ical', label: 'iCal Export', icon: Download }] : []),
     { id: 'settings', label: 'Einstellungen', icon: Settings },
   ];

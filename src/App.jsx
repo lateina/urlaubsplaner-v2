@@ -7,6 +7,7 @@ import RequestsView from './components/Requests/RequestsView';
 import EmployeeAdmin from './components/Admin/EmployeeAdmin';
 import CategoryAdmin from './components/Admin/SkillAdmin';
 import AbsenceSummary from './components/Admin/AbsenceSummary';
+import AuditTrailView from './components/Admin/AuditTrailView';
 import ICalExportModal from './components/Admin/ICalExportModal';
 import InstallPrompt from './components/UI/InstallPrompt';
 import LegalModal from './components/UI/LegalModal';
@@ -14,6 +15,7 @@ import Login from './components/Auth/Login';
 import BugReportModal from './components/UI/BugReportModal';
 import { apiService } from './services/apiService';
 import { firestoreService } from './services/firestoreService';
+import { auditService, AUDIT_ACTIONS } from './services/auditService';
 import { db, auth as firebaseAuth } from './config/firebase';
 import { signInAnonymously } from 'firebase/auth';
 import { APP_CONFIG } from './config/appConfig';
@@ -127,8 +129,9 @@ const App = () => {
   const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
-  // Undo Stack Reference
+  // Undo Stack Reference & State
   const undoStackRef = React.useRef([]);
+  const [undoState, setUndoState] = useState({ canUndo: false, lastActionName: '', count: 0 });
   const appDataRef = React.useRef(appData);
 
   useEffect(() => {
@@ -202,6 +205,11 @@ const App = () => {
     if (undoStackRef.current.length > UNDO_STACK_LIMIT) {
       undoStackRef.current.shift();
     }
+    setUndoState({
+      canUndo: true,
+      lastActionName: actionName,
+      count: undoStackRef.current.length
+    });
   };
 
   const handleUndo = async () => {
@@ -210,6 +218,12 @@ const App = () => {
       return;
     }
     const lastAction = undoStackRef.current.pop();
+    setUndoState({
+      canUndo: undoStackRef.current.length > 0,
+      lastActionName: undoStackRef.current.length > 0 ? undoStackRef.current[undoStackRef.current.length - 1].actionName : '',
+      count: undoStackRef.current.length
+    });
+
     const prevAbsences = lastAction.appDataSnapshot.absences;
     const prevRequests = lastAction.appDataSnapshot.requests;
     const currentData = appDataRef.current;
@@ -257,6 +271,27 @@ const App = () => {
       
       // Update config stats in background
       firestoreService.saveConfig({ vacationStats: updatedStats }).catch(e => console.error("Undo stats save failed:", e));
+
+      // Revisionssicher im Audit Trail protokollieren!
+      auditService.logEvent({
+        actor: {
+          uid: auth.user?.id || 'admin',
+          name: auth.user?.name || 'Administrator',
+          role: auth.user?.role || 'Admin',
+          planerType
+        },
+        action: AUDIT_ACTIONS.UNDO_REVERT,
+        actionLabel: `Aktion rückgängig gemacht: ${lastAction.actionName}`,
+        target: {
+          empId: 'undo',
+          empName: 'System / Historie'
+        },
+        details: {
+          revertedAction: lastAction.actionName,
+          restoredRequestsCount: prevRequests.length,
+          restoredAbsencesEmployeesCount: Object.keys(prevAbsences).length
+        }
+      });
 
       toast.success(`${lastAction.actionName} rückgängig gemacht`, {
         position: 'bottom-center',
@@ -906,6 +941,26 @@ const App = () => {
         position: 'bottom-center',
         duration: 3000
       });
+      auditService.logEvent({
+        actor: { uid: auth.user?.id, name: auth.user?.name, role: auth.user?.role, planerType },
+        action: AUDIT_ACTIONS.CALENDAR_ABSENCE_DELETE,
+        actionLabel: 'Abwesenheit(en) im Kalender gelöscht',
+        target: { empId: 'calendar', empName: 'Kalenderbearbeitung' },
+        details: { action: 'delete_days' }
+      });
+    } else if (newAbsences && typeof newAbsences === 'object' && newAbsences.employeeId) {
+      const targetEmp = appData.employees.find(e => e.id === newAbsences.employeeId);
+      auditService.logEvent({
+        actor: { uid: auth.user?.id, name: auth.user?.name, role: auth.user?.role, planerType },
+        action: AUDIT_ACTIONS.CALENDAR_ABSENCE_SAVE,
+        actionLabel: `Kalender: ${newAbsences.type || 'Abwesenheit'} eingetragen`,
+        target: {
+          empId: newAbsences.employeeId,
+          empName: targetEmp?.name || newAbsences.employeeId,
+          period: `${newAbsences.startDate} bis ${newAbsences.endDate}`
+        },
+        details: { type: newAbsences.type, remarks: newAbsences.remarks || '' }
+      });
     }
   };
 
@@ -1144,6 +1199,26 @@ const App = () => {
         
         await Promise.all(promises);
 
+        // Audit Trail
+        const targetEmp = appData.employees.find(e => e.id === request.empId);
+        auditService.logEvent({
+          actor: { uid: auth.user?.id, name: auth.user?.name, role: auth.user?.role, planerType },
+          action: AUDIT_ACTIONS.REQUEST_APPROVE,
+          actionLabel: `Antrag genehmigt (${request.dates?.length || 0} Tag(e))`,
+          target: {
+            empId: request.empId,
+            empName: targetEmp?.name || request.name || request.empId,
+            dates: request.dates,
+            period: request.dates && request.dates.length > 0 ? `${request.dates[0]} bis ${request.dates[request.dates.length - 1]}` : ''
+          },
+          details: {
+            requestId: request.id,
+            type: request.type,
+            vertreter: request.vertreter,
+            byType
+          }
+        });
+
         setAppData(prev => {
           const newRequests = [...prev.requests];
           const idx = newRequests.findIndex(r => r.id === reqId);
@@ -1188,6 +1263,25 @@ const App = () => {
       updatedRequests[reqIndex] = request;
       
       await firestoreService.saveRequest(getEmployeeProfileType(request.empId), request);
+
+      // Audit Trail
+      const targetEmp = appData.employees.find(e => e.id === request.empId);
+      auditService.logEvent({
+        actor: { uid: auth.user?.id, name: auth.user?.name, role: auth.user?.role, planerType },
+        action: AUDIT_ACTIONS.REQUEST_REJECT,
+        actionLabel: `Antrag abgelehnt (${byType})`,
+        target: {
+          empId: request.empId,
+          empName: targetEmp?.name || request.name || request.empId,
+          dates: request.dates,
+          period: request.dates && request.dates.length > 0 ? `${request.dates[0]} bis ${request.dates[request.dates.length - 1]}` : ''
+        },
+        details: {
+          requestId: request.id,
+          reason: note || '',
+          byType
+        }
+      });
       setAppData(prev => {
         const newRequests = [...prev.requests];
         const idx = newRequests.findIndex(r => r.id === reqId);
@@ -1253,6 +1347,55 @@ const App = () => {
       updatedRequests[reqIndex] = request;
 
       await firestoreService.saveRequest(getEmployeeProfileType(request.empId), request);
+
+      // Audit Trail
+      const targetEmp = appData.employees.find(e => e.id === request.empId);
+      if (updates.vertreter || updates.vertreterId || updates.substitutes) {
+        auditService.logEvent({
+          actor: { uid: auth.user?.id, name: auth.user?.name, role: auth.user?.role, planerType },
+          action: AUDIT_ACTIONS.REPRESENTATIVE_CHANGE,
+          actionLabel: `Vertreter angepasst`,
+          target: {
+            empId: request.empId,
+            empName: targetEmp?.name || request.name || request.empId,
+            dates: request.dates,
+            period: request.dates && request.dates.length > 0 ? `${request.dates[0]} bis ${request.dates[request.dates.length - 1]}` : ''
+          },
+          details: {
+            requestId: request.id,
+            previousVertreter: appData.requests[reqIndex]?.vertreter || 'Keiner',
+            newVertreter: updates.vertreter || request.vertreter,
+            substitutes: updates.substitutes || null,
+            status: updates.status || request.status
+          }
+        });
+      } else if (updates.status === 'deleted') {
+        auditService.logEvent({
+          actor: { uid: auth.user?.id, name: auth.user?.name, role: auth.user?.role, planerType },
+          action: AUDIT_ACTIONS.CALENDAR_ABSENCE_DELETE,
+          actionLabel: `Antrag gelöscht`,
+          target: {
+            empId: request.empId,
+            empName: targetEmp?.name || request.name || request.empId,
+            dates: request.dates,
+            period: request.dates && request.dates.length > 0 ? `${request.dates[0]} bis ${request.dates[request.dates.length - 1]}` : ''
+          },
+          details: { requestId: request.id }
+        });
+      } else if (updates.dates) {
+        auditService.logEvent({
+          actor: { uid: auth.user?.id, name: auth.user?.name, role: auth.user?.role, planerType },
+          action: AUDIT_ACTIONS.REQUEST_EDIT,
+          actionLabel: `Antragszeitraum geändert`,
+          target: {
+            empId: request.empId,
+            empName: targetEmp?.name || request.name || request.empId,
+            dates: updates.dates,
+            period: `${updates.dates[0]} bis ${updates.dates[updates.dates.length - 1]}`
+          },
+          details: { requestId: request.id }
+        });
+      }
       
       let nextAbsences = appData.absences;
       if (appData.requests[reqIndex].status === 'approved' && updates.status && updates.status !== 'approved') {
@@ -1544,7 +1687,8 @@ const App = () => {
     canSeePOKarte: isFullAdmin || isSekretariat,
     canShowCalendarEntry: !isSpokesperson,
     canDeleteRequests: isFullAdmin,
-    canApproveRequests: isFullAdmin
+    canApproveRequests: isFullAdmin,
+    canSeeAudit: isFullAdmin || isSekretariat || isSpokesperson
   };
 
 
@@ -1740,6 +1884,16 @@ const App = () => {
             />
           </div>
         );
+      case 'audit':
+        if (!perms.canSeeAudit) return null;
+        return (
+          <div style={{ flex: 1, overflow: 'auto', background: 'transparent' }}>
+            <AuditTrailView
+              employees={appData.fullEmployeeList || appData.employees}
+              planerType={planerType}
+            />
+          </div>
+        );
       case 'settings':
         return (
           <div style={{ flex: 1, overflow: 'auto', padding: '40px', background: 'transparent' }}>
@@ -1781,7 +1935,15 @@ const App = () => {
       />
 
       <main className="main-content">
-        <Header user={auth.user} onLogout={handleLogout} isSaving={isSaving} />
+        <Header 
+          user={auth.user} 
+          onLogout={handleLogout} 
+          isSaving={isSaving}
+          isAdmin={isAdmin}
+          canUndo={undoState.canUndo}
+          undoLabel={undoState.lastActionName}
+          onUndo={handleUndo}
+        />
 
         <div className="view-container">
           {error ? (

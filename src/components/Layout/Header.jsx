@@ -1,7 +1,7 @@
 import React from 'react';
-import { User, LogOut } from 'lucide-react';
+import { User, LogOut, RotateCcw } from 'lucide-react';
 
-const Header = ({ user, onLogout, isSaving }) => {
+const Header = ({ user, onLogout, isSaving, isAdmin, canUndo, undoLabel, onUndo }) => {
   return (
     <header className="header glass" style={{ 
       height: 'calc(var(--header-h) + env(safe-area-inset-top))',
@@ -47,7 +47,33 @@ const Header = ({ user, onLogout, isSaving }) => {
       </div>
 
       
-      <div style={{ display: 'flex', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {isAdmin && canUndo && (
+          <button
+            onClick={onUndo}
+            title={undoLabel ? `Rückgängig: ${undoLabel} (Cmd+Z)` : 'Letzte Aktion rückgängig machen (Cmd+Z)'}
+            style={{
+              border: '1px solid rgba(147, 51, 234, 0.3)',
+              background: 'rgba(243, 232, 255, 0.75)',
+              backdropFilter: 'blur(12px)',
+              borderRadius: '8px',
+              padding: '6px 12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              color: '#7c3aed',
+              fontWeight: 700,
+              fontSize: '0.8rem',
+              cursor: 'pointer',
+              boxShadow: '0 2px 6px rgba(124, 58, 237, 0.15)',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <RotateCcw size={14} />
+            <span>Rückgängig{undoLabel ? `: ${undoLabel}` : ''}</span>
+          </button>
+        )}
+
         <button 
           className="nav-item" 
           onClick={onLogout}
@@ -55,7 +81,6 @@ const Header = ({ user, onLogout, isSaving }) => {
         >
           <LogOut size={20} className="logout-icon" />
           <span className="logout-text">Abmelden</span>
-
         </button>
       </div>
     </header>

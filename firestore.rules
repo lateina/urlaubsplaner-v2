@@ -93,6 +93,10 @@ service cloud.firestore {
       allow create: if request.auth != null;
       allow read, update, delete: if false;
     }
+    match /up_audit_log/{logId} {
+      allow read, create: if request.auth != null;
+      allow update, delete: if false;
+    }
     
     // --- Gemeinsame Konfiguration (Mitarbeiter) ---
     match /up_config/{document} {
