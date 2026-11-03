@@ -149,27 +149,66 @@ const EditRepresentativesModal = ({
 
     for (const d of dateList) {
       if (absences[vId]?.[d]) {
-        conflicts.push({ date: d, reason: 'Selbst abwesend' });
+        conflicts.push({ date: d, reason: 'Selbst abwesend', type: 'self_absent' });
         continue;
       }
       const ownReq = requests.find(r => r.empId === vId && r.dates?.includes(d) && r.status !== 'rejected');
       if (ownReq) {
-        conflicts.push({ date: d, reason: 'Eigener Antrag' });
+        conflicts.push({ date: d, reason: 'Eigener Antrag', type: 'own_request' });
         continue;
       }
       const existingReps = requests.filter(r => r.id !== request.id && getRepresentativeIdForDate(r, d) === vId);
-      if (existingReps.length > 0) {
+      
+      // Also check absences for any confirmed absence where vId is the representative on date d
+      const representedFromAbsences = [];
+      if (absences) {
+        Object.entries(absences).forEach(([otherEmpId, empDates]) => {
+          if (otherEmpId !== request.empId && otherEmpId !== vId) {
+            const entry = empDates?.[d];
+            if (entry && entry.status !== 'rejected') {
+              if (entry.vertreterId === vId || (repEmp && entry.vertreter === repEmp.name)) {
+                if (!existingReps.some(r => r.empId === otherEmpId)) {
+                  representedFromAbsences.push(otherEmpId);
+                }
+              }
+            }
+          }
+        });
+      }
+
+      const allOtherEmpIds = [
+        ...existingReps.map(r => r.empId),
+        ...representedFromAbsences
+      ];
+
+      if (allOtherEmpIds.length > 0) {
+        const otherNames = Array.from(new Set(allOtherEmpIds.map(id => {
+          const oEmp = employees.find(e => e.id === id);
+          return oEmp?.name || id;
+        }))).filter(Boolean);
+        const othersStr = otherNames.join(', ');
+
         if (isFoaOrOaInPneumo(repEmp)) {
           // Sonderregelung Pneumologie: FOA/OA in der Pneumologie dürfen mehrere Kollegen gleichzeitig vertreten
-        } else if (existingReps.length >= 2) {
-          conflicts.push({ date: d, reason: 'Bereits 2x Vertretung' });
+        } else if (allOtherEmpIds.length >= 2) {
+          conflicts.push({
+            date: d,
+            reason: `Vertritt bereits ${othersStr} (2x)`,
+            type: 'representation',
+            representedNames: othersStr
+          });
         } else {
           const reqIsEpu = requesterEmp && ((requesterEmp.role === 'Oberarzt' || requesterEmp.isOberarzt || (requesterEmp.groups || []).includes('skill_funktionsoberarzt')) && (requesterEmp.groups || []).includes('skill_epu'));
-          const otherEmp = employees.find(e => e.id === existingReps[0].empId);
+          const otherEmp = employees.find(e => e.id === allOtherEmpIds[0]);
           const otherIsEpu = otherEmp && ((otherEmp.role === 'Oberarzt' || otherEmp.isOberarzt || (otherEmp.groups || []).includes('skill_funktionsoberarzt')) && (otherEmp.groups || []).includes('skill_epu'));
           const vertreterIsEpu = repEmp && (repEmp.groups || []).includes('skill_epu');
           if (!reqIsEpu || !otherIsEpu || !vertreterIsEpu) {
-            conflicts.push({ date: d, reason: 'Bereits andere Vertretung' });
+            conflicts.push({
+              date: d,
+              reason: `Vertritt bereits ${othersStr}`,
+              type: 'representation',
+              representedNames: othersStr
+            });
           }
         }
       }
@@ -180,7 +219,7 @@ const EditRepresentativesModal = ({
   // Single mode conflicts
   const singleConflicts = useMemo(() => {
     return checkConflicts(singleVertreterId, dates);
-  }, [singleVertreterId, dates, absences, requests]);
+  }, [singleVertreterId, dates, absences, requests, employees, request]);
 
   const singlePneumoWarnings = useMemo(() => {
     if (!singleVertreterId || singleVertreterId === 'none') return [];
@@ -300,7 +339,7 @@ const EditRepresentativesModal = ({
       const segDates = getDatesBetween(seg.from, seg.to);
       const confs = checkConflicts(seg.vertreterId, segDates);
       if (confs.length > 0) {
-        warnings.push(`Abschnitt ${i + 1} (${seg.vertreter}): Konflikt an ${confs.length} Tag(en) (${confs.slice(0, 2).map(c => formatDate(c.date)).join(', ')}${confs.length > 2 ? '...' : ''}).`);
+        warnings.push(`Abschnitt ${i + 1} (${seg.vertreter}): Konflikt an ${confs.length} Tag(en) (${confs.slice(0, 2).map(c => `${formatDate(c.date)} [${c.reason}]`).join(', ')}${confs.length > 2 ? '...' : ''}).`);
       }
     }
 
@@ -569,15 +608,50 @@ const EditRepresentativesModal = ({
             </div>
 
             {singleConflicts.length > 0 && (
-              <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '10px', padding: '10px 12px', fontSize: '0.8rem', color: '#991b1b', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
-                <div>
-                  <strong>Vertretungskonflikt ({singleConflicts.length} Tag(e)):</strong>
-                  <div style={{ marginTop: '2px' }}>
-                    {singleConflicts.slice(0, 3).map(c => `${formatDate(c.date)} (${c.reason})`).join(', ')}
-                    {singleConflicts.length > 3 ? ` und ${singleConflicts.length - 3} weitere...` : ''}
+              <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '10px', padding: '12px 14px', fontSize: '0.85rem', color: '#991b1b', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: '2px', color: '#dc2626' }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#991b1b', marginBottom: '4px' }}>
+                    Vertretungskonflikt ({singleConflicts.length} Tag{singleConflicts.length !== 1 ? 'e' : ''}):
                   </div>
-                  <div style={{ marginTop: '4px', fontSize: '0.75rem', color: '#7f1d1d' }}>
+
+                  {(() => {
+                    const allRepresented = Array.from(new Set(
+                      singleConflicts.map(c => c.representedNames).filter(Boolean)
+                    ));
+                    const repPerson = candidateEmployees.find(e => e.id === singleVertreterId);
+                    const repName = repPerson?.name || 'Gewählter Vertreter';
+                    const isSelfAbsent = singleConflicts.some(c => c.reason === 'Selbst abwesend');
+                    const hasOwnReq = singleConflicts.some(c => c.reason === 'Eigener Antrag');
+
+                    return (
+                      <div style={{ marginBottom: '6px', fontSize: '0.85rem', lineHeight: '1.4' }}>
+                        {allRepresented.length > 0 && (
+                          <div style={{ fontWeight: 600, color: '#b91c1c', marginBottom: '2px' }}>
+                            👤 <strong>{repName}</strong> vertritt im Zeitraum bereits: <span style={{ textDecoration: 'underline' }}>{allRepresented.join(', ')}</span>
+                          </div>
+                        )}
+                        {isSelfAbsent && (
+                          <div style={{ color: '#b91c1c', marginBottom: '2px' }}>
+                            🏖️ <strong>{repName}</strong> ist an betroffenen Tagen selbst abwesend.
+                          </div>
+                        )}
+                        {hasOwnReq && (
+                          <div style={{ color: '#b91c1c', marginBottom: '2px' }}>
+                            📝 <strong>{repName}</strong> hat für betroffene Tage einen eigenen Abwesenheitsantrag gestellt.
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  <div style={{ fontSize: '0.78rem', color: '#7f1d1d', background: 'rgba(255, 255, 255, 0.7)', padding: '6px 8px', borderRadius: '6px', border: '1px solid #fecaca', marginTop: '4px' }}>
+                    <div style={{ fontWeight: 600, marginBottom: '2px' }}>Betroffene Tage:</div>
+                    {singleConflicts.slice(0, 6).map(c => `${formatDate(c.date)} (${c.reason})`).join(', ')}
+                    {singleConflicts.length > 6 ? ` und ${singleConflicts.length - 6} weitere...` : ''}
+                  </div>
+
+                  <div style={{ marginTop: '6px', fontSize: '0.75rem', color: '#7f1d1d' }}>
                     💡 Tipp: Nutzen Sie "Zeitlich aufteilen", um nur die unkritischen Tage zuzuweisen.
                   </div>
                 </div>
@@ -739,9 +813,22 @@ const EditRepresentativesModal = ({
 
                     {/* Konfliktwarnung für diesen Abschnitt */}
                     {segConflicts.length > 0 && (
-                      <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '6px', padding: '6px 8px', fontSize: '0.75rem', color: '#991b1b', display: 'flex', gap: '6px', alignItems: 'center' }}>
-                        <AlertTriangle size={13} style={{ flexShrink: 0 }} />
-                        <span>Konflikt: {seg.vertreter} an {segConflicts.map(c => formatDate(c.date)).join(', ')} ({segConflicts[0].reason})</span>
+                      <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '6px', padding: '8px 10px', fontSize: '0.78rem', color: '#991b1b', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
+                          <AlertTriangle size={14} style={{ flexShrink: 0, color: '#dc2626' }} />
+                          <span>Vertretungskonflikt ({segConflicts.length} Tag{segConflicts.length !== 1 ? 'e' : ''}):</span>
+                        </div>
+                        {(() => {
+                          const allRepNames = Array.from(new Set(segConflicts.map(c => c.representedNames).filter(Boolean)));
+                          return allRepNames.length > 0 ? (
+                            <div style={{ paddingLeft: '20px', fontWeight: 600, color: '#b91c1c' }}>
+                              👤 Vertritt bereits: {allRepNames.join(', ')}
+                            </div>
+                          ) : null;
+                        })()}
+                        <div style={{ paddingLeft: '20px', fontSize: '0.74rem', color: '#7f1d1d' }}>
+                          Tage: {segConflicts.map(c => `${formatDate(c.date)} (${c.reason})`).join(', ')}
+                        </div>
                       </div>
                     )}
                   </div>

@@ -362,6 +362,7 @@ const RequestsView = ({
                               const absentDates = [];
                               const ownReqDates = [];
                               const alreadyRepDates = [];
+                              const alreadyRepColleagues = new Set();
                               
                               for (const d of dates) {
                                   // Check confirmed absence
@@ -397,6 +398,12 @@ const RequestsView = ({
                                               isBlocked = true;
                                           }
                                       }
+                                      if (isBlocked) {
+                                          existingReps.forEach(r => {
+                                              const oEmp = employees.find(e => e.id === r.empId);
+                                              alreadyRepColleagues.add(oEmp?.name || r.empId);
+                                          });
+                                      }
                                   }
                                   
                                   if (isBlocked) {
@@ -418,7 +425,8 @@ const RequestsView = ({
                                   return;
                               }
                               if (alreadyRepDates.length > 0) {
-                                  alert(`${vName} vertritt an folgenden Tagen bereits jemanden: ${alreadyRepDates.map(formatDate).join(', ')}.\n\nBitte wähle einen anderen Vertreter.`);
+                                  const colStr = alreadyRepColleagues.size > 0 ? ` (${Array.from(alreadyRepColleagues).join(', ')})` : '';
+                                  alert(`${vName} vertritt an folgenden Tagen bereits jemanden${colStr}: ${alreadyRepDates.map(formatDate).join(', ')}.\n\nBitte wähle einen anderen Vertreter.`);
                                   return;
                               }
 

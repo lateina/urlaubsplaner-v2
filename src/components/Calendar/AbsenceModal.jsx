@@ -388,6 +388,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
             const absentDates = [];
             const ownReqDates = [];
             const alreadyRepDates = [];
+            const alreadyRepColleagues = new Set();
             
             for (const d of dates) {
                 // Check confirmed absence
@@ -423,6 +424,12 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
                             isBlocked = true;
                         }
                     }
+                    if (isBlocked) {
+                        existingReps.forEach(r => {
+                            const oEmp = employees.find(e => e.id === r.empId);
+                            alreadyRepColleagues.add(oEmp?.name || r.empId);
+                        });
+                    }
                 }
                 
                 if (isBlocked) {
@@ -439,7 +446,8 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
                 return;
             }
             if (alreadyRepDates.length > 0) {
-                alert(`${vName} vertritt an folgenden Tagen bereits jemanden: ${alreadyRepDates.map(formatDate).join(', ')}.\n\nBitte wähle einen anderen Vertreter.`);
+                const colStr = alreadyRepColleagues.size > 0 ? ` (${Array.from(alreadyRepColleagues).join(', ')})` : '';
+                alert(`${vName} vertritt an folgenden Tagen bereits jemanden${colStr}: ${alreadyRepDates.map(formatDate).join(', ')}.\n\nBitte wähle einen anderen Vertreter.`);
                 return;
             }
         }
