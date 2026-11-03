@@ -331,8 +331,14 @@ const App = () => {
         rotations = effectiveKey ? await apiService.load(ROTATION_BIN_ID, effectiveKey).catch(e => []) : [];
       }
 
-      // Combine requests from both profile streams
-      const fsRequests = [...fsRequestsAss, ...fsRequestsOa];
+      // Combine requests from both profile streams and deduplicate by ID
+      const reqMap = new Map();
+      [...fsRequestsAss, ...fsRequestsOa].forEach(r => {
+        if (r && r.id) {
+          reqMap.set(String(r.id), r);
+        }
+      });
+      const fsRequests = Array.from(reqMap.values());
 
       // 2. Determine source of truth (Now purely Firestore config)
       

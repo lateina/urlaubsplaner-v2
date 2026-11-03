@@ -359,6 +359,16 @@ const RequestsView = ({
                               const vId = newEmp.id;
                               const vName = newEmp.name;
                               const requester = employees.find(e => e.id === req.empId);
+                              const isSamePerson = (empIdA, empIdB) => {
+                                  if (!empIdA || !empIdB) return false;
+                                  if (String(empIdA) === String(empIdB)) return true;
+                                  const empA = employees.find(e => String(e.id) === String(empIdA));
+                                  const empB = employees.find(e => String(e.id) === String(empIdB));
+                                  if (empA?.name && empB?.name && empA.name.trim().toLowerCase() === empB.name.trim().toLowerCase()) {
+                                      return true;
+                                  }
+                                  return false;
+                              };
                               const absentDates = [];
                               const ownReqDates = [];
                               const alreadyRepDates = [];
@@ -374,8 +384,14 @@ const RequestsView = ({
                                   if (vOwnReq) {
                                       ownReqDates.push(d);
                                   }
-                                  // Check if representative is already representing someone else
-                                  const existingReps = requests.filter(r => r.id !== req.id && getRepresentativeIdForDate(r, d) === vId);
+                                  // Check if representative is already representing someone else (other than applicant)
+                                  const existingReps = requests.filter(r => 
+                                      String(r.id) !== String(req.id) &&
+                                      r.status !== 'rejected' &&
+                                      r.status !== 'deleted' &&
+                                      !isSamePerson(r.empId, req.empId) &&
+                                      getRepresentativeIdForDate(r, d) === vId
+                                  );
                                   
                                   let isBlocked = false;
                                   if (existingReps.length > 0) {

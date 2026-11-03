@@ -237,9 +237,12 @@ export const getSimultaneousRepresentationWarnings = (request, allRequests = [],
     if (!repId || repId === 'none') continue;
 
     for (const otherReq of allRequests) {
-      if (!otherReq || otherReq.id === request.id) continue;
+      if (!otherReq || String(otherReq.id) === String(request.id)) continue;
       if (otherReq.status === 'rejected' || otherReq.status === 'deleted') continue;
-      if (otherReq.empId === request.empId) continue;
+      if (String(otherReq.empId) === String(request.empId)) continue;
+      const otherEmp = allEmployees.find(e => e.id === otherReq.empId);
+      const reqEmp = allEmployees.find(e => e.id === request.empId);
+      if (otherEmp?.name && reqEmp?.name && otherEmp.name.trim().toLowerCase() === reqEmp.name.trim().toLowerCase()) continue;
 
       const otherRepId = getRepresentativeIdForDate(otherReq, dateStr);
       if (otherRepId === repId) {

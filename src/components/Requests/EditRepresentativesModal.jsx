@@ -141,6 +141,18 @@ const EditRepresentativesModal = ({
   const isLaborPeriod = rotationExemption.isExempt;
   const exemptionType = rotationExemption.type;
 
+  // Helper to test if two employee IDs refer to the same person
+  const isSamePerson = (empIdA, empIdB) => {
+    if (!empIdA || !empIdB) return false;
+    if (String(empIdA) === String(empIdB)) return true;
+    const empA = employees.find(e => String(e.id) === String(empIdA));
+    const empB = employees.find(e => String(e.id) === String(empIdB));
+    if (empA?.name && empB?.name && empA.name.trim().toLowerCase() === empB.name.trim().toLowerCase()) {
+      return true;
+    }
+    return false;
+  };
+
   // Conflict detector
   const checkConflicts = (vId, dateList) => {
     if (!vId || vId === 'none' || !dateList || dateList.length === 0) return [];
@@ -157,17 +169,25 @@ const EditRepresentativesModal = ({
         conflicts.push({ date: d, reason: 'Eigener Antrag', type: 'own_request' });
         continue;
       }
-      const existingReps = requests.filter(r => r.id !== request.id && getRepresentativeIdForDate(r, d) === vId);
+
+      // Existing requests from OTHER employees where vId is representative on date d
+      const existingReps = requests.filter(r => 
+        String(r.id) !== String(request.id) &&
+        r.status !== 'rejected' &&
+        r.status !== 'deleted' &&
+        !isSamePerson(r.empId, request.empId) &&
+        getRepresentativeIdForDate(r, d) === vId
+      );
       
-      // Also check absences for any confirmed absence where vId is the representative on date d
+      // Also check absences for any confirmed absence of OTHER employees where vId is the representative on date d
       const representedFromAbsences = [];
       if (absences) {
         Object.entries(absences).forEach(([otherEmpId, empDates]) => {
-          if (otherEmpId !== request.empId && otherEmpId !== vId) {
+          if (!isSamePerson(otherEmpId, request.empId) && !isSamePerson(otherEmpId, vId)) {
             const entry = empDates?.[d];
-            if (entry && entry.status !== 'rejected') {
+            if (entry && entry.status !== 'rejected' && entry.status !== 'deleted') {
               if (entry.vertreterId === vId || (repEmp && entry.vertreter === repEmp.name)) {
-                if (!existingReps.some(r => r.empId === otherEmpId)) {
+                if (!existingReps.some(r => isSamePerson(r.empId, otherEmpId))) {
                   representedFromAbsences.push(otherEmpId);
                 }
               }

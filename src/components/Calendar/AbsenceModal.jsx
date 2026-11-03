@@ -381,6 +381,17 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
             return `${d}.${m}.${y}`;
         };
 
+        const isSamePerson = (empIdA, empIdB) => {
+            if (!empIdA || !empIdB) return false;
+            if (String(empIdA) === String(empIdB)) return true;
+            const empA = employees.find(e => String(e.id) === String(empIdA));
+            const empB = employees.find(e => String(e.id) === String(empIdB));
+            if (empA?.name && empB?.name && empA.name.trim().toLowerCase() === empB.name.trim().toLowerCase()) {
+                return true;
+            }
+            return false;
+        };
+
         // 1. Check if Representative is available
         if (formData.vertreterId) {
             const vId = formData.vertreterId;
@@ -400,8 +411,13 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
                 if (vOwnReq) {
                     ownReqDates.push(d);
                 }
-                // Check if representative is already representing someone else
-                const existingReps = requests.filter(r => getRepresentativeIdForDate(r, d) === vId);
+                // Check if representative is already representing someone else (other than applicant)
+                const existingReps = requests.filter(r => 
+                    r.status !== 'rejected' &&
+                    r.status !== 'deleted' &&
+                    !isSamePerson(r.empId, effectiveEmpId) &&
+                    getRepresentativeIdForDate(r, d) === vId
+                );
                 
                 let isBlocked = false;
                 if (existingReps.length > 0) {
