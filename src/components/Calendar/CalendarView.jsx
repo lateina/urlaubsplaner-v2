@@ -170,7 +170,7 @@ const CalendarView = ({
   const liveVacationStats = useMemo(() => {
     const stats = {};
     employees.forEach(emp => {
-      let currentTotal = 0;
+      const vacationDates = new Set();
       const empAbsences = (absences && absences[emp.id]) || {};
       
       Object.entries(empAbsences).forEach(([dateStr, entry]) => {
@@ -181,26 +181,26 @@ const CalendarView = ({
         if (type === 'U' || type === 'V') {
           const d = days.find(day => day.dateStr === dateStr);
           if (d && !d.isWeekend && !d.holiday) {
-            currentTotal++;
+            vacationDates.add(dateStr);
           }
         }
       });
 
       (requests || []).filter(r =>
         r.empId === emp.id &&
-        r.status.startsWith('pending') &&
+        (r.status.startsWith('pending') || r.status === 'approved') &&
         (r.type === 'U' || r.type === 'V')
       ).forEach(r => {
-        r.dates.forEach(dateStr => {
+        (r.dates || []).forEach(dateStr => {
           if (!dateStr.startsWith(String(activeYear))) return;
           const d = days.find(day => day.dateStr === dateStr);
           if (d && !d.isWeekend && !d.holiday) {
-            currentTotal++;
+            vacationDates.add(dateStr);
           }
         });
       });
 
-      stats[emp.id] = { total: currentTotal, quota: (emp.vacationQuotas && emp.vacationQuotas[activeYear]) ?? (parseInt(activeYear) > 2026 ? 30 : (emp.vacationQuota ?? 30)) };
+      stats[emp.id] = { total: vacationDates.size, quota: (emp.vacationQuotas && emp.vacationQuotas[activeYear]) ?? (parseInt(activeYear) > 2026 ? 30 : (emp.vacationQuota ?? 30)) };
     });
     return stats;
   }, [absences, requests, employees, activeYear, days]);
@@ -660,13 +660,27 @@ const CalendarView = ({
     // 1. Absence or Request Info
     if (emp) {
       const absence = absences[emp.id]?.[day.dateStr];
-      const pendingReq = !absence && requests.find(r => 
+      const approvedFallback = !absence && requests.find(r =>
+        r.empId === emp.id &&
+        Array.isArray(r.dates) &&
+        r.dates.includes(day.dateStr) &&
+        r.status === 'approved'
+      );
+      const pendingReq = !absence && !approvedFallback && requests.find(r => 
         r.empId === emp.id && 
         r.dates.includes(day.dateStr) && 
         r.status.startsWith('pending')
       );
 
-      const target = absence || pendingReq;
+      let resolvedFallback = approvedFallback;
+      if (approvedFallback && Array.isArray(approvedFallback.substitutes) && approvedFallback.substitutes.length > 0) {
+        const sub = approvedFallback.substitutes.find(s => (s.dates && s.dates.includes(day.dateStr)) || (day.dateStr >= s.from && day.dateStr <= s.to));
+        if (sub) {
+          resolvedFallback = { ...approvedFallback, vertreter: sub.vertreter, vertreterId: sub.vertreterId };
+        }
+      }
+
+      const target = absence || resolvedFallback || pendingReq;
       if (target) {
         const typeLabel = { U: 'Urlaub', V: 'Urlaub', FZA: 'Freizeitausgleich', D: 'Dienstreise', F: 'Fortbildung', S: 'Sonstiges', T: 'Sonstiges' };
         const statusLabel = { 
@@ -708,7 +722,7 @@ const CalendarView = ({
               const otherRepsOnDay = new Set();
               requests.forEach(r => {
                 if (r.empId !== emp.id && r.status !== 'rejected' && r.status !== 'deleted') {
-                  if (getRepresentativeIdForDate(r, day.dateString) === vId) {
+                  if (getRepresentativeIdForDate(r, day.dateStr) === vId) {
                     const oEmp = employees.find(e => e.id === r.empId);
                     otherRepsOnDay.add(oEmp?.name || r.empId);
                   }
@@ -1359,7 +1373,11 @@ const CalendarView = ({
                   }
 
                   const currentAbsences = tempAbsences || absences;
-                  const absence = currentAbsences[emp.id]?.[day.dateStr];
+                  const rawAbsence = currentAbsences[emp.id]?.[day.dateStr];
+                  const approvedReq = !rawAbsence && !isDragging && requests.find(r =>
+                    r.empId === emp.id && Array.isArray(r.dates) && r.dates.includes(day.dateStr) && r.status === 'approved'
+                  );
+                  const absence = rawAbsence || approvedReq;
                   const pendingReq = !absence && requests.find(r => 
                     r.empId === emp.id && r.dates.includes(day.dateStr) && r.status.startsWith('pending')
                   );

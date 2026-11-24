@@ -544,16 +544,61 @@ const App = () => {
         if (planerType === 'ass') {
           if (primaryType === 'oa') {
             // OAs and FOAs should load their absences from the OA stream
-            cleanAbsences[emp.id] = fsOAAbsences[emp.id] || {};
+            cleanAbsences[emp.id] = { ...(fsOAAbsences[emp.id] || {}) };
           } else {
             // Regular assistants from the ASS stream
-            cleanAbsences[emp.id] = fsAbsences[emp.id] || {};
+            cleanAbsences[emp.id] = { ...(fsAbsences[emp.id] || {}) };
           }
         } else {
           // In OA planner, fsAbsences is already the OA stream
-          cleanAbsences[emp.id] = fsAbsences[emp.id] || {};
+          cleanAbsences[emp.id] = { ...(fsAbsences[emp.id] || {}) };
         }
       });
+
+      // Self-heal: Ensure every approved request has its dates present in absences
+      // (recovers entries that may have been overwritten by stale sessions)
+      const missingUpsertsByEmp = {};
+      requests.forEach(req => {
+        if (!req || req.status !== 'approved' || !req.empId || !Array.isArray(req.dates)) return;
+        if (!cleanAbsences[req.empId]) return; // Only reconcile employees loaded in this profile
+
+        req.dates.forEach(date => {
+          if (!date || cleanAbsences[req.empId][date]) return;
+
+          let repName = req.vertreter;
+          let repId = req.vertreterId;
+          if (Array.isArray(req.substitutes) && req.substitutes.length > 0) {
+            const sub = req.substitutes.find(s => (s.dates && s.dates.includes(date)) || (date >= s.from && date <= s.to));
+            if (sub) {
+              repName = sub.vertreter;
+              repId = sub.vertreterId;
+            }
+          }
+
+          const restoredEntry = {
+            type: req.type,
+            text: req.text,
+            vertreter: repName,
+            vertreterId: repId,
+            status: 'confirmed',
+            uid: req.id,
+            updatedAt: req.lastUpdated || new Date().toISOString()
+          };
+          cleanAbsences[req.empId][date] = restoredEntry;
+
+          if (!missingUpsertsByEmp[req.empId]) missingUpsertsByEmp[req.empId] = {};
+          missingUpsertsByEmp[req.empId][date] = restoredEntry;
+        });
+      });
+
+      Object.entries(missingUpsertsByEmp).forEach(([eid, upserts]) => {
+        const targetType = getEmployeeProfileType(eid, allEmployees);
+        console.log(`[Auto-Heal] Restoring ${Object.keys(upserts).length} missing approved absence day(s) for ${eid}`);
+        firestoreService.patchAbsence(targetType, eid, upserts, []).catch(err =>
+          console.warn(`[Auto-Heal] Failed to persist restored absences for ${eid}:`, err)
+        );
+      });
+
       absences = cleanAbsences;
 
       // 2. Skill Logic
@@ -783,8 +828,6 @@ const App = () => {
     };
 
     try {
-      const { absences, requests } = dataToSave;
-
       // 1. Save Employees and Config to Firestore (MUST BE FULL LIST)
       const firestorePayload = {
         employees: dedupe(dataToSave.fullEmployeeList || dataToSave.employees || []),
@@ -801,19 +844,9 @@ const App = () => {
       
       await firestoreService.saveConfig(firestorePayload);
 
-      // JSONBin backup removed here. Firestore is now the primary source of truth.
-
-      // 3. Save Absences to Firestore
-      const savePromises = Object.entries(absences).map(([eid, dates]) =>
-        firestoreService.saveAbsence(getEmployeeProfileType(eid, firestorePayload.employees), eid, dates)
-      );
-
-      // 4. Save Requests to Firestore
-      const reqPromises = requests.map(req => firestoreService.saveRequest(getEmployeeProfileType(req.empId, firestorePayload.employees), req));
-
-      await Promise.all([...savePromises, ...reqPromises]);
-
-      console.log('[Unified Save] Firestore (Config/Calendar/Requests) updated.');
+      // Do NOT bulk-overwrite up_absences or up_requests when saving admin config
+      // (employees/skills/areas/quotas), as in-memory maps could overwrite newer approvals from other sessions.
+      console.log('[Unified Save] Firestore Config updated.');
       setAppData(dataToSave);
     } catch (err) {
       console.error('[Unified Save Error]:', err);
@@ -826,14 +859,13 @@ const App = () => {
   const handleSaveAbsence = async (newAbsences) => {
     if (!isAdmin) return;
 
-    pushToUndoStack('Urlaub bearbeiten');
-
-    let finalAbsences = newAbsences || { ...appData.absences };
+    const oldAbsencesSnapshot = appData.absences || {};
+    let finalAbsences = newAbsences || { ...oldAbsencesSnapshot };
 
     // Detect if this is formData from AbsenceModal (single update) or a full object
     if (newAbsences && typeof newAbsences === 'object' && newAbsences.startDate && newAbsences.employeeId) {
       const formData = newAbsences;
-      finalAbsences = { ...appData.absences };
+      finalAbsences = { ...oldAbsencesSnapshot };
 
       const dates = [];
       let curr = new Date(formData.startDate);
@@ -843,7 +875,7 @@ const App = () => {
         curr.setDate(curr.getDate() + 1);
       }
 
-      if (!finalAbsences[formData.employeeId]) finalAbsences[formData.employeeId] = {};
+      finalAbsences[formData.employeeId] = { ...(finalAbsences[formData.employeeId] || {}) };
       dates.forEach(d => {
         const existing = finalAbsences[formData.employeeId][d] || {};
         finalAbsences[formData.employeeId][d] = {
@@ -854,8 +886,41 @@ const App = () => {
           updatedAt: new Date().toISOString()
         };
       });
-
     }
+
+    // Compute granular per-employee diffs so unmodified employees and concurrent approvals are never overwritten
+    const allEmpIds = new Set([...Object.keys(oldAbsencesSnapshot), ...Object.keys(finalAbsences || {})]);
+    const absencePatches = [];
+    allEmpIds.forEach(eid => {
+      const oldDates = oldAbsencesSnapshot[eid] || {};
+      const newDates = finalAbsences[eid] || {};
+      const upserts = {};
+      const deleteDates = [];
+
+      Object.keys(oldDates).forEach(d => {
+        if (!newDates[d]) {
+          deleteDates.push(d);
+        }
+      });
+      Object.entries(newDates).forEach(([d, val]) => {
+        if (JSON.stringify(oldDates[d]) !== JSON.stringify(val)) {
+          upserts[d] = val;
+        }
+      });
+
+      if (deleteDates.length > 0 || Object.keys(upserts).length > 0) {
+        absencePatches.push({ empId: eid, upserts, deleteDates });
+      }
+    });
+
+    if (absencePatches.length === 0) {
+      if (!newAbsences) {
+        toast.success('Alle Kalendereinträge sind bereits gespeichert', { position: 'bottom-center', duration: 2000 });
+      }
+      return;
+    }
+
+    pushToUndoStack('Urlaub bearbeiten');
 
     // Detect deleted absence days and update or delete their corresponding approved requests
     const updatedRequestsMap = new Map(); // reqId -> updatedRequestClone
@@ -934,7 +999,7 @@ const App = () => {
     const nextDataToSave = { ...appData, absences: finalAbsences, requests: nextRequests, vacationStats: updatedStats };
     
     setAppData(nextDataToSave);
-    saveAllDataSideEffect(nextDataToSave);
+    saveAllDataSideEffect(nextDataToSave, absencePatches);
 
     if (hasDeletedDays) {
       toast.success('Urlaub erfolgreich gelöscht', {
@@ -964,17 +1029,16 @@ const App = () => {
     }
   };
 
-  // Dedicated side effect for saving to API without re-triggering setAppData recursively or causing race conditions
-  const saveAllDataSideEffect = async (newData) => {
+  // Dedicated side effect for saving only modified employee absences via atomic server merge
+  const saveAllDataSideEffect = async (newData, absencePatches = []) => {
     setIsSaving(true);
     try {
       // 1. Config (only update vacationStats)
       await firestoreService.saveConfig({ vacationStats: newData.vacationStats });
 
-      // 2. Firestore (Absences)
-      // Optimization: Only update the changed employee if possible, but here we keep and use bulk save for safety
-      const promises = Object.entries(newData.absences).map(([eid, dates]) =>
-        firestoreService.saveAbsence(getEmployeeProfileType(eid), eid, dates)
+      // 2. Firestore (Absences) — patch ONLY modified employees against latest server state
+      const promises = absencePatches.map(({ empId, upserts, deleteDates }) =>
+        firestoreService.patchAbsence(getEmployeeProfileType(empId), empId, upserts, deleteDates)
       );
       await Promise.all(promises);
 
@@ -1014,18 +1078,21 @@ const App = () => {
       // 3. Handle absences if pre-approved (Admin direct entry)
       let updatedAbsences = appData.absences;
       if (savedRequest.status === 'approved') {
-        updatedAbsences = { ...appData.absences };
-        if (!updatedAbsences[savedRequest.empId]) updatedAbsences[savedRequest.empId] = {};
+        const upserts = {};
+        const nowIso = new Date().toISOString();
         savedRequest.dates.forEach(date => {
-          updatedAbsences[savedRequest.empId][date] = {
+          upserts[date] = {
             type: savedRequest.type,
             text: savedRequest.text,
             vertreter: savedRequest.vertreter,
             vertreterId: savedRequest.vertreterId,
-            status: 'confirmed'
+            status: 'confirmed',
+            uid: reqId,
+            updatedAt: nowIso
           };
         });
-        await firestoreService.saveAbsence(type, savedRequest.empId, updatedAbsences[savedRequest.empId]);
+        const mergedEmpDates = await firestoreService.patchAbsence(type, savedRequest.empId, upserts, []);
+        updatedAbsences = { ...appData.absences, [savedRequest.empId]: mergedEmpDates };
       }
 
       // 4. Update the requests list locally in state
@@ -1091,8 +1158,8 @@ const App = () => {
             isAuto: true
           };
 
-          const newAbsences = { ...appData.absences };
-          if (!newAbsences[request.empId]) newAbsences[request.empId] = {};
+          const upserts = {};
+          const nowIso = new Date().toISOString();
           request.dates.forEach(date => {
             let repName = request.vertreter;
             let repId = request.vertreterId;
@@ -1103,22 +1170,22 @@ const App = () => {
                 repId = sub.vertreterId;
               }
             }
-            newAbsences[request.empId][date] = {
+            upserts[date] = {
               type: request.type,
               text: request.text,
               vertreter: repName,
               vertreterId: repId,
               status: 'confirmed',
               uid: request.id,
-              updatedAt: new Date().toISOString()
+              updatedAt: nowIso
             };
           });
 
           updatedRequests[reqIndex] = request;
 
-          await Promise.all([
+          const [, mergedEmpDates] = await Promise.all([
             firestoreService.saveRequest(getEmployeeProfileType(request.empId), request),
-            firestoreService.saveAbsence(getEmployeeProfileType(request.empId), request.empId, newAbsences[request.empId])
+            firestoreService.patchAbsence(getEmployeeProfileType(request.empId), request.empId, upserts, [])
           ]);
 
           setAppData(prev => {
@@ -1129,7 +1196,7 @@ const App = () => {
             const nextAppData = {
               ...prev,
               requests: newRequests,
-              absences: { ...prev.absences, [request.empId]: newAbsences[request.empId] }
+              absences: { ...prev.absences, [request.empId]: mergedEmpDates }
             };
             nextAppData.vacationStats = updateVacationStats(nextAppData.absences, prev.employees, prev.vacationStats, nextAppData.requests);
             firestoreService.saveConfig({ vacationStats: nextAppData.vacationStats }).catch(e => console.error("Background save failed:", e));
@@ -1166,8 +1233,8 @@ const App = () => {
         request.status = 'approved';
         request.stamps = { ...request.stamps, admin: makeStamp(auth.user) };
 
-        const newAbsences = { ...appData.absences };
-        if (!newAbsences[request.empId]) newAbsences[request.empId] = {};
+        const upserts = {};
+        const nowIso = new Date().toISOString();
         request.dates.forEach(date => {
           let repName = request.vertreter;
           let repId = request.vertreterId;
@@ -1178,26 +1245,23 @@ const App = () => {
               repId = sub.vertreterId;
             }
           }
-          newAbsences[request.empId][date] = {
+          upserts[date] = {
             type: request.type,
             text: request.text,
             vertreter: repName,
             vertreterId: repId,
             status: 'confirmed',
             uid: request.id,
-            updatedAt: new Date().toISOString()
+            updatedAt: nowIso
           };
         });
 
         updatedRequests[reqIndex] = request;
-        const updatedStats = updateVacationStats(newAbsences);
         
-        const promises = [
+        const [, mergedEmpDates] = await Promise.all([
           firestoreService.saveRequest(getEmployeeProfileType(request.empId), request),
-          firestoreService.saveAbsence(getEmployeeProfileType(request.empId), request.empId, newAbsences[request.empId])
-        ];
-        
-        await Promise.all(promises);
+          firestoreService.patchAbsence(getEmployeeProfileType(request.empId), request.empId, upserts, [])
+        ]);
 
         // Audit Trail
         const targetEmp = appData.employees.find(e => e.id === request.empId);
@@ -1227,7 +1291,7 @@ const App = () => {
           const nextAppData = {
             ...prev,
             requests: newRequests,
-            absences: { ...prev.absences, [request.empId]: newAbsences[request.empId] }
+            absences: { ...prev.absences, [request.empId]: mergedEmpDates }
           };
           nextAppData.vacationStats = updateVacationStats(nextAppData.absences, prev.employees, prev.vacationStats, nextAppData.requests);
           
@@ -1307,20 +1371,37 @@ const App = () => {
 
     setIsLoading(true);
     try {
-      const request = { ...appData.requests[reqIndex], ...updates };
-
-      // Ensure stamps property is initialized
-      if (!request.stamps) request.stamps = {};
+      const prevRequest = appData.requests[reqIndex];
+      const { _autoStampVertreter, ...cleanUpdates } = updates;
+      const request = {
+        ...prevRequest,
+        ...cleanUpdates,
+        stamps: { ...(prevRequest.stamps || {}), ...(cleanUpdates.stamps || {}) },
+        notified: { ...(prevRequest.notified || {}), ...(cleanUpdates.notified || {}) }
+      };
 
       // Handle resetting notified flags for email notifications based on status change
-      if (!request.notified) request.notified = {};
-      if (updates.status === 'pending_supervisor') {
-        request.notified.pending_supervisor = false;
+      if (cleanUpdates.status === 'pending_supervisor') {
+        if (_autoStampVertreter && !request.stamps.vertreter) {
+          request.stamps.vertreter = { ...makeStamp(auth.user), isAuto: true };
+        }
+        if (prevRequest.status !== 'pending_supervisor') {
+          request.notified.pending_supervisor = false;
+        }
         request.notified.pending_admin = false;
         request.notified.approved = false;
         request.stamps.supervisor = null;
         request.stamps.admin = null;
-      } else if (updates.status === 'pending_vertreter') {
+      } else if (cleanUpdates.status === 'pending_admin') {
+        if (_autoStampVertreter && !request.stamps.vertreter) {
+          request.stamps.vertreter = { ...makeStamp(auth.user), isAuto: true };
+        }
+        if (prevRequest.status !== 'pending_admin') {
+          request.notified.pending_admin = false;
+        }
+        request.notified.approved = false;
+        request.stamps.admin = null;
+      } else if (cleanUpdates.status === 'pending_vertreter') {
         request.notified.pending_vertreter = false;
         request.notified.pending_supervisor = false;
         request.notified.pending_admin = false;
@@ -1328,17 +1409,17 @@ const App = () => {
         request.stamps.vertreter = null;
         request.stamps.supervisor = null;
         request.stamps.admin = null;
-      } else if (updates.status === 'approved' && !request.stamps.admin) {
+      } else if (cleanUpdates.status === 'approved' && !request.stamps.admin) {
         request.stamps.admin = makeStamp(auth.user);
       }
 
-      if (updates.status && updates.status !== 'rejected') {
+      if (cleanUpdates.status && cleanUpdates.status !== 'rejected') {
         request.rejectedBy = null;
         request.rejectionNote = null;
         if (request.stamps) request.stamps.rejected = null;
       }
 
-      if (updates.dates) {
+      if (cleanUpdates.dates) {
         request.admin_changed_dates_at = new Date().toISOString();
         request.notified.admin_changed_dates = false;
       }
@@ -1350,11 +1431,12 @@ const App = () => {
 
       // Audit Trail
       const targetEmp = appData.employees.find(e => e.id === request.empId);
-      if (updates.vertreter || updates.vertreterId || updates.substitutes) {
+      if (cleanUpdates.vertreter || cleanUpdates.vertreterId || cleanUpdates.substitutes) {
+        const newlyApprovedDirectly = prevRequest.status !== 'approved' && request.status === 'approved';
         auditService.logEvent({
           actor: { uid: auth.user?.id, name: auth.user?.name, role: auth.user?.role, planerType },
           action: AUDIT_ACTIONS.REPRESENTATIVE_CHANGE,
-          actionLabel: `Vertreter angepasst`,
+          actionLabel: newlyApprovedDirectly ? `Vertreter angepasst & direkt genehmigt` : `Vertreter angepasst`,
           target: {
             empId: request.empId,
             empName: targetEmp?.name || request.name || request.empId,
@@ -1363,13 +1445,13 @@ const App = () => {
           },
           details: {
             requestId: request.id,
-            previousVertreter: appData.requests[reqIndex]?.vertreter || 'Keiner',
-            newVertreter: updates.vertreter || request.vertreter,
-            substitutes: updates.substitutes || null,
-            status: updates.status || request.status
+            previousVertreter: prevRequest?.vertreter || 'Keiner',
+            newVertreter: cleanUpdates.vertreter || request.vertreter,
+            substitutes: cleanUpdates.substitutes || null,
+            status: cleanUpdates.status || request.status
           }
         });
-      } else if (updates.status === 'deleted') {
+      } else if (cleanUpdates.status === 'deleted') {
         auditService.logEvent({
           actor: { uid: auth.user?.id, name: auth.user?.name, role: auth.user?.role, planerType },
           action: AUDIT_ACTIONS.CALENDAR_ABSENCE_DELETE,
@@ -1382,7 +1464,7 @@ const App = () => {
           },
           details: { requestId: request.id }
         });
-      } else if (updates.dates) {
+      } else if (cleanUpdates.dates) {
         auditService.logEvent({
           actor: { uid: auth.user?.id, name: auth.user?.name, role: auth.user?.role, planerType },
           action: AUDIT_ACTIONS.REQUEST_EDIT,
@@ -1390,48 +1472,39 @@ const App = () => {
           target: {
             empId: request.empId,
             empName: targetEmp?.name || request.name || request.empId,
-            dates: updates.dates,
-            period: `${updates.dates[0]} bis ${updates.dates[updates.dates.length - 1]}`
+            dates: cleanUpdates.dates,
+            period: `${cleanUpdates.dates[0]} bis ${cleanUpdates.dates[cleanUpdates.dates.length - 1]}`
           },
           details: { requestId: request.id }
         });
       }
       
       let nextAbsences = appData.absences;
-      if (appData.requests[reqIndex].status === 'approved' && updates.status && updates.status !== 'approved') {
-          // It was approved, but now demoted to pending. We must remove it from absences.
-          if (nextAbsences[request.empId]) {
-              const empAbsences = { ...nextAbsences[request.empId] };
-              let changed = false;
-              request.dates.forEach(date => {
-                 if (empAbsences[date] && empAbsences[date].uid === request.id) {
-                     delete empAbsences[date];
-                     changed = true;
-                 }
-              });
-              if (changed) {
-                  nextAbsences = { ...nextAbsences, [request.empId]: empAbsences };
-                  await firestoreService.saveAbsence(getEmployeeProfileType(request.empId), request.empId, empAbsences);
-              }
+      if (prevRequest.status === 'approved' && cleanUpdates.status && cleanUpdates.status !== 'approved') {
+          // It was approved, but now demoted to pending/deleted. Remove its dates from absences via server merge.
+          const prevDates = Array.isArray(prevRequest.dates) ? prevRequest.dates : (request.dates || []);
+          const existingEmpAbs = nextAbsences[request.empId] || {};
+          const deleteDates = prevDates.filter(d => !existingEmpAbs[d] || !existingEmpAbs[d].uid || existingEmpAbs[d].uid === request.id);
+          if (deleteDates.length > 0) {
+              const mergedEmpDates = await firestoreService.patchAbsence(
+                  getEmployeeProfileType(request.empId),
+                  request.empId,
+                  {},
+                  deleteDates
+              );
+              nextAbsences = { ...nextAbsences, [request.empId]: mergedEmpDates };
           }
-      } else if (request.status === 'approved' && (updates.dates || updates.vertreter || updates.vertreterId || updates.substitutes || updates.status === 'approved')) {
+      } else if (request.status === 'approved' && (cleanUpdates.dates || cleanUpdates.vertreter || cleanUpdates.vertreterId || cleanUpdates.substitutes || cleanUpdates.status === 'approved')) {
           // Dates or representatives changed for an approved request, or request newly approved directly
-          if (!nextAbsences[request.empId]) {
-              nextAbsences = { ...nextAbsences, [request.empId]: {} };
-          }
-          const empAbsences = { ...nextAbsences[request.empId] };
-          let changed = false;
-          // Remove old dates
-          if (appData.requests[reqIndex].dates) {
-              appData.requests[reqIndex].dates.forEach(date => {
-                 if (empAbsences[date] && empAbsences[date].uid === request.id) {
-                     delete empAbsences[date];
-                     changed = true;
-                 }
-              });
-          }
-          // Add new dates with date-specific representative
-          request.dates.forEach(date => {
+          const newDatesSet = new Set(request.dates || []);
+          const existingEmpAbs = nextAbsences[request.empId] || {};
+          const deleteDates = (prevRequest.dates || []).filter(
+              d => !newDatesSet.has(d) && (!existingEmpAbs[d] || !existingEmpAbs[d].uid || existingEmpAbs[d].uid === request.id)
+          );
+
+          const upserts = {};
+          const nowIso = new Date().toISOString();
+          (request.dates || []).forEach(date => {
              let repName = request.vertreter;
              let repId = request.vertreterId;
              if (Array.isArray(request.substitutes) && request.substitutes.length > 0) {
@@ -1441,21 +1514,25 @@ const App = () => {
                  repId = sub.vertreterId;
                }
              }
-             empAbsences[date] = {
+             upserts[date] = {
                  type: request.type,
                  text: request.text,
                  vertreter: repName,
                  vertreterId: repId,
                  status: 'confirmed',
                  uid: request.id,
-                 updatedAt: new Date().toISOString()
+                 updatedAt: nowIso
              };
-             changed = true;
           });
 
-          if (changed) {
-              nextAbsences = { ...nextAbsences, [request.empId]: empAbsences };
-              await firestoreService.saveAbsence(getEmployeeProfileType(request.empId), request.empId, empAbsences);
+          if (Object.keys(upserts).length > 0 || deleteDates.length > 0) {
+              const mergedEmpDates = await firestoreService.patchAbsence(
+                  getEmployeeProfileType(request.empId),
+                  request.empId,
+                  upserts,
+                  deleteDates
+              );
+              nextAbsences = { ...nextAbsences, [request.empId]: mergedEmpDates };
           }
       }
 
@@ -1540,8 +1617,8 @@ const App = () => {
             }
           });
 
-          // Recalculate stats
-          nextData.vacationStats = updateVacationStats(nextData.absences, nextData.fullEmployeeList, nextData.vacationStats);
+          // Recalculate stats only for active profile's employees so cross-profile stats are preserved
+          nextData.vacationStats = updateVacationStats(nextData.absences, nextData.employees, nextData.vacationStats, newRequests);
           
           // Trigger config update in background (don't await it here for UI snappiness if possible, or await if safety is paramount)
           // For now we keep it awaited to match previous logic but it's a candidate for improvement
@@ -1654,7 +1731,7 @@ const App = () => {
     // No fullSkillList needed anymore – appData.skills is the full tagged list
 
     if (finalData.employees || finalData.absences) {
-      nextAppData.vacationStats = updateVacationStats(nextAppData.absences, nextAppData.fullEmployeeList, nextAppData.vacationStats);
+      nextAppData.vacationStats = updateVacationStats(nextAppData.absences, nextAppData.employees, nextAppData.vacationStats, nextAppData.requests);
     }
     
     // Optimistic UI update to prevent CategoryAdmin's useEffect from snapping back to old state during isLoading

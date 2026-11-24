@@ -113,11 +113,21 @@ export const generateICalBlob = (absencesByEmp, employees, startDate, endDate, s
 
   let icsContent = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Urlaubsplaner//DE\r\nCALSCALE:GREGORIAN\r\n";
 
+  const uidCounts = {};
+  events.forEach(ev => {
+    if (ev.uid) {
+      uidCounts[ev.uid] = (uidCounts[ev.uid] || 0) + 1;
+    }
+  });
+
   events.forEach(ev => {
     icsContent += "BEGIN:VEVENT\r\n";
     // Construct a stable UID. Prefer the database-backed 'uid' if available.
-    // Use the combined startDate if fallback is needed, to remain semi-stable.
-    const stableId = ev.uid || `${ev.empName.replace(/\s+/g, '')}-${formatDateICal(ev.start)}`;
+    // When a single request was split into multiple segments with different representatives,
+    // append start date so each VEVENT gets a unique RFC 5545 UID instead of overwriting earlier segments.
+    const stableId = ev.uid
+      ? (uidCounts[ev.uid] > 1 ? `${ev.uid}-${formatDateICal(ev.start)}` : ev.uid)
+      : `${ev.empName.replace(/\s+/g, '')}-${formatDateICal(ev.start)}`;
     icsContent += `UID:${stableId}@urlaubsplaner\r\n`;
     icsContent += `DTSTAMP:${timestamp}\r\n`;
     icsContent += `DTSTART;VALUE=DATE:${formatDateICal(ev.start)}\r\n`;

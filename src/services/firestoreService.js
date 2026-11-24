@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, getDocs, setDoc, query, where, deleteDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocFromServer, getDocs, setDoc, query, where, deleteDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
 const ABSENCES_COLL = 'up_absences';
@@ -43,6 +43,38 @@ export const firestoreService = {
       await setDoc(doc(db, ABSENCES_COLL, docId), clean);
     } catch (error) {
       console.error(`Error saving absence for ${empId}:`, error);
+      throw error;
+    }
+  },
+
+  /**
+   * Atomically merges added/updated absence dates and removes explicitly deleted dates
+   * against the latest server document so stale tabs never wipe other vacations.
+   */
+  async patchAbsence(planerType, empId, upserts = {}, deleteDates = []) {
+    try {
+      const docId = `${planerType}_${empId}`;
+      const docRef = doc(db, ABSENCES_COLL, docId);
+      const snap = await getDocFromServer(docRef).catch(() => getDoc(docRef));
+      const mergedDates = (snap.exists() && snap.data()?.dates) ? { ...snap.data().dates } : {};
+
+      deleteDates.forEach(d => {
+        delete mergedDates[d];
+      });
+      Object.entries(upserts).forEach(([d, val]) => {
+        mergedDates[d] = val;
+      });
+
+      const clean = JSON.parse(JSON.stringify({
+        planerType,
+        empId,
+        dates: mergedDates,
+        updatedAt: new Date().toISOString()
+      }));
+      await setDoc(docRef, clean);
+      return mergedDates;
+    } catch (error) {
+      console.error(`Error patching absence for ${empId}:`, error);
       throw error;
     }
   },

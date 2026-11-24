@@ -91,9 +91,25 @@ const EditRepresentativesModal = ({
     ];
   });
 
-  const [approvalOption, setApprovalOption] = useState(
-    request.status === 'approved' ? 'direct' : 'restart'
+  const hasPendingSupervisor = Boolean(
+    request.supervisorId && !request.stamps?.supervisor && request.status !== 'approved'
   );
+
+  const supervisorName = useMemo(() => {
+    if (!request.supervisorId) return '';
+    return employees.find(e => e.id === request.supervisorId)?.name || request.supervisor || request.supervisorId;
+  }, [request.supervisorId, request.supervisor, employees]);
+
+  const getDefaultApprovalOption = (req) => {
+    if (!req) return 'restart';
+    if (req.status === 'approved') return 'direct';
+    if (req.supervisorId && !req.stamps?.supervisor && (req.status === 'pending_supervisor' || req.stamps?.vertreter)) {
+      return 'workflow';
+    }
+    return 'restart';
+  };
+
+  const [approvalOption, setApprovalOption] = useState(() => getDefaultApprovalOption(request));
 
   // Sync state when request prop changes
   useEffect(() => {
@@ -122,7 +138,7 @@ const EditRepresentativesModal = ({
         }
       ]);
     }
-    setApprovalOption(request.status === 'approved' ? 'direct' : 'restart');
+    setApprovalOption(getDefaultApprovalOption(request));
   }, [request]);
 
   const candidateEmployees = useMemo(() => {
@@ -371,6 +387,43 @@ const EditRepresentativesModal = ({
   }, [mode, segments, minDate, maxDate, candidateEmployees, absences, requests]);
 
   // Handle Save
+  const applyApprovalOption = (updates, allNone) => {
+    if (approvalOption === 'restart') {
+      const nextStatus = allNone ? (request.supervisorId ? 'pending_supervisor' : 'pending_admin') : 'pending_vertreter';
+      updates.status = nextStatus;
+      updates.stamps = {
+        ...(request.stamps || {}),
+        vertreter: null,
+        supervisor: null,
+        admin: null
+      };
+      updates.notified = {
+        ...(request.notified || {}),
+        pending_vertreter: false,
+        pending_supervisor: false,
+        pending_admin: false,
+        approved: false
+      };
+      return true;
+    }
+
+    if (approvalOption === 'workflow') {
+      updates.status = (request.supervisorId && !request.stamps?.supervisor) ? 'pending_supervisor' : 'pending_admin';
+      updates._autoStampVertreter = !allNone;
+      return true;
+    }
+
+    // approvalOption === 'direct'
+    if (hasPendingSupervisor) {
+      const confirmBypass = confirm(
+        `Achtung: Der zuständige Vorgesetzte (${supervisorName}) hat diesem Antrag noch nicht zugestimmt.\n\nSoll die Vorgesetzten-Freigabe wirklich übersprungen und der Antrag sofort final genehmigt werden?`
+      );
+      if (!confirmBypass) return false;
+    }
+    updates.status = 'approved';
+    return true;
+  };
+
   const handleSave = () => {
     if (mode === 'single') {
       if (!singleVertreterId) {
@@ -390,25 +443,7 @@ const EditRepresentativesModal = ({
         substitutes: null
       };
 
-      if (approvalOption === 'restart') {
-        const nextStatus = isNone ? (request.supervisorId ? 'pending_supervisor' : 'pending_admin') : 'pending_vertreter';
-        updates.status = nextStatus;
-        updates.stamps = {
-          ...(request.stamps || {}),
-          vertreter: null,
-          supervisor: null,
-          admin: null
-        };
-        updates.notified = {
-          ...(request.notified || {}),
-          pending_vertreter: false,
-          pending_supervisor: false,
-          pending_admin: false,
-          approved: false
-        };
-      } else {
-        updates.status = 'approved';
-      }
+      if (!applyApprovalOption(updates, isNone)) return;
 
       onSave(request.id, updates);
       onClose();
@@ -446,26 +481,8 @@ const EditRepresentativesModal = ({
         substitutes: formattedSubstitutes
       };
 
-      if (approvalOption === 'restart') {
-        const allNone = formattedSubstitutes.every(s => !s.vertreterId);
-        const nextStatus = allNone ? (request.supervisorId ? 'pending_supervisor' : 'pending_admin') : 'pending_vertreter';
-        updates.status = nextStatus;
-        updates.stamps = {
-          ...(request.stamps || {}),
-          vertreter: null,
-          supervisor: null,
-          admin: null
-        };
-        updates.notified = {
-          ...(request.notified || {}),
-          pending_vertreter: false,
-          pending_supervisor: false,
-          pending_admin: false,
-          approved: false
-        };
-      } else {
-        updates.status = 'approved';
-      }
+      const allNone = formattedSubstitutes.every(s => !s.vertreterId);
+      if (!applyApprovalOption(updates, allNone)) return;
 
       onSave(request.id, updates);
       onClose();
@@ -876,36 +893,36 @@ const EditRepresentativesModal = ({
             Genehmigungsstatus & Freigabe
           </span>
 
-          <label style={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: '10px',
-            padding: '10px 12px',
-            borderRadius: '10px',
-            background: approvalOption === 'direct' ? '#f0fdf4' : '#ffffff',
-            border: approvalOption === 'direct' ? '1.5px solid #22c55e' : '1px solid #cbd5e1',
-            cursor: 'pointer',
-            transition: 'all 0.15s ease'
-          }}>
-            <input
-              type="radio"
-              name="approvalOption"
-              value="direct"
-              checked={approvalOption === 'direct'}
-              onChange={() => setApprovalOption('direct')}
-              style={{ marginTop: '3px' }}
-            />
-            <div>
-              <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#15803d', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span>Direkt übernehmen (Admin-Zuweisung)</span>
+          {hasPendingSupervisor && (
+            <label style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '10px',
+              padding: '10px 12px',
+              borderRadius: '10px',
+              background: approvalOption === 'workflow' ? '#eff6ff' : '#ffffff',
+              border: approvalOption === 'workflow' ? '1.5px solid #3b82f6' : '1px solid #cbd5e1',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}>
+              <input
+                type="radio"
+                name="approvalOption"
+                value="workflow"
+                checked={approvalOption === 'workflow'}
+                onChange={() => setApprovalOption('workflow')}
+                style={{ marginTop: '3px' }}
+              />
+              <div>
+                <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#1d4ed8', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>Weiter an Vorgesetzten ({supervisorName})</span>
+                </div>
+                <div style={{ fontSize: '0.78rem', color: '#475569', marginTop: '2px', lineHeight: 1.35 }}>
+                  Behält eine bereits erteilte Vertreter-Zustimmung bei und legt den Antrag regulär dem zuständigen Vorgesetzten ({supervisorName}) zur Freigabe vor.
+                </div>
               </div>
-              <div style={{ fontSize: '0.78rem', color: '#475569', marginTop: '2px', lineHeight: 1.35 }}>
-                {request.status === 'approved'
-                  ? 'Status bleibt "Genehmigt". Kalendereinträge werden sofort tagesgenau aktualisiert. Keine erneuten Bestätigungs-E-Mails.'
-                  : 'Wird sofort als "Genehmigt" markiert und in den Kalender übertragen.'}
-              </div>
-            </div>
-          </label>
+            </label>
+          )}
 
           <label style={{
             display: 'flex',
@@ -928,10 +945,49 @@ const EditRepresentativesModal = ({
             />
             <div>
               <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#a16207', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span>Freigabeprozess neu anstoßen</span>
+                <span>Freigabeprozess ab Vertreter neu anstoßen</span>
               </div>
               <div style={{ fontSize: '0.78rem', color: '#475569', marginTop: '2px', lineHeight: 1.35 }}>
-                Status wird auf "Vertreter-Zustimmung ausstehend" zurückgesetzt. Die benannten Vertreter müssen der Vertretung zustimmen.
+                Status wird auf "Vertreter-Zustimmung ausstehend" zurückgesetzt. Die benannten Vertreter müssen erst zustimmen{hasPendingSupervisor ? `, danach geht der Antrag an ${supervisorName}` : ''}.
+              </div>
+            </div>
+          </label>
+
+          <label style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '10px',
+            padding: '10px 12px',
+            borderRadius: '10px',
+            background: approvalOption === 'direct' ? (hasPendingSupervisor ? '#fff7ed' : '#f0fdf4') : '#ffffff',
+            border: approvalOption === 'direct' ? (hasPendingSupervisor ? '1.5px solid #f97316' : '1.5px solid #22c55e') : '1px solid #cbd5e1',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease'
+          }}>
+            <input
+              type="radio"
+              name="approvalOption"
+              value="direct"
+              checked={approvalOption === 'direct'}
+              onChange={() => setApprovalOption('direct')}
+              style={{ marginTop: '3px' }}
+            />
+            <div>
+              <div style={{ fontSize: '0.88rem', fontWeight: 700, color: hasPendingSupervisor ? '#c2410c' : '#15803d', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>
+                  {request.status === 'approved'
+                    ? 'Direkt übernehmen (Status bleibt "Genehmigt")'
+                    : hasPendingSupervisor
+                    ? `Sofort final genehmigen (${supervisorName} überspringen)`
+                    : 'Direkt übernehmen & genehmigen (Admin-Zuweisung)'}
+                </span>
+              </div>
+              <div style={{ fontSize: '0.78rem', color: hasPendingSupervisor ? '#9a3412' : '#475569', marginTop: '2px', lineHeight: 1.35 }}>
+                {request.status === 'approved'
+                  ? 'Status bleibt "Genehmigt". Kalendereinträge werden sofort tagesgenau aktualisiert. Keine erneuten Bestätigungs-E-Mails.'
+                  : hasPendingSupervisor
+                  ? `⚠️ Achtung: Überspringt die ausstehende Freigabe des Vorgesetzten (${supervisorName}) und trägt den Urlaub sofort als "Genehmigt" ein.`
+                  : 'Wird sofort als "Genehmigt" markiert und in den Kalender übertragen.'}
               </div>
             </div>
           </label>
