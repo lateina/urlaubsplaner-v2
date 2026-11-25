@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, getDocFromServer, getDocs, setDoc, query, where, deleteDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocFromServer, getDocs, setDoc, query, where, deleteDoc, deleteField } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
 const ABSENCES_COLL = 'up_absences';
@@ -77,6 +77,39 @@ export const firestoreService = {
       console.error(`Error patching absence for ${empId}:`, error);
       throw error;
     }
+  },
+
+  /**
+   * Idempotently seeds preliminary wish entries without overwriting any existing absence on a date
+   */
+  async seedWishAbsences(planerType, empId, seedDates = {}) {
+    const docId = `${planerType}_${empId}`;
+    const docRef = doc(db, ABSENCES_COLL, docId);
+    const snap = await getDocFromServer(docRef).catch(() => getDoc(docRef));
+    const mergedDates = (snap.exists() && snap.data()?.dates) ? { ...snap.data().dates } : {};
+    let changed = false;
+
+    Object.entries(seedDates).forEach(([d, val]) => {
+      if (!mergedDates[d]) {
+        mergedDates[d] = val;
+        changed = true;
+      }
+    });
+
+    if (changed) {
+      const clean = JSON.parse(JSON.stringify({
+        planerType,
+        empId,
+        dates: mergedDates,
+        updatedAt: new Date().toISOString()
+      }));
+      await setDoc(docRef, clean);
+    }
+    return mergedDates;
+  },
+
+  async clearPendingAbsenceSeeds() {
+    await setDoc(doc(db, 'up_config', 'main'), { pendingAbsenceSeeds: deleteField() }, { merge: true });
   },
 
   /**

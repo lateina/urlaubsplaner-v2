@@ -24,7 +24,8 @@ const AbsenceSummary = ({ employees = [], absences = {}, status = {} }) => {
       'S': 'Sonstiges' 
     };
     const t = typeMap[start.val?.type] || 'Abwesend';
-    return `${datePart} (${t}${start.val?.text ? `: ${start.val.text}` : ''})`;
+    const wishSuffix = start.val?.status === 'wish' ? ' [Wunsch]' : '';
+    return `${datePart} (${t}${start.val?.text ? `: ${start.val.text}` : ''}${wishSuffix})`;
   };
 
   const fullSummary = useMemo(() => {
@@ -53,7 +54,7 @@ const AbsenceSummary = ({ employees = [], absences = {}, status = {} }) => {
         prevDate.setDate(prevDate.getDate() + 1);
         const nextDayStr = prevDate.toISOString().split('T')[0];
         
-        if (nextDayStr === curr.date && rEnd.val?.type === curr.val?.type && (rEnd.val?.text || '') === (curr.val?.text || '')) { 
+        if (nextDayStr === curr.date && rEnd.val?.type === curr.val?.type && (rEnd.val?.text || '') === (curr.val?.text || '') && (rEnd.val?.status || 'confirmed') === (curr.val?.status || 'confirmed')) { 
           rEnd = curr; 
         } else { 
           ranges.push(formatRange(rStart, rEnd)); 

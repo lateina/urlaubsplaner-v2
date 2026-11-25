@@ -334,6 +334,11 @@ const App = () => {
     const profile = PLANER_PROFILES[planerType];
 
     try {
+      await firebaseAuth.authStateReady();
+      if (!firebaseAuth.currentUser) {
+        await signInAnonymously(firebaseAuth).catch(err => console.error("Firebase Anonymous Login failed:", err));
+      }
+
       // Start all Firestore queries in parallel immediately to speed up loading
       const configPromise = firestoreService.loadConfig();
       const fsAbsencesPromise = firestoreService.loadAbsences(planerType);
@@ -598,6 +603,29 @@ const App = () => {
           console.warn(`[Auto-Heal] Failed to persist restored absences for ${eid}:`, err)
         );
       });
+
+      // Apply & persist any queued preliminary absence seeds (e.g. imported yearly wishes)
+      if (sourceData.pendingAbsenceSeeds && typeof sourceData.pendingAbsenceSeeds === 'object') {
+        const seedEntries = Object.entries(sourceData.pendingAbsenceSeeds);
+        if (seedEntries.length > 0) {
+          seedEntries.forEach(([eid, seedDates]) => {
+            if (!cleanAbsences[eid] || !seedDates) return;
+            Object.entries(seedDates).forEach(([d, val]) => {
+              if (!cleanAbsences[eid][d]) {
+                cleanAbsences[eid][d] = val;
+              }
+            });
+          });
+
+          Promise.all(
+            seedEntries.map(([eid, seedDates]) =>
+              firestoreService.seedWishAbsences(getEmployeeProfileType(eid, allEmployees), eid, seedDates || {})
+            )
+          )
+            .then(() => firestoreService.clearPendingAbsenceSeeds())
+            .catch(err => console.warn('[Wish-Seed] Background persistence failed:', err));
+        }
+      }
 
       absences = cleanAbsences;
 
@@ -1052,6 +1080,89 @@ const App = () => {
       });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSaveWish = async ({ employeeId, startDate, endDate, dates, type = 'U', remarks = '' }) => {
+    const targetEmpId = employeeId || auth.user?.id;
+    if (!targetEmpId) return;
+    if (!isAdmin && targetEmpId !== auth.user?.id) return;
+
+    if (isAdmin) pushToUndoStack('Urlaubswunsch eintragen');
+
+    setIsLoading(true);
+    try {
+      const targetType = getEmployeeProfileType(targetEmpId);
+      const wishUid = `wish_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+      const nowIso = new Date().toISOString();
+      const upserts = {};
+      (dates || []).forEach(d => {
+        upserts[d] = {
+          type,
+          text: remarks || '',
+          status: 'wish',
+          uid: wishUid,
+          updatedAt: nowIso
+        };
+      });
+
+      const mergedEmpDates = await firestoreService.patchAbsence(targetType, targetEmpId, upserts, []);
+
+      setAppData(prev => {
+        const nextAbsences = { ...prev.absences, [targetEmpId]: mergedEmpDates };
+        const updatedStats = updateVacationStats(nextAbsences, prev.employees, prev.vacationStats, prev.requests);
+        firestoreService.saveConfig({ vacationStats: updatedStats }).catch(e => console.error('Wish stats save failed:', e));
+        return {
+          ...prev,
+          absences: nextAbsences,
+          vacationStats: updatedStats
+        };
+      });
+
+      const targetEmp = appData.employees.find(e => e.id === targetEmpId);
+      auditService.logEvent({
+        actor: { uid: auth.user?.id, name: auth.user?.name, role: auth.user?.role, planerType },
+        action: AUDIT_ACTIONS.WISH_SAVE,
+        actionLabel: `Urlaubswunsch eingetragen (${type})`,
+        target: {
+          empId: targetEmpId,
+          empName: targetEmp?.name || targetEmpId,
+          dates,
+          period: `${startDate} bis ${endDate}`
+        },
+        details: { type, remarks: remarks || '', status: 'wish' }
+      });
+
+      toast.success('Urlaubswunsch gespeichert', { position: 'bottom-center', duration: 2500 });
+    } catch (err) {
+      console.error('[Save Wish Error]:', err);
+      alert(`Speichern fehlgeschlagen! (${err.message})`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteOwnWish = async (empId, dateStr) => {
+    if (!empId || !dateStr) return;
+    if (!isAdmin && empId !== auth.user?.id) return;
+
+    try {
+      const targetType = getEmployeeProfileType(empId);
+      const mergedEmpDates = await firestoreService.patchAbsence(targetType, empId, {}, [dateStr]);
+      setAppData(prev => {
+        const nextAbsences = { ...prev.absences, [empId]: mergedEmpDates };
+        const updatedStats = updateVacationStats(nextAbsences, prev.employees, prev.vacationStats, prev.requests);
+        firestoreService.saveConfig({ vacationStats: updatedStats }).catch(e => console.error('Wish delete stats save failed:', e));
+        return {
+          ...prev,
+          absences: nextAbsences,
+          vacationStats: updatedStats
+        };
+      });
+      toast.success('Urlaubswunsch gelöscht', { position: 'bottom-center', duration: 2000 });
+    } catch (err) {
+      console.error('[Delete Wish Error]:', err);
+      alert(`Löschen fehlgeschlagen! (${err.message})`);
     }
   };
 
@@ -1866,6 +1977,8 @@ const App = () => {
             absences={appData.absences}
             requests={appData.requests}
             onSaveAbsences={handleSaveAbsence}
+            onSaveWish={handleSaveWish}
+            onDeleteOwnWish={handleDeleteOwnWish}
             onSubmitRequest={handleSubmitRequest}
             isAdmin={isAdmin}
             currentUser={resolvedUser}

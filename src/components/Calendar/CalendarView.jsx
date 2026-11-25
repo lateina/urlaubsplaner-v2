@@ -17,6 +17,8 @@ const CalendarView = ({
   absences = {}, 
   requests = [],
   onSaveAbsences, 
+  onSaveWish,
+  onDeleteOwnWish,
   onSubmitRequest,
   isAdmin, 
   currentUser, 
@@ -39,6 +41,7 @@ const CalendarView = ({
   const [tooltip, setTooltip] = useState({ x: 0, y: 0, visible: false, content: '' });
   const [todayIndicator, setTodayIndicator] = useState(false);
   const [mode, setMode] = useState('U');
+  const [dragIsWish, setDragIsWish] = useState(false);
   const [dragArt, setDragArt] = useState('');
   const [dragVertreter, setDragVertreter] = useState('');
   const [isDragging, setIsDragging] = useState(false);
@@ -501,7 +504,7 @@ const CalendarView = ({
   useEffect(() => {
     const handleMouseUp = () => {
       if (isDragging && draggedEmpId) {
-        if (dragStartVal === 'set' && draggedDates.length > 0) {
+        if (dragStartVal === 'set' && draggedDates.length > 0 && !dragIsWish) {
           const vName = dragVertreter;
           const vId = employees.find(e => e.name === vName)?.id || '';
           
@@ -555,7 +558,7 @@ const CalendarView = ({
   };
   window.addEventListener('mouseup', handleMouseUp);
   return () => window.removeEventListener('mouseup', handleMouseUp);
-}, [isDragging, tempAbsences, onSaveAbsences, dragStartVal, draggedDates, draggedEmpId, dragVertreter, dragArt, mode, employees, currentUser, onSubmitRequest]);
+}, [isDragging, tempAbsences, onSaveAbsences, dragStartVal, draggedDates, draggedEmpId, dragVertreter, dragArt, mode, dragIsWish, employees, currentUser, onSubmitRequest]);
 
 
   const handleCellDragTouch = (e, empId, dateStr) => {
@@ -588,9 +591,8 @@ const CalendarView = ({
     const updatedAt = new Date().toISOString();
 
     setTempAbsences(prev => {
-      const newAbsences = prev || baseAbsences || { ...absences };
-      if (!newAbsences[empId]) newAbsences[empId] = {};
-      
+      const base = prev || baseAbsences || { ...absences };
+      const empMap = { ...(base[empId] || {}) };
       const targetDates = [dateStr];
 
       // INTERPOLATION: Fill gaps if we skipped dates during drag
@@ -608,22 +610,22 @@ const CalendarView = ({
       targetDates.forEach(dStr => {
         if (action === 'set') {
           setDraggedDates(p => p.includes(dStr) ? p : [...p, dStr]);
-          newAbsences[empId][dStr] = {
+          empMap[dStr] = {
             type: mode,
             text: dragArt,
-            vertreter: dragVertreter,
-            status: 'confirmed',
+            vertreter: dragIsWish ? '' : dragVertreter,
+            status: dragIsWish ? 'wish' : 'confirmed',
             uid: dragId,
             updatedAt: updatedAt
           };
         } else if (action === 'clear') {
-          if (newAbsences[empId][dStr]) {
-            delete newAbsences[empId][dStr];
+          if (empMap[dStr]) {
+            delete empMap[dStr];
           }
         }
       });
 
-      const result = { ...newAbsences };
+      const result = { ...base, [empId]: empMap };
       tempAbsencesRef.current = result;
       return result;
     });
@@ -659,14 +661,16 @@ const CalendarView = ({
     
     // 1. Absence or Request Info
     if (emp) {
-      const absence = absences[emp.id]?.[day.dateStr];
-      const approvedFallback = !absence && requests.find(r =>
+      const rawAbs = absences[emp.id]?.[day.dateStr];
+      const confirmedAbs = rawAbs && rawAbs.status !== 'wish' ? rawAbs : null;
+      const wishAbs = rawAbs && rawAbs.status === 'wish' ? rawAbs : null;
+      const approvedFallback = !confirmedAbs && requests.find(r =>
         r.empId === emp.id &&
         Array.isArray(r.dates) &&
         r.dates.includes(day.dateStr) &&
         r.status === 'approved'
       );
-      const pendingReq = !absence && !approvedFallback && requests.find(r => 
+      const pendingReq = !confirmedAbs && !approvedFallback && requests.find(r => 
         r.empId === emp.id && 
         r.dates.includes(day.dateStr) && 
         r.status.startsWith('pending')
@@ -680,7 +684,7 @@ const CalendarView = ({
         }
       }
 
-      const target = absence || resolvedFallback || pendingReq;
+      const target = confirmedAbs || resolvedFallback || pendingReq || wishAbs;
       if (target) {
         const typeLabel = { U: 'Urlaub', V: 'Urlaub', FZA: 'Freizeitausgleich', D: 'Dienstreise', F: 'Fortbildung', S: 'Sonstiges', T: 'Sonstiges' };
         const statusLabel = { 
@@ -709,6 +713,8 @@ const CalendarView = ({
         
         if (pendingReq) {
           lines.push(`*(${statusLabel[pendingReq.status]})*`);
+        } else if (target.status === 'wish') {
+          lines.push(`*(Urlaubswunsch / Vorplanung)*`);
         }
 
         
@@ -772,6 +778,7 @@ const CalendarView = ({
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
         onSave={onSaveAbsences}
+        onSaveWish={onSaveWish}
         onSubmitRequest={onSubmitRequest}
         employees={employees}
         isAdmin={isAdmin}
@@ -831,6 +838,26 @@ const CalendarView = ({
                   </button>
                 ))}
               </div>
+            )}
+
+            {perms.canDeleteAbsences && (
+              <button
+                type="button"
+                onClick={() => setDragIsWish(!dragIsWish)}
+                title="Als unverbindlichen Urlaubswunsch (Vorplanung) zeichnen"
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  border: dragIsWish ? '1.5px dashed #0284c7' : '1px solid var(--border)',
+                  background: dragIsWish ? '#e0f2fe' : 'white',
+                  color: dragIsWish ? '#0369a1' : 'var(--text-secondary)',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                {dragIsWish ? '✓ Wunsch-Modus' : 'Wunsch'}
+              </button>
             )}
 
             {perms.canDeleteAbsences && (
@@ -1374,13 +1401,16 @@ const CalendarView = ({
 
                   const currentAbsences = tempAbsences || absences;
                   const rawAbsence = currentAbsences[emp.id]?.[day.dateStr];
-                  const approvedReq = !rawAbsence && !isDragging && requests.find(r =>
+                  const confirmedAbsence = rawAbsence && rawAbsence.status !== 'wish' ? rawAbsence : null;
+                  const wishAbsence = rawAbsence && rawAbsence.status === 'wish' ? rawAbsence : null;
+                  const approvedReq = !confirmedAbsence && !isDragging && requests.find(r =>
                     r.empId === emp.id && Array.isArray(r.dates) && r.dates.includes(day.dateStr) && r.status === 'approved'
                   );
-                  const absence = rawAbsence || approvedReq;
-                  const pendingReq = !absence && requests.find(r => 
+                  const pendingReq = !confirmedAbsence && !approvedReq && requests.find(r => 
                     r.empId === emp.id && r.dates.includes(day.dateStr) && r.status.startsWith('pending')
                   );
+                  const absence = confirmedAbsence || approvedReq || (!pendingReq ? wishAbsence : null);
+                  const canDeleteOwnWish = !isCalendarAdmin && emp.id === currentUser?.id && !!wishAbsence && !pendingReq && !!onDeleteOwnWish;
 
                   const bgColor = day.holiday ? '#fff1f2' : day.isCongress ? '#f0f9ff' : day.isWeekend ? '#f8fafc' : 'white';
 
@@ -1388,14 +1418,18 @@ const CalendarView = ({
                     <div 
                       key={`${vRow.key}-${vCol.key}`} 
                       className={`cell body-item ${(() => {
-                        if (absence) {
-                          const t = absence.type;
+                        if (confirmedAbsence || approvedReq) {
+                          const t = (confirmedAbsence || approvedReq).type;
                           return (t === 'U' || t === 'V') ? 'status-vacation' : t === 'D' ? 'status-trip' : t === 'F' ? 'status-training' : 'status-custom';
                         }
                         if (pendingReq) {
                           if (pendingReq.status === 'pending_vertreter') return 'status-pending-vertreter';
                           if (pendingReq.status === 'pending_supervisor') return 'status-pending-supervisor';
                           return 'status-pending-admin';
+                        }
+                        if (wishAbsence) {
+                          const t = wishAbsence.type;
+                          return (t === 'U' || t === 'V') ? 'status-wish-vacation' : t === 'D' ? 'status-wish-trip' : t === 'F' ? 'status-wish-training' : 'status-wish-custom';
                         }
                         return '';
                       })()}`} 
@@ -1404,6 +1438,14 @@ const CalendarView = ({
                         if (isDragging) applyDraggedAbsence(emp.id, day.dateStr);
                       }}
                       onPointerDown={(e) => handleCellDragTouch(e, emp.id, day.dateStr)}
+                      onClick={() => {
+                        if (canDeleteOwnWish) {
+                          const [y, m, d] = day.dateStr.split('-');
+                          if (window.confirm(`Eigenen Urlaubswunsch am ${d}.${m}.${y} löschen?`)) {
+                            onDeleteOwnWish(emp.id, day.dateStr);
+                          }
+                        }
+                      }}
                       onMouseMove={handleMouseMove}
                       onMouseLeave={handleMouseLeave}
                       style={{ 
@@ -1423,7 +1465,7 @@ const CalendarView = ({
                         fontSize: '0.8rem', 
                         fontWeight: 'bold',
                         opacity: emp._isCrossProfile ? 0.7 : 1,
-                        cursor: (isCalendarAdmin && perms.canDeleteAbsences) ? 'crosshair' : 'default'
+                        cursor: (isCalendarAdmin && perms.canDeleteAbsences) ? 'crosshair' : (canDeleteOwnWish ? 'pointer' : 'default')
                       }}
                     >
                       {absence?.text && <span className="cell-text">{absence.text}</span>}

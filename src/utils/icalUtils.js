@@ -22,7 +22,7 @@ export const generateICalBlob = (absencesByEmp, employees, startDate, endDate, s
         const val = empState[d];
         const date = new Date(d);
         const status = val.status;
-        const isNotPending = !status || (status !== 'pending_vertreter' && status !== 'pending_admin');
+        const isNotPending = !status || (status !== 'pending_vertreter' && status !== 'pending_admin' && status !== 'wish');
         const isInRange = date >= filterStart && date <= filterEnd;
         
         if (!isInRange || !isNotPending) return false;

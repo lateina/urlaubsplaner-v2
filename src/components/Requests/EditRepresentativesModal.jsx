@@ -177,7 +177,8 @@ const EditRepresentativesModal = ({
 
     for (const d of dateList) {
       if (absences[vId]?.[d]) {
-        conflicts.push({ date: d, reason: 'Selbst abwesend', type: 'self_absent' });
+        const isWish = absences[vId][d]?.status === 'wish';
+        conflicts.push({ date: d, reason: isWish ? 'Urlaubswunsch hinterlegt' : 'Selbst abwesend', type: 'self_absent' });
         continue;
       }
       const ownReq = requests.find(r => r.empId === vId && r.dates?.includes(d) && r.status !== 'rejected');

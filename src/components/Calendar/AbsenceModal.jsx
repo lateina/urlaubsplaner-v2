@@ -2,7 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { getSpecialDayInfo, getLastNameSortKey, getRepresentativeIdForDate, getRotationExemptionInfo, isFoaOrOaInPneumo } from '../../utils/calendarUtils';
 import Modal from '../UI/Modal';
 
-const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isAdmin, perms = {}, currentUser, skills = [], absences = {}, requests = [], vacationStats = {}, planerType, rotationData = [] }) => {
+const AbsenceModal = ({ isOpen, onClose, onSave, onSaveWish, onSubmitRequest, employees, isAdmin, perms = {}, currentUser, skills = [], absences = {}, requests = [], vacationStats = {}, planerType, rotationData = [] }) => {
+  const [entryMode, setEntryMode] = useState('standard'); // 'standard' | 'wish'
   const [formData, setFormData] = useState({
     startDate: '',
     endDate: '',
@@ -17,9 +18,10 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
   });
 
   const isSekretariat = currentUser?.id === 'sekretariat';
+  const isWishMode = !isSekretariat && entryMode === 'wish';
   const effectiveEmpId = isSekretariat ? 'maier' : (formData.employeeId || currentUser?.id || '');
 
-  // Calculate vacation days in range
+  // Calculate vacation days in range (deduplicated via Set so existing wishes are never double-counted)
   const vacationInfo = useMemo(() => {
     if ((formData.type !== 'U' && formData.type !== 'V') || !formData.startDate || !formData.endDate) {
       return null;
@@ -30,7 +32,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
     if (end < start) return null;
 
     const year = start.getFullYear();
-    let count = 0;
+    const rangeDatesSet = new Set();
     let curr = new Date(start);
     while (curr <= end) {
       const dStr = curr.toISOString().split('T')[0];
@@ -38,13 +40,13 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
         const { holiday } = getSpecialDayInfo(dStr);
         const isWeekend = (curr.getDay() === 0 || curr.getDay() === 6);
         if (!isWeekend && !holiday) {
-          count++;
+          rangeDatesSet.add(dStr);
         }
       }
       curr.setDate(curr.getDate() + 1);
     }
 
-    let currentTotal = 0;
+    const currentDatesSet = new Set();
     const empAbsences = (absences && absences[effectiveEmpId]) || {};
     Object.entries(empAbsences).forEach(([dateStr, entry]) => {
       if (!dateStr.startsWith(String(year))) return;
@@ -55,31 +57,32 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
         const { holiday } = getSpecialDayInfo(dateStr);
         const d = new Date(dateStr);
         const isWeekend = (d.getDay() === 0 || d.getDay() === 6);
-        if (!isWeekend && !holiday) currentTotal++;
+        if (!isWeekend && !holiday) currentDatesSet.add(dateStr);
       }
     });
 
     (requests || []).filter(r =>
       r.empId === effectiveEmpId &&
-      r.status.startsWith('pending') &&
+      (r.status.startsWith('pending') || r.status === 'approved') &&
       (r.type === 'U' || r.type === 'V')
     ).forEach(r => {
-      r.dates.forEach(dateStr => {
+      (r.dates || []).forEach(dateStr => {
         if (!dateStr.startsWith(String(year))) return;
         const { holiday } = getSpecialDayInfo(dateStr);
         const d = new Date(dateStr);
         const isWeekend = (d.getDay() === 0 || d.getDay() === 6);
-        if (!isWeekend && !holiday) currentTotal++;
+        if (!isWeekend && !holiday) currentDatesSet.add(dateStr);
       });
     });
 
+    const projectedDatesSet = new Set([...currentDatesSet, ...rangeDatesSet]);
     const emp = employees?.find(e => e.id === effectiveEmpId);
     const quota = (emp?.vacationQuotas && emp.vacationQuotas[year]) ?? (parseInt(year) > 2026 ? 30 : (emp?.vacationQuota ?? 30));
 
     return {
-      daysInRange: count,
-      currentTotal: currentTotal,
-      projectedTotal: currentTotal + count,
+      daysInRange: rangeDatesSet.size,
+      currentTotal: currentDatesSet.size,
+      projectedTotal: projectedDatesSet.size,
       quota: quota
     };
   }, [formData.startDate, formData.endDate, formData.type, effectiveEmpId, absences, requests, employees]);
@@ -331,20 +334,6 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
-    // Determine if this is a direct entry or a request
-    const isDirect = perms.canEnterDirectly;
-    const isOptional = !isVertreterRequired;
-
-    if (!isDirect && !isOptional && !formData.vertreterId) {
-      alert('Bitte einen Vertreter auswählen.');
-      return;
-    }
-
-    if (!isDirect && isSupervisorRequired && !formData.supervisorId) {
-      alert('Bitte einen unmittelbaren Vorgesetzten auswählen.');
-      return;
-    }
 
     const requester = employees.find(e => e.id === effectiveEmpId);
     if (requester) {
@@ -372,6 +361,64 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
     while (curr <= end) {
       dates.push(curr.toISOString().split('T')[0]);
       curr.setDate(curr.getDate() + 1);
+    }
+
+    // --- WISH / VORPLANUNG MODE ---
+    if (isWishMode) {
+      const confirmedOverlap = dates.filter(d => {
+        const existing = absences[effectiveEmpId]?.[d];
+        return existing && existing.status !== 'wish' && existing.status !== 'rejected';
+      });
+      if (confirmedOverlap.length > 0) {
+        const fmt = (dateStr) => {
+          const [y, m, d] = dateStr.split('-');
+          return `${d}.${m}.${y}`;
+        };
+        alert(`An folgenden Tagen besteht bereits ein fest bestätigter Eintrag: ${confirmedOverlap.map(fmt).join(', ')}.`);
+        return;
+      }
+
+      if (onSaveWish) {
+        onSaveWish({
+          employeeId: effectiveEmpId,
+          startDate: formData.startDate,
+          endDate: formData.endDate,
+          dates,
+          type: formData.type,
+          remarks: formData.remarks
+        });
+      }
+
+      onClose();
+      setEntryMode('standard');
+      setFormData({
+        startDate: '',
+        endDate: '',
+        type: 'U',
+        vertreter: '',
+        vertreterId: '',
+        supervisor: '',
+        supervisorId: '',
+        remarks: '',
+        employeeId: isSekretariat ? 'maier' : (currentUser?.id || ''),
+        forwardSeparately: false
+      });
+      setVertreterSearch('');
+      return;
+    }
+    
+    // Determine if this is a direct entry or a request
+    const isDirect = perms.canEnterDirectly;
+    const isOptional = !isVertreterRequired;
+
+    if (!isDirect && !isOptional && !formData.vertreterId) {
+      alert('Bitte einen Vertreter auswählen.');
+      return;
+    }
+
+    if (!isDirect && isSupervisorRequired && !formData.supervisorId) {
+      alert('Bitte einen unmittelbaren Vorgesetzten auswählen.');
+      return;
     }
 
     // --- Validation Logic (matching V1) ---
@@ -546,8 +593,71 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
 
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={isSekretariat ? "Abwesenheit für Prof. Maier eintragen" : (perms.canEnterDirectly ? "Abwesenheit eintragen (Direkt)" : "Abwesenheit beantragen")}>
+    <Modal
+      isOpen={isOpen}
+      onClose={() => { setEntryMode('standard'); onClose(); }}
+      title={isWishMode ? "Urlaubswunsch / Vorplanung" : (isSekretariat ? "Abwesenheit für Prof. Maier eintragen" : (perms.canEnterDirectly ? "Abwesenheit eintragen (Direkt)" : "Abwesenheit beantragen"))}
+    >
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 420, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+
+        {!isSekretariat && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', background: '#e2e8f0', padding: '3px', borderRadius: 12, gap: 4 }}>
+              <button
+                type="button"
+                onClick={() => setEntryMode('standard')}
+                style={{
+                  flex: 1,
+                  padding: '8px 10px',
+                  borderRadius: 9,
+                  border: 'none',
+                  background: !isWishMode ? '#ffffff' : 'transparent',
+                  color: !isWishMode ? '#0f172a' : '#64748b',
+                  fontWeight: !isWishMode ? 700 : 500,
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                  boxShadow: !isWishMode ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                {perms.canEnterDirectly ? 'Fest eintragen' : 'Verbindlicher Antrag'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setEntryMode('wish')}
+                style={{
+                  flex: 1,
+                  padding: '8px 10px',
+                  borderRadius: 9,
+                  border: 'none',
+                  background: isWishMode ? '#ffffff' : 'transparent',
+                  color: isWishMode ? '#0369a1' : '#64748b',
+                  fontWeight: isWishMode ? 700 : 500,
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                  boxShadow: isWishMode ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                Urlaubswunsch (Vorplanung)
+              </button>
+            </div>
+
+            {isWishMode && (
+              <div style={{
+                padding: '10px 12px',
+                borderRadius: 12,
+                background: 'rgba(14, 165, 233, 0.08)',
+                border: '1px dashed rgba(2, 132, 199, 0.4)',
+                color: '#0369a1',
+                fontSize: '0.78rem',
+                lineHeight: 1.4
+              }}>
+                ℹ️ <strong>Vorplanung / Urlaubswunsch:</strong> Wird schraffiert im Kalender hinterlegt und zählt im Besetzungs-Check & Kontingent – noch ohne Vertreterpflicht und ohne PO-Karte.
+              </div>
+            )}
+          </div>
+        )}
         
         {isAdmin && (
           <div className="form-group" style={{ marginBottom: 4, maxWidth: 320 }}>
@@ -706,7 +816,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
           </div>
         )}
 
-        {formData.type === 'D' && (
+        {!isWishMode && formData.type === 'D' && (
           <div style={{ 
             padding: '12px 16px', 
             background: 'rgba(254, 243, 199, 0.5)', 
@@ -782,57 +892,59 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
           </div>
         )}
 
-        <div className="form-group" style={{ position: 'relative', maxWidth: 320 }}>
-          <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 6, color: '#000000' }}>
-            Vertreter {isVertreterRequired
-              ? '(Pflicht)'
-              : (isLaborPeriod
-                ? (exemptionType === 'studienambulanz'
-                  ? '(Optional – Studienambulanz)'
-                  : exemptionType === 'both'
-                  ? '(Optional – Labor/Studienambulanz)'
-                  : '(Optional – Labor/Forschungsfrei)')
-                : '(Optional)')}
-          </label>
-          <input 
-            type="text"
-            value={vertreterSearch} 
-            onChange={(e) => {
-              setVertreterSearch(e.target.value);
-              setShowVertreterResults(true);
-              if (!e.target.value) setFormData(prev => ({ ...prev, vertreter: '', vertreterId: '' }));
-            }}
-            onFocus={() => setShowVertreterResults(true)}
-            placeholder={!isVertreterRequired ? "Optional: Kollegen suchen..." : "Kollegen suchen..."}
-            required={isVertreterRequired}
-            style={{ width: '100%', padding: '12px 16px', borderRadius: 14, border: '2px solid rgba(0, 0, 0, 0.4)', background: 'white', color: '#000000', fontWeight: 500, fontSize: '1rem', boxSizing: 'border-box' }} 
-          />
-          {showVertreterResults && vertreterSearch.length > 0 && (
-            <div className="glass" style={{ 
-              position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, 
-              background: 'rgba(255, 255, 255, 0.95)', border: 'none', borderRadius: 12,
-              maxHeight: 200, overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-              backdropFilter: 'blur(10px)'
-            }}>
-              {vertreterCandidates.map(emp => (
-                <div 
-                  key={emp.id} 
-                  onClick={() => handleVertreterSelect(emp)}
-                  style={{ padding: '10px 12px', cursor: 'pointer', borderBottom: 'none' }}
-                  onMouseEnter={(e) => e.target.style.background = '#f1f5f9'}
-                  onMouseLeave={(e) => e.target.style.background = 'transparent'}
-                >
-                  {emp.name}
-                </div>
-              ))}
-              {vertreterCandidates.length === 0 && (
-                <div style={{ padding: '10px 12px', color: '#94a3b8', fontSize: '0.85rem' }}>Keine Treffer</div>
-              )}
-            </div>
-          )}
-        </div>
+        {!isWishMode && (
+          <div className="form-group" style={{ position: 'relative', maxWidth: 320 }}>
+            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 6, color: '#000000' }}>
+              Vertreter {isVertreterRequired
+                ? '(Pflicht)'
+                : (isLaborPeriod
+                  ? (exemptionType === 'studienambulanz'
+                    ? '(Optional – Studienambulanz)'
+                    : exemptionType === 'both'
+                    ? '(Optional – Labor/Studienambulanz)'
+                    : '(Optional – Labor/Forschungsfrei)')
+                  : '(Optional)')}
+            </label>
+            <input 
+              type="text"
+              value={vertreterSearch} 
+              onChange={(e) => {
+                setVertreterSearch(e.target.value);
+                setShowVertreterResults(true);
+                if (!e.target.value) setFormData(prev => ({ ...prev, vertreter: '', vertreterId: '' }));
+              }}
+              onFocus={() => setShowVertreterResults(true)}
+              placeholder={!isVertreterRequired ? "Optional: Kollegen suchen..." : "Kollegen suchen..."}
+              required={isVertreterRequired}
+              style={{ width: '100%', padding: '12px 16px', borderRadius: 14, border: '2px solid rgba(0, 0, 0, 0.4)', background: 'white', color: '#000000', fontWeight: 500, fontSize: '1rem', boxSizing: 'border-box' }} 
+            />
+            {showVertreterResults && vertreterSearch.length > 0 && (
+              <div className="glass" style={{ 
+                position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, 
+                background: 'rgba(255, 255, 255, 0.95)', border: 'none', borderRadius: 12,
+                maxHeight: 200, overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                backdropFilter: 'blur(10px)'
+              }}>
+                {vertreterCandidates.map(emp => (
+                  <div 
+                    key={emp.id} 
+                    onClick={() => handleVertreterSelect(emp)}
+                    style={{ padding: '10px 12px', cursor: 'pointer', borderBottom: 'none' }}
+                    onMouseEnter={(e) => e.target.style.background = '#f1f5f9'}
+                    onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                  >
+                    {emp.name}
+                  </div>
+                ))}
+                {vertreterCandidates.length === 0 && (
+                  <div style={{ padding: '10px 12px', color: '#94a3b8', fontSize: '0.85rem' }}>Keine Treffer</div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
-        {(isSupervisorRequired || planerType !== 'oa') && (
+        {!isWishMode && (isSupervisorRequired || planerType !== 'oa') && (
           <div className="form-group" style={{ position: 'relative', maxWidth: 320 }}>
             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 6, color: '#000000' }}>
               Unmittelbarer Vorgesetzter {isSupervisorRequired ? '(Pflicht)' : '(Optional)'}
@@ -866,9 +978,9 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSubmitRequest, employees, isA
         </div>
 
         <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
-          <button type="button" onClick={onClose} style={{ flex: 1, padding: '14px', borderRadius: 14, border: '1px solid rgba(0,0,0,0.2)', background: '#f1f5f9', color: '#000000', fontWeight: 600, fontSize: '1.1rem', cursor: 'pointer' }}>Abbrechen</button>
-          <button type="submit" style={{ flex: 2, padding: '14px', borderRadius: 14, border: 'none', background: 'var(--primary)', color: 'white', fontWeight: 700, fontSize: '1.1rem', cursor: 'pointer', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
-            {isSekretariat ? 'Abwesenheit eintragen' : (perms.canEnterDirectly ? 'Direkt Speichern' : 'Antrag stellen')}
+          <button type="button" onClick={() => { setEntryMode('standard'); onClose(); }} style={{ flex: 1, padding: '14px', borderRadius: 14, border: '1px solid rgba(0,0,0,0.2)', background: '#f1f5f9', color: '#000000', fontWeight: 600, fontSize: '1.1rem', cursor: 'pointer' }}>Abbrechen</button>
+          <button type="submit" style={{ flex: 2, padding: '14px', borderRadius: 14, border: 'none', background: isWishMode ? '#0284c7' : 'var(--primary)', color: 'white', fontWeight: 700, fontSize: '1.1rem', cursor: 'pointer', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>
+            {isWishMode ? 'Urlaubswunsch speichern' : (isSekretariat ? 'Abwesenheit eintragen' : (perms.canEnterDirectly ? 'Direkt Speichern' : 'Antrag stellen'))}
           </button>
         </div>
       </form>

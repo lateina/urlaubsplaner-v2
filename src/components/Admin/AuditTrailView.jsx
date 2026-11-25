@@ -9,7 +9,8 @@ const ACTION_COLORS = {
   [AUDIT_ACTIONS.REPRESENTATIVE_CHANGE]: { bg: '#fef3c7', text: '#92400e', border: '#fde68a', label: 'Vertreter geändert' },
   [AUDIT_ACTIONS.UNDO_REVERT]: { bg: '#f3e8ff', text: '#6b21a8', border: '#e9d5ff', label: 'Rückgängig (Undo)' },
   [AUDIT_ACTIONS.CALENDAR_ABSENCE_SAVE]: { bg: '#e0e7ff', text: '#3730a3', border: '#c7d2fe', label: 'Kalender: Gespeichert' },
-  [AUDIT_ACTIONS.CALENDAR_ABSENCE_DELETE]: { bg: '#ffedd5', text: '#9a3412', border: '#fed7aa', label: 'Kalender: Gelöscht' }
+  [AUDIT_ACTIONS.CALENDAR_ABSENCE_DELETE]: { bg: '#ffedd5', text: '#9a3412', border: '#fed7aa', label: 'Kalender: Gelöscht' },
+  [AUDIT_ACTIONS.WISH_SAVE]: { bg: '#e0f2fe', text: '#0369a1', border: '#7dd3fc', label: 'Urlaubswunsch' }
 };
 
 const AuditTrailView = ({ employees = [], planerType = 'all' }) => {
@@ -214,6 +215,7 @@ const AuditTrailView = ({ employees = [], planerType = 'all' }) => {
             <option value={AUDIT_ACTIONS.REPRESENTATIVE_CHANGE}>Vertreter geändert</option>
             <option value={AUDIT_ACTIONS.CALENDAR_ABSENCE_SAVE}>Kalender: Gespeichert</option>
             <option value={AUDIT_ACTIONS.CALENDAR_ABSENCE_DELETE}>Kalender: Gelöscht</option>
+            <option value={AUDIT_ACTIONS.WISH_SAVE}>Urlaubswunsch</option>
             <option value={AUDIT_ACTIONS.UNDO_REVERT}>Undo (Rückgängig)</option>
           </select>
 

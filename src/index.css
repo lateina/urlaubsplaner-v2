@@ -255,6 +255,31 @@ body.planer-oa .modal-card textarea {
   color: #b45309 !important;
 }
 
+/* Urlaubswunsch / Vorplanung (Stripes) */
+.status-wish-vacation {
+  background: repeating-linear-gradient(-45deg, #bae6fd, #bae6fd 5px, #f0f9ff 5px, #f0f9ff 10px) !important;
+  border: 1px dashed #0284c7 !important;
+  color: #0369a1 !important;
+}
+
+.status-wish-trip {
+  background: repeating-linear-gradient(-45deg, #ddd6fe, #ddd6fe 5px, #f5f3ff 5px, #f5f3ff 10px) !important;
+  border: 1px dashed #7c3aed !important;
+  color: #5b21b6 !important;
+}
+
+.status-wish-training {
+  background: repeating-linear-gradient(-45deg, #fed7aa, #fed7aa 5px, #fff7ed 5px, #fff7ed 10px) !important;
+  border: 1px dashed #ea580c !important;
+  color: #9a3412 !important;
+}
+
+.status-wish-custom {
+  background: repeating-linear-gradient(-45deg, #cbd5e1, #cbd5e1 5px, #f8fafc 5px, #f8fafc 10px) !important;
+  border: 1px dashed #475569 !important;
+  color: #334155 !important;
+}
+
 .cell-text {
   font-size: 0.6rem;
   white-space: nowrap;
