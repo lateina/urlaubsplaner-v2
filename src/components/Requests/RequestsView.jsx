@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Check, X, Trash2, FileText, Clock, User, Calendar as CalendarIcon, MessageSquare, ShieldCheck, Search, Mail, AlertTriangle } from 'lucide-react';
 import { generateAndDownloadPDF } from '../../utils/pdfGenerator';
-import { getLastNameSortKey, getRepresentativeIdForDate, isFoaOrOaInPneumo, getSimultaneousRepresentationWarnings } from '../../utils/calendarUtils';
+import { getLastNameSortKey, getRepresentativeIdForDate, isFoaOrOaInPneumo, getSimultaneousRepresentationWarnings, isLoaAutoAdminSupervisor } from '../../utils/calendarUtils';
 import EditRepresentativesModal from './EditRepresentativesModal';
 
 
@@ -162,10 +162,14 @@ const RequestsView = ({
 
 
   const renderCard = (req) => {
-    // Fix for stuck status: if stamps.vertreter exists but status is pending_vertreter, treat as pending_admin
+    const supNameFromList = req.supervisorId ? getEmpName(req.supervisorId) : (req.supervisor || '');
+    const needsSeparateSupervisor = Boolean(
+      req.supervisorId && !isLoaAutoAdminSupervisor(req.supervisorId, req.supervisor || supNameFromList)
+    );
+    // Fix for stuck status & direct LOA routing when Stefan Wagner is chosen as supervisor
     const effectiveStatus = (req.status === 'pending_vertreter' && req.stamps?.vertreter) 
-      ? (req.supervisorId ? 'pending_supervisor' : 'pending_admin') 
-      : (req.status === 'pending_supervisor' && req.stamps?.supervisor) ? 'pending_admin' : req.status;
+      ? (needsSeparateSupervisor ? 'pending_supervisor' : 'pending_admin') 
+      : (req.status === 'pending_supervisor' && (req.stamps?.supervisor || !needsSeparateSupervisor)) ? 'pending_admin' : req.status;
 
     const isRepForMe = req.vertreterId === cuId || (Array.isArray(req.substitutes) && req.substitutes.some(s => s.vertreterId === cuId));
     const isPendingVertreterForMe = isRepForMe && effectiveStatus === 'pending_vertreter';
@@ -349,7 +353,7 @@ const RequestsView = ({
                     <button onClick={() => {
                         if (editValue === 'none') {
                            if (confirm(`Wirklich auf "Kein Vertreter nötig" ändern und den Freigabeprozess fortsetzen?`)) {
-                              const newStatus = req.supervisorId ? 'pending_supervisor' : 'pending_admin';
+                              const newStatus = needsSeparateSupervisor ? 'pending_supervisor' : 'pending_admin';
                               onUpdateRequest(req.id, { vertreterId: null, vertreter: 'Kein Vertreter nötig', status: newStatus });
                            }
                         } else {
@@ -478,7 +482,7 @@ const RequestsView = ({
                     {employees.filter(e => e.role === 'Oberarzt' || e.isOberarzt || (Array.isArray(e.groups) && e.groups.includes('skill_funktionsoberarzt')))
                      .filter(e => e.active !== false && !['admin', 'sekretariat'].includes(e.id))
                      .sort((a, b) => getLastNameSortKey(a.name).localeCompare(getLastNameSortKey(b.name), 'de'))
-                     .map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                     .map(e => <option key={e.id} value={e.id}>{isLoaAutoAdminSupervisor(e.id, e.name) ? `${e.name} (Leitender OA)` : e.name}</option>)}
                  </select>
               ) : (
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -511,8 +515,11 @@ const RequestsView = ({
                     <button onClick={() => {
                         const newEmp = employees.find(e => e.id === editValue);
                         if (newEmp) {
-                          if (confirm(`Wirklich den Vorgesetzten auf ${newEmp.name} setzen und den Freigabeprozess zurücksetzen?`)) {
-                            onUpdateRequest(req.id, { supervisorId: newEmp.id, supervisor: newEmp.name, status: 'pending_supervisor' });
+                          const isLoaSup = isLoaAutoAdminSupervisor(newEmp.id, newEmp.name);
+                          const pendingRep = req.vertreterId && !req.stamps?.vertreter && req.vertreter !== 'Kein Vertreter nötig';
+                          const targetStatus = pendingRep ? 'pending_vertreter' : (isLoaSup ? 'pending_admin' : 'pending_supervisor');
+                          if (confirm(`Wirklich den Vorgesetzten auf ${newEmp.name} setzen${isLoaSup ? ' (direkt zur LOA-Freigabe)' : ' und den Freigabeprozess zurücksetzen'}?`)) {
+                            onUpdateRequest(req.id, { supervisorId: newEmp.id, supervisor: newEmp.name, status: targetStatus });
                           }
                         } else if (!editValue && req.supervisorId) {
                            if (confirm(`Soll der Vorgesetzte entfernt werden?`)) {

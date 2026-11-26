@@ -22,7 +22,7 @@ import { APP_CONFIG } from './config/appConfig';
 import { PLANER_PROFILES, DEFAULT_PROFILE } from './config/planerConfig';
 import { Toaster, toast } from 'react-hot-toast';
 import { ROTATION_BIN_ID, MONTH_AREA_MAPPING, MONTH_AREA_ORDER } from './config/rotationConfig';
-import { getSpecialDayInfo } from './utils/calendarUtils';
+import { getSpecialDayInfo, isLoaAutoAdminSupervisor } from './utils/calendarUtils';
 import './styles/layout.css';
 
 // Admin Undo functionality
@@ -475,7 +475,28 @@ const App = () => {
       
       // Merge absences and requests (Requests prefer Firestore)
       let absences = fsAbsences;
-      let requests = fsRequests;
+      let requests = fsRequests.map(req => {
+        if (!req || req.status !== 'pending_supervisor') return req;
+        const supName = allEmployees.find(e => e.id === req.supervisorId)?.name || req.supervisor || '';
+        if (!isLoaAutoAdminSupervisor(req.supervisorId, supName)) return req;
+
+        const upgraded = {
+          ...req,
+          status: 'pending_admin',
+          notified: { ...(req.notified || {}), pending_admin: req.notified?.pending_admin ?? false }
+        };
+        const targetType = upgraded.planerType || (
+          (() => {
+            const emp = allEmployees.find(e => e.id === upgraded.empId);
+            const isFOA = Array.isArray(emp?.groups) && emp.groups.includes('skill_funktionsoberarzt');
+            return (emp?.role === 'Oberarzt' || emp?.isOberarzt === true || isFOA) ? 'oa' : 'ass';
+          })()
+        );
+        firestoreService.saveRequest(targetType, upgraded).catch(err =>
+          console.warn(`[LOA-AutoRoute] Failed to upgrade request ${upgraded.id}:`, err)
+        );
+        return upgraded;
+      });
 
       // If we loaded from JSONBin but Firestore was empty, we'll want to migrate on next save
       if (!fsConfig && auth.user?.role === 'Administrator') {
@@ -1316,7 +1337,11 @@ const App = () => {
           return;
         }
 
-        request.status = request.supervisorId ? 'pending_supervisor' : 'pending_admin';
+        const supName = appData.fullEmployeeList.find(e => e.id === request.supervisorId)?.name || request.supervisor || '';
+        const needsSeparateSupervisor = Boolean(
+          request.supervisorId && !isLoaAutoAdminSupervisor(request.supervisorId, supName)
+        );
+        request.status = needsSeparateSupervisor ? 'pending_supervisor' : 'pending_admin';
         updatedRequests[reqIndex] = request;
 
         await firestoreService.saveRequest(getEmployeeProfileType(request.empId), request);
@@ -1902,17 +1927,20 @@ const App = () => {
   const poPendingCount = appData.requests.filter(r => r.planerType === planerType && r.status === 'approved' && !r.stamps?.po).length;
 
   const actionRequiredCount = appData.requests.filter(r => {
-    // Show badge if I am the requested vertreter or supervisor (cross-profile or native)
+    const supName = appData.fullEmployeeList.find(e => e.id === r.supervisorId)?.name || r.supervisor || '';
+    const isLoaSup = isLoaAutoAdminSupervisor(r.supervisorId, supName);
+
+    // Show badge if I am the requested vertreter or non-LOA supervisor (cross-profile or native)
     if ((r.status === 'pending_vertreter' && (r.vertreterId === resolvedUser?.id || (Array.isArray(r.substitutes) && r.substitutes.some(s => s.vertreterId === resolvedUser?.id)))) || 
-        (r.status === 'pending_supervisor' && r.supervisorId === resolvedUser?.id)) {
+        (r.status === 'pending_supervisor' && !isLoaSup && r.supervisorId === resolvedUser?.id)) {
         return true;
     }
 
     // For other cases, only look at native profile requests
     if (r.planerType !== planerType) return false;
 
-    // Admins see a badge for requests needing final approval
-    if (isAdmin) return r.status === 'pending_admin';
+    // Admins see a badge for requests needing final approval (including LOA-routed supervisor requests)
+    if (isAdmin) return r.status === 'pending_admin' || (r.status === 'pending_supervisor' && isLoaSup);
     
     return false;
   }).length + (perms.canSeePOKarte ? poPendingCount : 0);

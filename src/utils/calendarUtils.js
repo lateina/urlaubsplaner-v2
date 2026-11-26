@@ -217,6 +217,19 @@ export const isFoaOrOaInPneumo = (emp) => {
 };
 
 /**
+ * Checks whether the selected supervisor is Prof. Stefan Wagner (Leitender OA / Admin),
+ * so the request skips the separate 'pending_supervisor' login step and routes directly
+ * to 'pending_admin' in the Administrator profile.
+ */
+export const isLoaAutoAdminSupervisor = (supervisorId, supervisorName = '') => {
+  const id = String(supervisorId || '').trim().toLowerCase();
+  const name = String(supervisorName || '').trim().toLowerCase();
+  if (id === 'emp_90018' || id === 'admin') return true;
+  if (name.includes('stefan wagner') || name === 'leitender oa wagner') return true;
+  return false;
+};
+
+/**
  * Returns any warnings if a representative in this request simultaneously represents
  * other colleagues on any overlapping dates.
  * Format of warning string: "Achtung XY vertritt gleichzeitig auch XZ"

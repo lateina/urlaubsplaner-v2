@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import Modal from '../UI/Modal';
 import { User, Calendar, Plus, Trash2, AlertTriangle, CheckCircle2, Split, Clock, ArrowRight } from 'lucide-react';
-import { getLastNameSortKey, getRepresentativeIdForDate, getRotationExemptionInfo, isFoaOrOaInPneumo, getSimultaneousRepresentationWarnings } from '../../utils/calendarUtils';
+import { getLastNameSortKey, getRepresentativeIdForDate, getRotationExemptionInfo, isFoaOrOaInPneumo, getSimultaneousRepresentationWarnings, isLoaAutoAdminSupervisor } from '../../utils/calendarUtils';
 
 const EditRepresentativesModal = ({
   isOpen,
@@ -91,20 +91,29 @@ const EditRepresentativesModal = ({
     ];
   });
 
-  const hasPendingSupervisor = Boolean(
-    request.supervisorId && !request.stamps?.supervisor && request.status !== 'approved'
-  );
-
   const supervisorName = useMemo(() => {
     if (!request.supervisorId) return '';
     return employees.find(e => e.id === request.supervisorId)?.name || request.supervisor || request.supervisorId;
   }, [request.supervisorId, request.supervisor, employees]);
 
+  const needsSeparateSupervisor = Boolean(
+    request.supervisorId && !isLoaAutoAdminSupervisor(request.supervisorId, supervisorName)
+  );
+
+  const hasPendingSupervisor = Boolean(
+    needsSeparateSupervisor && !request.stamps?.supervisor && request.status !== 'approved'
+  );
+
   const getDefaultApprovalOption = (req) => {
     if (!req) return 'restart';
     if (req.status === 'approved') return 'direct';
-    if (req.supervisorId && !req.stamps?.supervisor && (req.status === 'pending_supervisor' || req.stamps?.vertreter)) {
+    const supName = employees.find(e => e.id === req.supervisorId)?.name || req.supervisor || '';
+    const sepSup = Boolean(req.supervisorId && !isLoaAutoAdminSupervisor(req.supervisorId, supName));
+    if (sepSup && !req.stamps?.supervisor && (req.status === 'pending_supervisor' || req.stamps?.vertreter)) {
       return 'workflow';
+    }
+    if (!sepSup && req.stamps?.vertreter) {
+      return 'direct';
     }
     return 'restart';
   };
@@ -390,7 +399,7 @@ const EditRepresentativesModal = ({
   // Handle Save
   const applyApprovalOption = (updates, allNone) => {
     if (approvalOption === 'restart') {
-      const nextStatus = allNone ? (request.supervisorId ? 'pending_supervisor' : 'pending_admin') : 'pending_vertreter';
+      const nextStatus = allNone ? (needsSeparateSupervisor ? 'pending_supervisor' : 'pending_admin') : 'pending_vertreter';
       updates.status = nextStatus;
       updates.stamps = {
         ...(request.stamps || {}),
@@ -409,7 +418,7 @@ const EditRepresentativesModal = ({
     }
 
     if (approvalOption === 'workflow') {
-      updates.status = (request.supervisorId && !request.stamps?.supervisor) ? 'pending_supervisor' : 'pending_admin';
+      updates.status = (needsSeparateSupervisor && !request.stamps?.supervisor) ? 'pending_supervisor' : 'pending_admin';
       updates._autoStampVertreter = !allNone;
       return true;
     }

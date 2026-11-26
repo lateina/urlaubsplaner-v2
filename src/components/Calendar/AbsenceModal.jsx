@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { getSpecialDayInfo, getLastNameSortKey, getRepresentativeIdForDate, getRotationExemptionInfo, isFoaOrOaInPneumo } from '../../utils/calendarUtils';
+import { getSpecialDayInfo, getLastNameSortKey, getRepresentativeIdForDate, getRotationExemptionInfo, isFoaOrOaInPneumo, isLoaAutoAdminSupervisor } from '../../utils/calendarUtils';
 import Modal from '../UI/Modal';
 
 const AbsenceModal = ({ isOpen, onClose, onSave, onSaveWish, onSubmitRequest, employees, isAdmin, perms = {}, currentUser, skills = [], absences = {}, requests = [], vacationStats = {}, planerType, rotationData = [] }) => {
@@ -532,6 +532,10 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSaveWish, onSubmitRequest, em
 
     const isMaier = effectiveEmpId === 'maier';
 
+    const needsSeparateSupervisorStep = Boolean(
+      formData.supervisorId && !isLoaAutoAdminSupervisor(formData.supervisorId, formData.supervisor)
+    );
+
     // Always create a request object
     const request = {
       id: 'req_' + Date.now(),
@@ -544,7 +548,7 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSaveWish, onSubmitRequest, em
       supervisorId: formData.supervisorId,
       forwardSeparately: formData.type === 'D' ? formData.forwardSeparately : null,
       dates: dates,
-      status: isDirect ? 'approved' : (formData.vertreterId ? 'pending_vertreter' : (isMaier ? 'approved' : (formData.supervisorId ? 'pending_supervisor' : 'pending_admin'))),
+      status: isDirect ? 'approved' : (formData.vertreterId ? 'pending_vertreter' : (isMaier ? 'approved' : (needsSeparateSupervisorStep ? 'pending_supervisor' : 'pending_admin'))),
       createdAt: new Date().toISOString().split('T')[0],
       stamps: {
         submitted: {
@@ -965,7 +969,9 @@ const AbsenceModal = ({ isOpen, onClose, onSave, onSaveWish, onSubmitRequest, em
             >
               <option value="">Keiner ausgewählt</option>
               {supervisorCandidates.map(emp => (
-                <option key={emp.id} value={emp.id}>{emp.name}</option>
+                <option key={emp.id} value={emp.id}>
+                  {isLoaAutoAdminSupervisor(emp.id, emp.name) ? `${emp.name} (Leitender OA)` : emp.name}
+                </option>
               ))}
             </select>
           </div>

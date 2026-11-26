@@ -233,9 +233,17 @@ async function run() {
                 }
             }
 
-            // 1.5 Pending Supervisor -> Digest
+            // 1.5 Pending Supervisor -> Digest (unless supervisor is Stefan Wagner / LOA, which routes directly to Admin)
+            const sup = req.supervisorId ? allEmployees.find(e => e.id === req.supervisorId) : null;
+            const supNameLower = String(sup?.name || req.supervisor || '').trim().toLowerCase();
+            const isLoaSupervisor = req.supervisorId === 'emp_90018' || req.supervisorId === 'admin' || supNameLower.includes('stefan wagner');
+
+            if (req.status === 'pending_supervisor' && isLoaSupervisor) {
+                req.status = 'pending_admin';
+                updates.status = 'pending_admin';
+            }
+
             if (req.status === 'pending_supervisor' && !notified.pending_supervisor) {
-                const sup = allEmployees.find(e => e.id === req.supervisorId);
                 if (sup?.email) {
                     const supLink = `\nZum Urlaubsplaner: ${appUrl}\n`;
                     if (!personDigests[sup.email]) personDigests[sup.email] = { name: sup.name, items: [] };
